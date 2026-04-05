@@ -8,6 +8,7 @@ import { showToast, openConfirm } from '../utils/notifications.js';
 import { formatCurrency, formatDate, getDaysInMonth, getCurrencyValue, setCurrencyValue } from '../utils/format.js';
 import { countPresenceDays } from '../utils/attendance-calc.js';
 import { registerSectionCallback } from './navigation.js';
+import { handleAdvanceEmployeeSearch, initSmartSearchDropdowns } from './smart-search.js';
 
 export function initAdvances() {
   registerSectionCallback('advances', displayAdvances);
@@ -27,11 +28,17 @@ export function initAdvances() {
   document.getElementById('advanceAmount')
     ?.addEventListener('input', previewNetSalary);
 
+  // Recherche intelligente sur le champ Employé du formulaire d'ajout
+  document.getElementById('advanceEmployeeInput')
+    ?.addEventListener('input', handleAdvanceEmployeeSearch);
+
   // Mois courant par défaut
   const mf = document.getElementById('advanceMonthFilter');
   if (mf) mf.value = new Date().toISOString().slice(0, 7);
   const ad = document.getElementById('advanceDate');
   if (ad) ad.value = new Date().toISOString().split('T')[0];
+
+  initSmartSearchDropdowns();
 }
 
 // ------ Display ------

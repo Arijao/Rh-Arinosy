@@ -9,6 +9,7 @@ import { formatCurrency, formatDate, getDaysInMonth } from '../utils/format.js';
 import { countPresenceDays } from '../utils/attendance-calc.js';
 import { registerSectionCallback } from './navigation.js';
 import { populateEmployeeSelects } from './groups.js';
+import { handlePayrollEmployeeSearch, initSmartSearchDropdowns } from './smart-search.js';
 
 export function initPayroll() {
   registerSectionCallback('payroll', () => {
@@ -16,6 +17,12 @@ export function initPayroll() {
       '<p style="text-align:center;padding:20px;">Sélectionnez un mois et cliquez sur Calculer.</p>';
     document.getElementById('payrollSummary').style.display = 'none';
   });
+
+  // Recherche intelligente sur le champ Employé de la section Paie
+  document.getElementById('payrollEmployeeInput')
+    ?.addEventListener('input', handlePayrollEmployeeSearch);
+
+  initSmartSearchDropdowns();
 }
 
 export function handlePayrollGroupChange() {

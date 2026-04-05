@@ -335,7 +335,35 @@
           <h2><span class="material-icons">credit_score</span>Gestion des Avances</h2>
           <form id="advanceForm">
             <div class="form-row">
-              <div class="form-group"><label>Employé</label><div class="select-dropdown"><select class="form-control" id="advanceEmployee" required><option value="">Sélectionner</option></select><button type="button" class="btn btn-secondary" onclick="startQRScan('advance')" title="Scanner QR"><span class="material-icons">qr_code_scanner</span></button><button type="button" class="btn btn-secondary" onclick="window.startFaceScanForSelection?.('advance')" title="Visage"><span class="material-icons">face</span></button></div></div>
+              <div class="form-group" style="flex:1;">
+                <label for="advanceEmployeeInput">Employé</label>
+                <!-- Barre de recherche intelligente — identique à Recherche Intelligente de Statut -->
+                <div class="search-container" style="margin-bottom:0;position:relative;">
+                  <span class="material-icons search-icon">search</span>
+                  <input type="text" class="search-input" id="advanceEmployeeInput"
+                         placeholder="Taper pour chercher un employé..." autocomplete="off"
+                         style="padding-right:96px;"
+                         oninput="window._handleAdvanceEmployeeSearch?.()">
+                  <div style="position:absolute;right:12px;top:50%;transform:translateY(-50%);display:flex;gap:8px;z-index:5;">
+                    <button type="button" onclick="startQRScan('advance')" title="Scanner QR"
+                            style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;background:linear-gradient(135deg,#6750A4,#7C4DFF);color:white;border:none;border-radius:8px;padding:0;cursor:pointer;transition:transform 0.2s ease;box-shadow:0 2px 8px rgba(103,80,164,.4);"
+                            onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                      <span class="material-icons" style="font-size:20px;line-height:1;">qr_code_scanner</span>
+                    </button>
+                    <button type="button" onclick="window.startFaceScanForSelection?.('advance')" title="Scanner Visage"
+                            style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;background:linear-gradient(135deg,#0ea5e9,#0284c7);color:white;border:none;border-radius:8px;padding:0;cursor:pointer;transition:transform 0.2s ease;box-shadow:0 2px 8px rgba(14,165,233,.4);"
+                            onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                      <span class="material-icons" style="font-size:20px;line-height:1;">face_retouching_natural</span>
+                    </button>
+                  </div>
+                </div>
+                <!-- Dropdown résultats dynamiques -->
+                <div id="advanceEmployeeResults" style="display:none;position:absolute;width:100%;z-index:100;background:rgba(30,41,59,.98);border:1px solid rgba(103,80,164,.4);border-radius:12px;padding:8px;margin-top:4px;box-shadow:0 8px 32px rgba(15,23,42,.5);max-height:280px;overflow-y:auto;"></div>
+                <!-- Select caché — lu par handleAddAdvance() dans advances.js -->
+                <select id="advanceEmployee" required style="display:none;" aria-hidden="true">
+                  <option value="">Sélectionner</option>
+                </select>
+              </div>
               <div class="form-group"><label>Montant (Ar)</label><input type="text" class="form-control currency-input" id="advanceAmount" required data-type="currency"></div>
             </div>
             <div class="form-group"><label>Date</label><input type="date" class="form-control" id="advanceDate" required></div>
@@ -353,7 +381,7 @@
             <button class="btn btn-success" onclick="window.exportAdvances?.('xlsx')"><span class="material-icons">table_view</span>Export Excel</button>
           </div>
           <div class="form-row" style="margin-top:24px;align-items:flex-end;">
-            <div class="form-group"><label for="advanceSearchInput">Rechercher</label><div class="search-container" style="margin-bottom:0;position:relative;"><span class="material-icons search-icon">search</span><input type="text" class="search-input" id="advanceSearchInput" placeholder="Taper pour filtrer..." style="padding-right:60px;"><button type="button" class="btn btn-secondary" onclick="startQRScan('advances-search')" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);padding:8px;border-radius:50%;min-width:40px;height:40px;"><span class="material-icons">qr_code_scanner</span></button></div></div>
+            <div class="form-group"><label for="advanceSearchInput">Rechercher</label><div class="search-container" style="margin-bottom:0;position:relative;"><span class="material-icons search-icon">search</span><input type="text" class="search-input" id="advanceSearchInput" placeholder="Taper pour filtrer..." style="padding-right:96px;"><div style="position:absolute;right:12px;top:50%;transform:translateY(-50%);display:flex;gap:8px;z-index:5;"><button type="button" class="btn-icon" onclick="startQRScan('advances-search')" title="Scanner QR" style="background:linear-gradient(135deg,#6750A4,#7C4DFF);color:white;border:none;border-radius:8px;padding:8px;cursor:pointer;"><span class="material-icons" style="font-size:20px;">qr_code_scanner</span></button><button type="button" class="btn-icon" onclick="window.openFaceRecognitionForAdvanceSearch?.()" title="Scanner Visage" style="background:linear-gradient(135deg,#0ea5e9,#0284c7);color:white;border:none;border-radius:8px;padding:8px;cursor:pointer;"><span class="material-icons" style="font-size:20px;">face_retouching_natural</span></button></div></div></div>
             <div class="form-group"><label for="advanceMonthFilter">Mois</label><input type="month" class="form-control" id="advanceMonthFilter"></div>
             <div class="form-group"><label for="advanceGroupFilter">Groupe</label><select class="form-control" id="advanceGroupFilter"><option value="all">Tous</option></select></div>
           </div>
@@ -368,7 +396,36 @@
         <div class="card">
           <h2><span class="material-icons">price_check</span>Gestion de la Paie</h2>
           <div class="form-row" style="align-items:flex-end;">
-            <div class="form-group"><label>Employé</label><div class="select-dropdown" style="display:flex;"><select class="form-control" id="payrollEmployeeSelect" onchange="handlePayrollEmployeeChange()"><option value="">Tous les employés</option></select><button type="button" class="btn btn-secondary" onclick="startQRScan('payroll')" title="QR"><span class="material-icons">qr_code_scanner</span></button><button type="button" class="btn btn-secondary" onclick="window.startFaceScanForSelection?.('payroll')" title="Visage"><span class="material-icons">face</span></button></div></div>
+            <div class="form-group" style="flex:1;position:relative;">
+              <label for="payrollEmployeeInput">Employé</label>
+              <!-- Barre de recherche intelligente — identique à Recherche Intelligente de Statut -->
+              <div class="search-container" style="margin-bottom:0;position:relative;">
+                <span class="material-icons search-icon">search</span>
+                <input type="text" class="search-input" id="payrollEmployeeInput"
+                       placeholder="Taper pour chercher un employé..." autocomplete="off"
+                       style="padding-right:96px;"
+                       oninput="window._handlePayrollEmployeeSearch?.()">
+                <div style="position:absolute;right:12px;top:50%;transform:translateY(-50%);display:flex;gap:8px;z-index:5;">
+                  <button type="button" onclick="startQRScan('payroll')" title="Scanner QR"
+                          style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;background:linear-gradient(135deg,#6750A4,#7C4DFF);color:white;border:none;border-radius:8px;padding:0;cursor:pointer;transition:transform 0.2s ease;box-shadow:0 2px 8px rgba(103,80,164,.4);"
+                          onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                    <span class="material-icons" style="font-size:20px;line-height:1;">qr_code_scanner</span>
+                  </button>
+                  <button type="button" onclick="window.startFaceScanForSelection?.('payroll')" title="Scanner Visage"
+                          style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;background:linear-gradient(135deg,#0ea5e9,#0284c7);color:white;border:none;border-radius:8px;padding:0;cursor:pointer;transition:transform 0.2s ease;box-shadow:0 2px 8px rgba(14,165,233,.4);"
+                          onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                    <span class="material-icons" style="font-size:20px;line-height:1;">face_retouching_natural</span>
+                  </button>
+                </div>
+              </div>
+              <!-- Dropdown résultats dynamiques -->
+              <div id="payrollEmployeeResults" style="display:none;position:absolute;width:100%;z-index:100;background:rgba(30,41,59,.98);border:1px solid rgba(103,80,164,.4);border-radius:12px;padding:8px;margin-top:4px;box-shadow:0 8px 32px rgba(15,23,42,.5);max-height:280px;overflow-y:auto;"></div>
+              <!-- Select caché — lu par calculatePayroll() / handlePayrollEmployeeChange() dans payroll.js -->
+              <select id="payrollEmployeeSelect" style="display:none;" aria-hidden="true"
+                      onchange="handlePayrollEmployeeChange()">
+                <option value="">Tous les employés</option>
+              </select>
+            </div>
             <div class="form-group"><label>Groupe</label><div class="select-dropdown"><select class="form-control" id="payrollGroupFilter" onchange="handlePayrollGroupChange()"><option value="all">Tous les Groupes</option></select></div></div>
             <div class="form-group"><label>Mois</label><input type="month" class="form-control" id="payrollMonth"></div>
             <div class="form-group" style="margin-top:16px;padding:12px;background-color:rgba(103,80,164,.08);border-radius:8px;">
@@ -396,7 +453,7 @@
           <h2><span class="material-icons">history</span>Historique de Paiement</h2>
           <div class="form-row">
             <div class="form-group"><label>Filtrer par Employé</label><div class="select-dropdown"><select class="form-control" id="paymentEmployeeFilter" onchange="displayPayments()"><option value="">Tous les employés</option></select></div></div>
-            <div class="form-group"><label>Recherche</label><input type="text" class="form-control" id="paymentSearch" placeholder="Rechercher..." oninput="displayPayments()"></div>
+            <div class="form-group"><label>Recherche</label><div class="search-container" style="margin-bottom:0;position:relative;"><span class="material-icons search-icon">search</span><input type="text" class="search-input" id="paymentSearch" placeholder="Rechercher..." oninput="displayPayments()" style="padding-right:96px;"><div style="position:absolute;right:12px;top:50%;transform:translateY(-50%);display:flex;gap:8px;z-index:5;"><button type="button" class="btn-icon" onclick="startQRScan('payments-search')" title="Scanner QR" style="background:linear-gradient(135deg,#6750A4,#7C4DFF);color:white;border:none;border-radius:8px;padding:8px;cursor:pointer;"><span class="material-icons" style="font-size:20px;">qr_code_scanner</span></button><button type="button" class="btn-icon" onclick="window.openFaceRecognitionForPaymentSearch?.()" title="Scanner Visage" style="background:linear-gradient(135deg,#0ea5e9,#0284c7);color:white;border:none;border-radius:8px;padding:8px;cursor:pointer;"><span class="material-icons" style="font-size:20px;">face_retouching_natural</span></button></div></div></div>
           </div>
           <div id="paymentList"></div>
         </div>

@@ -548,7 +548,7 @@ body::before {
   border: 1px solid rgba(148,163,184,.2); position: relative; overflow: hidden;
 }
 .nav-menu-item:hover { box-shadow: 0 0 0 1px rgba(200,210,255,.55), 0 3px 12px rgba(165,180,252,.22); transform: translateX(4px); }
-.nav-menu-item.active { box-shadow: 0 0 0 1px #65b0ff, 0 4px 12px rgba(15,23,42,.5), 0 0 8px rgba(101,176,255,.15); }
+.nav-menu-item.active { box-shadow: 0 0 0 0.5px #65b0ff, 0 4px 12px rgba(15,23,42,.5), 0 0 8px rgba(101,176,255,.15); }
 .nav-menu-item.active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: linear-gradient(180deg, #818cf8, #6366f1); border-radius: 0 4px 4px 0; }
 .nav-menu-item .material-icons { font-size: 24px; color: #cbd5e1 !important; min-width: 24px; flex-shrink: 0; }
 .nav-menu-item:hover .material-icons, .nav-menu-item.active .material-icons { color: #a5b4fc; transform: scale(1.1); }
@@ -1438,5 +1438,111 @@ textarea[disabled] {
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.6; }
+}
+
+/* ============================================================
+   SEARCH BAR WITH INTEGRATED SCANNER BUTTONS
+   Harmonisation UI — Avances · Paie · Recherche Intelligente de Statut
+   Ajout minimal : aucune règle existante modifiée.
+   ============================================================ */
+
+/* Le .search-container existant (position:relative) est réutilisé tel quel.
+   On ajoute uniquement le comportement "avec scanners intégrés". */
+.search-with-scanners {
+  position: relative; /* redondant avec .search-container, mis pour autonomie */
+}
+
+/* Zone des boutons scanner ancrée à droite à l'intérieur du champ */
+.search-scanner-actions {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  z-index: 2;
+}
+
+/* Ajustement du padding-right du champ quand les scanners sont présents
+   (2 boutons × 36px + gap + marge = ~88px)
+   Cible uniquement .search-input utilisé dans les sections concernées */
+.search-with-scanners .search-input {
+  padding-right: 92px;
+}
+
+/* Idem pour .search-input-modern (section Recherche Intelligente de Statut) */
+.search-with-scanners .search-input-modern {
+  padding-right: 92px;
+}
+
+/* Bouton scanner générique — forme et taille */
+.search-scanner-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 8px; /* cohérent avec le border-radius:8px des boutons inline dans index.html */
+  cursor: pointer;
+  transition: all 0.25s ease;
+  flex-shrink: 0;
+}
+
+.search-scanner-btn:hover {
+  transform: scale(1.1);
+}
+
+.search-scanner-btn:active {
+  transform: scale(0.95);
+}
+
+.search-scanner-btn .material-icons {
+  font-size: 20px; /* identique aux boutons inline de la section de référence */
+  line-height: 1;
+}
+
+/* Variante QR — reprend exactement le gradient de la section de référence */
+.search-scanner-btn.qr {
+  background: linear-gradient(135deg, #6750A4, #7C4DFF);
+  color: white;
+  box-shadow: 0 2px 8px rgba(103, 80, 164, 0.35);
+}
+
+.search-scanner-btn.qr:hover {
+  box-shadow: 0 4px 14px rgba(103, 80, 164, 0.55);
+}
+
+/* Variante Face — reprend exactement le gradient de la section de référence */
+.search-scanner-btn.face {
+  background: linear-gradient(135deg, #0ea5e9, #0284c7);
+  color: white;
+  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.35);
+}
+
+.search-scanner-btn.face:hover {
+  box-shadow: 0 4px 14px rgba(14, 165, 233, 0.55);
+}
+
+/* Focus visible — accessibilité (cohérent avec les règles :focus existantes) */
+.search-scanner-btn:focus-visible {
+  outline: 2px solid var(--md-sys-color-primary);
+  outline-offset: 2px;
+}
+
+/* Responsive — très petits écrans */
+@media (max-width: 400px) {
+  .search-scanner-btn {
+    width: 30px;
+    height: 30px;
+  }
+  .search-scanner-btn .material-icons {
+    font-size: 17px;
+  }
+  .search-with-scanners .search-input,
+  .search-with-scanners .search-input-modern {
+    padding-right: 76px;
+  }
 }
 
