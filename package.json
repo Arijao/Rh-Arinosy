@@ -1,0 +1,35 @@
+{
+  "name": "rh-behavana",
+  "version": "2.0.0",
+  "description": "Système de Gestion des Ressources Humaines - Mode Sombre & Offline-First",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve .",
+    "serve": "python3 -m http.server 8080",
+    "dev": "npx live-server",
+    "build": "echo 'No build step needed - static HTML'",
+    "deploy": "vercel --prod"
+  },
+  "keywords": [
+    "rh",
+    "hr",
+    "gestion",
+    "employés",
+    "paie",
+    "offline"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/YOUR_USERNAME/rh-behavana.git"
+  },
+  "devDependencies": {
+    "live-server": "^1.2.1",
+    "serve": "^14.0.0",
+    "vercel": "^28.0.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1e293b">
+  <meta name="color-scheme" content="dark">
+  <title>Système de Gestion RH - QR Code</title>
+
+  <!-- Force theme dark immédiatement avant le chargement du CSS -->
+  <script>
+    document.documentElement.setAttribute('data-theme', 'dark');
+    document.documentElement.style.setProperty('color-scheme', 'dark');
+  </script>
+
+  <!-- Bibliothèques tierces (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.4.8/dist/sweetalert2.all.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.min.js"></script>
+
+  <!-- Polices & icônes -->
+  <link href="roboto.css" rel="stylesheet">
+  <!-- Material Icons : préconnexion CDN pour accélérer le premier chargement -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- icons.css gère le chargement hybride CDN + fallback @font-face local -->
+  <link href="icons.css" rel="stylesheet">
+  <link rel="manifest" href="manifest.json">
+
+  <!-- CSS principal de l'application -->
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/design-system.css">
+  <link rel="stylesheet" href="css/notifications.css">
+</head>
+<body>
+
+  <!-- Conteneurs pour dialogs et toasts -->
+  <div id="dialogContainer" aria-live="assertive" aria-atomic="false"></div>
+  <div id="toastContainer"></div>
+
+  <!-- ============================================================ -->
+  <!-- CONTENU PRINCIPAL DE L'APP                                    -->
+  <!-- L'overlay login est injecté par auth.js par-dessus celui-ci  -->
+  <!-- ============================================================ -->
+  <div id="appContent">
+
+    <div class="container">
+      <div class="header">
+        <button class="settings-btn" onclick="window.toggleSettings?.()">
+          <span class="material-icons">settings</span>
+        </button>
+        <button class="theme-toggle" onclick="window.toggleTheme?.()">
+          <span class="material-icons" id="theme-icon">dark_mode</span>
+        </button>
+        <h1>
+          <span class="material-icons" style="font-size:2.5rem;vertical-align:middle;">qr_code_scanner</span>
+          RH RiseVanilla
+        </h1>
+        <p>La vanille à portée de main</p>
+        <div id="dbStatus" class="db-status">
+          <span class="material-icons">database</span>
+          <span id="dbStatusText">Initialisation de la base de données...</span>
+        </div>
+      </div>
+
+      <!-- Notifications -->
+      <div id="notificationsContainer" style="margin-bottom:16px;display:flex;flex-direction:column;gap:8px;"></div>
+
+      <!-- Hamburger -->
+      <button class="hamburger-btn" id="hamburgerBtn" onclick="window.toggleNavMenu?.()" style="cursor: pointer;">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="nav-overlay" id="navOverlay" onclick="window.toggleNavMenu?.()" style="cursor: pointer;"></div>
+
+      <!-- Menu latéral -->
+      <div class="nav-menu" id="navMenu">
+        <div class="nav-menu-item active"  onclick="navigateToSection('dashboard',this)"><span class="material-icons">dashboard</span><span class="nav-menu-label">Tableau de Bord</span></div>
+        <div class="nav-menu-item"         onclick="navigateToSection('employees',this)"><span class="material-icons">people</span><span class="nav-menu-label">Employés</span></div>
+        <div class="nav-menu-item"         onclick="navigateToSection('groups',this)"><span class="material-icons">groups</span><span class="nav-menu-label">Groupes</span></div>
+        <div class="nav-menu-item"         onclick="navigateToSection('employee-stats',this)"><span class="material-icons">person_search</span><span class="nav-menu-label">Statut Employé</span></div>
+        <div class="nav-menu-item"         onclick="navigateToSection('attendance',this)"><span class="material-icons">schedule</span><span class="nav-menu-label">Présence</span></div>
+        <div class="nav-menu-item"         onclick="navigateToSection('qr-presence',this)"><span class="material-icons">qr_code</span><span class="nav-menu-label">Présence QR</span></div>
+        <div class="nav-menu-item"         onclick="navigateToSection('face-presence',this)"><span class="material-icons">face</span><span class="nav-menu-label">Pointage Facial</span></div>
+        <div class="nav-menu-item"         onclick="navigateToSection('qr-codes',this)"><span class="material-icons">qr_code_2</span><span class="nav-menu-label">Codes QR</span></div>
+        <div class="nav-menu-item"         onclick="navigateToSection('advances',this)"><span class="material-icons">credit_score</span><span class="nav-menu-label">Avances</span></div>
+        <div class="nav-menu-item"         onclick="navigateToSection('payroll',this)"><span class="material-icons">price_check</span><span class="nav-menu-label">Paie</span></div>
+        <div class="nav-menu-item"         onclick="navigateToSection('stc',this)"><span class="material-icons">exit_to_app</span><span class="nav-menu-label">Solde Tout Compte</span></div>
+        <div class="nav-menu-item"         onclick="navigateToSection('payments',this)"><span class="material-icons">history</span><span class="nav-menu-label">Paiements</span></div>
+        <div class="nav-menu-item"         onclick="navigateToSection('reports',this)"><span class="material-icons">analytics</span><span class="nav-menu-label">Rapports</span></div>
+        <div class="nav-menu-item"         onclick="navigateToSection('estimation',this)"><span class="material-icons">request_quote</span><span class="nav-menu-label">Estimation</span></div>
+      </div>
+
+      <!-- ============================================================ -->
+      <!-- SECTIONS (même HTML que l'original, inchangé)                 -->
+      <!-- ============================================================ -->
+
+      <!-- Dashboard -->
+      <div id="dashboard" class="section active">
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-icon"><span class="material-icons">people</span></div><div class="stat-content"><h3 id="totalEmployees">0</h3><p>Total Employés</p></div></div>
+          <div class="stat-card"><div class="stat-icon" style="background-color:var(--md-sys-color-secondary);"><span class="material-icons">fact_check</span></div><div class="stat-content"><h3 id="checkedInToday">0</h3><p>Employés Ayant Pointé</p></div></div>
+          <div class="stat-card"><div class="stat-icon"><span class="material-icons">check_circle</span></div><div class="stat-content"><h3 id="presentToday">0</h3><p>Journées Complètes (&ge; 4h)</p></div></div>
+          <div class="stat-card" style="overflow:visible!important;position:relative;cursor:pointer" onclick="showSection('qr-presence')">
+            <div class="stat-icon"><span class="material-icons" id="scanMethodIcon">qr_code_scanner</span></div>
+            <div class="stat-content"><h3 id="qrScansToday">0</h3><p id="scanMethodLabel">Scans Aujourd'hui</p></div>
+            <div style="position:absolute;top:12px;right:12px;z-index:10;">
+              <button onclick="window.toggleScanMethodMenu?.(event);event.stopPropagation()" style="background:none;border:none;cursor:pointer;padding:4px;border-radius:50%;"><span class="material-icons" style="color:var(--md-sys-color-on-surface);font-size:20px;">more_vert</span></button>
+            </div>
+          </div>
+          <div class="stat-card"><div class="stat-icon"><span class="material-icons">payments</span></div><div class="stat-content"><h3 id="totalSalaries">0 Ar</h3><p>Salaires ce Mois</p></div></div>
+        </div>
+        <div class="card" style="margin-top:24px;">
+          <h2><span class="material-icons">analytics</span>Aperçu Visuel</h2>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:32px;">
+            <div><h3 style="font-size:1.1em;font-weight:500;text-align:center;margin-bottom:16px;">Présence (7 derniers jours)</h3><div style="position:relative;height:300px;"><canvas id="weeklyAttendanceChart"></canvas></div></div>
+            <div><h3 style="font-size:1.1em;font-weight:500;text-align:center;margin-bottom:16px;">Répartition par Groupe</h3><div style="position:relative;height:300px;"><canvas id="groupDistributionChart"></canvas></div></div>
+            <div><h3 style="font-size:1.1em;font-weight:500;text-align:center;margin-bottom:16px;">Répartition par Genre</h3><div style="position:relative;height:280px;"><canvas id="genderDistributionChart"></canvas></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Employees -->
+      <div id="employees" class="section">
+        <div class="card">
+          <h2><span class="material-icons">people</span>Liste des Employés</h2>
+          <div style="margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid var(--md-sys-color-outline-variant);">
+            <button class="btn" onclick="openAddEmployeeModal()"><span class="material-icons">person_add</span>Ajouter un Employé</button>
+          </div>
+          <div class="form-group" style="max-width:300px;margin-bottom:16px;">
+            <label for="employeeGroupFilter">Filtrer par Groupe</label>
+            <select class="form-control" id="employeeGroupFilter"><option value="all">Tous les Groupes</option><option value="none">Sans Groupe</option></select>
+          </div>
+          <div class="search-container"><span class="material-icons search-icon">search</span><input type="text" class="search-input" id="employeeSearch" placeholder="Rechercher un employé..."></div>
+          <div class="form-group" style="max-width:200px;margin-top:16px;">
+            <label for="employeeItemsPerPageSelect">Éléments par page</label>
+            <select id="employeeItemsPerPageSelect" class="form-control" onchange="changeItemsPerPage('employee',this.value)"><option value="10">10</option><option value="20" selected>20</option><option value="50">50</option><option value="100">100</option></select>
+          </div>
+          <div class="employee-list" id="employeeList"></div>
+          <div class="pagination-controls" id="employeePagination"></div>
+        </div>
+      </div>
+
+      <!-- Groups -->
+      <div id="groups" class="section">
+        <div class="card">
+          <h2><span class="material-icons">groups</span>Gestion des Groupes</h2>
+          <form id="groupForm" style="margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid var(--md-sys-color-outline-variant);">
+            <div class="form-row">
+              <div class="form-group"><label for="groupName">Nom du Groupe</label><input type="text" id="groupName" class="form-control" placeholder="Ex: Équipe Technique" required></div>
+              <div class="form-group"><label for="groupDescription">Description</label><input type="text" id="groupDescription" class="form-control" placeholder="Description du groupe"></div>
+            </div>
+            <input type="hidden" id="groupId">
+            <button type="submit" class="btn"><span class="material-icons">add</span><span id="groupFormBtnText">Ajouter le Groupe</span></button>
+            <button type="button" class="btn btn-secondary" id="cancelEditGroupBtn" style="display:none;" onclick="cancelGroupEdit()"><span class="material-icons">cancel</span>Annuler</button>
+          </form>
+          <h3>Liste des Groupes</h3>
+          <div id="groupList" class="employee-list"></div>
+          <!-- Salaire en masse -->
+          <div class="card" style="margin-top:32px;border:2px solid var(--md-sys-color-primary);">
+            <h2 style="color:var(--md-sys-color-primary);"><span class="material-icons">payments</span>Salaire en Masse par Groupe</h2>
+            <div class="form-row">
+              <div class="form-group"><label>1️⃣ Groupe</label><select class="form-control" id="masseSalaireGroupSelect" onchange="showMasseSalairePreview(this.value)"><option value="">-- Choisir --</option></select></div>
+              <div class="form-group"><label>2️⃣ Salaire (Ar)</label><input type="text" class="form-control currency-input" id="masseSalaireAmount" placeholder="Ex: 150 000" data-type="currency"></div>
+            </div>
+            <button class="btn btn-primary" onclick="applyMasseSalaire()" id="applyMasseSalaireBtn" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;">
+                <span class="material-icons">done_all</span>
+                <span>Appliquer à Tous</span>
+            </button>
+            <div id="masseSalairePreview" style="margin-top:20px;display:none;padding:16px;background:var(--md-sys-color-surface-variant);border-radius:8px;"><h4 style="margin-top:0;color:var(--md-sys-color-primary);">👥 Employés concernés:</h4><div id="masseSalaireEmployeeList" style="max-height:250px;overflow-y:auto;"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Statut Employé -->
+      <div id="employee-stats" class="section">
+        <div class="card">
+          <h2><span class="material-icons">person_search</span>Recherche Intelligente de Statut</h2>
+          <div class="form-row" style="align-items:flex-end;">
+            <div class="form-group" style="flex:1;">
+              <label for="smartSearchInput">Nom de l'employé</label>
+              <div class="search-container" style="margin-bottom:0;position:relative;">
+                <span class="material-icons search-icon">search</span>
+                <input type="text" class="search-input" id="smartSearchInput" placeholder="Commencez à taper..." style="padding-right:120px;">
+                <div style="position:absolute;right:12px;top:50%;transform:translateY(-50%);display:flex;gap:8px;z-index:5;">
+                  <button type="button" class="btn-icon" onclick="window.startQRScanForStatusSearch?.()" title="Scanner QR" style="background:linear-gradient(135deg,#6750A4,#7C4DFF);color:white;border:none;border-radius:8px;padding:8px;cursor:pointer;"><span class="material-icons" style="font-size:20px;">qr_code_scanner</span></button>
+                  <button type="button" class="btn-icon" onclick="window.openFaceRecognitionForStatusSearch?.()" title="Scanner Visage" style="background:linear-gradient(135deg,#0ea5e9,#0284c7);color:white;border:none;border-radius:8px;padding:8px;cursor:pointer;"><span class="material-icons" style="font-size:20px;">face_retouching_natural</span></button>
+                </div>
+              </div>
+            </div>
+            <div class="form-group"><label for="statsMonth">Mois</label><input type="month" class="form-control" id="statsMonth"></div>
+          </div>
+          <div id="smartSearchResults" style="margin-top:16px;"></div>
+          <div id="employeeStatusResults" style="margin-top:24px;"></div>
+        </div>
+      </div>
+
+      <!-- Pointage Facial -->
+      <div id="face-presence" class="section">
+        <div class="card">
+          <h2><span class="material-icons">face</span>Pointage par Reconnaissance Faciale</h2>
+          <div style="margin-bottom:24px;padding:16px;background:rgba(103,80,164,.08);border-radius:12px;border-left:4px solid var(--md-sys-color-primary);">
+            <h3 style="margin:0 0 12px;display:flex;align-items:center;gap:8px;"><span class="material-icons" style="color:var(--md-sys-color-primary);">info</span>Comment ça marche?</h3>
+            <ol style="margin:0;padding-left:20px;line-height:1.8;">
+              <li><strong>Enrollment</strong>: Bouton 📸 dans la liste employés</li>
+              <li><strong>Pointage</strong>: Cliquez le bouton ci-dessous et regardez la caméra</li>
+              <li><strong>Reconnaissance</strong>: Le système identifie l'employé automatiquement</li>
+            </ol>
+          </div>
+          <div style="text-align:center;margin-bottom:32px;">
+            <button onclick="window.openFacePointageModal?.()" style="padding:20px 40px;background:linear-gradient(135deg,#6750A4,#7C4DFF);color:white;border:none;border-radius:12px;cursor:pointer;font-size:18px;font-weight:600;display:inline-flex;align-items:center;gap:12px;box-shadow:0 4px 12px rgba(103,80,164,.3);">
+              <span class="material-icons" style="font-size:32px;">face_retouching_natural</span>Démarrer le Pointage Facial
+            </button>
+          </div>
+        </div>
+        <div class="card">
+          <h3 style="margin:0 0 16px;display:flex;align-items:center;gap:8px;"><span class="material-icons" style="color:var(--md-sys-color-primary);">people</span>Employés Enrolled (<span id="enrolledCount">0</span>)</h3>
+          <div class="form-group" style="max-width:200px;margin-bottom:16px;"><label for="enrolledItemsPerPageSelect">Éléments par page</label><select id="enrolledItemsPerPageSelect" class="form-control" onchange="changeItemsPerPage('enrolled',this.value)"><option value="10">10</option><option value="20" selected>20</option><option value="50">50</option></select></div>
+          <div id="enrolledEmployeesList"></div>
+          <div class="pagination-controls" id="enrolledPagination"></div>
+        </div>
+        <div class="card">
+          <h3 style="margin:0 0 16px;display:flex;align-items:center;gap:8px;"><span class="material-icons" style="color:var(--md-sys-color-success);">check_circle</span>Pointages Faciaux du Jour</h3>
+          <div class="form-group" style="max-width:200px;margin-bottom:16px;"><label for="faceAttendanceItemsPerPageSelect">Éléments par page</label><select id="faceAttendanceItemsPerPageSelect" class="form-control" onchange="changeItemsPerPage('faceAttendance',this.value)"><option value="10">10</option><option value="20" selected>20</option><option value="50">50</option></select></div>
+          <div id="todayFaceAttendance"></div>
+          <div class="pagination-controls" id="faceAttendancePagination"></div>
+        </div>
+      </div>
+
+      <!-- QR Presence -->
+      <div id="qr-presence" class="section">
+        <div class="qr-scan-section">
+          <h2><span class="material-icons">qr_code_scanner</span>Scanner QR Code pour Présence</h2>
+          <p>Tsindrio ny bokotra hanombohana ny scan.</p>
+          <div style="margin-top:16px;">
+            <button class="btn" onclick="startQRScan('attendance')"><span class="material-icons">camera_alt</span>Démarrer le Scanner</button>
+            <button class="btn btn-secondary" onclick="document.getElementById('qrImageInput').click()"><span class="material-icons">photo_library</span>Choisir une Image</button>
+            <input type="file" id="qrImageInput" accept="image/*" capture="environment" style="display:none;" onchange="handleQRImageUpload(event)">
+          </div>
+        </div>
+        <div class="card">
+          <h2><span class="material-icons">today</span>Présences QR d'Aujourd'hui</h2>
+          <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+            <input type="date" class="form-control" id="qrAttendanceDate" style="max-width:200px;flex:1;min-width:150px;" onchange="window.qrAttendanceCurrentPage=1;window.displayQRAttendance?.()">
+            <button class="btn btn-secondary" onclick="window.refreshQRAttendance?.()" style="flex:1;min-width:120px;"><span class="material-icons">refresh</span>Actualiser</button>
+            <button class="btn btn-warning" onclick="window.exportQRAttendancePDF?.()" style="flex:1;min-width:120px;"><span class="material-icons">picture_as_pdf</span>Export PDF</button>
+          </div>
+          <div id="qrAttendanceList"></div>
+          <div class="pagination-controls" id="qrAttendancePagination"></div>
+        </div>
+      </div>
+
+      <!-- QR Codes -->
+      <div id="qr-codes" class="section">
+        <div class="card">
+          <h2><span class="material-icons">qr_code_2</span>Codes QR des Employés</h2>
+          <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
+            <button class="btn" onclick="generateAllQRCodes()"><span class="material-icons">refresh</span>Générer Tous les QR</button>
+            <button class="btn btn-secondary" onclick="window.downloadAllQRCodes?.()"><span class="material-icons">download</span>Télécharger Tous</button>
+            <button class="btn btn-warning" onclick="printAllQRCodes()"><span class="material-icons">print</span>Imprimer Tous</button>
+          </div>
+          <div style="margin-bottom:24px;"><div style="position:relative;max-width:600px;margin:0 auto;"><input type="text" id="qrSearchInput" class="search-input-modern" placeholder="Rechercher un employé..." oninput="filterQRCodes()"><span class="material-icons search-icon-modern">search</span><button class="search-clear-btn" onclick="clearQRSearch()" id="qrClearBtn" style="display:none;"><span class="material-icons">close</span></button></div><div id="qrSearchResults" style="text-align:center;margin-top:12px;font-size:14px;font-weight:600;color:var(--md-sys-color-primary);display:none;"><span id="qrResultCount"></span></div></div>
+          <div class="qr-container" id="qrContainer"><p style="text-align:center;padding:40px;"><span class="material-icons" style="font-size:48px;opacity:.5;">qr_code_scanner</span><br>Cliquez sur "Générer Tous les QR" pour commencer</p></div>
+        </div>
+      </div>
+
+      <!-- Attendance -->
+      <div id="attendance" class="section">
+        <div class="card">
+          <h2><span class="material-icons">schedule</span>Saisie Manuelle des Présences</h2>
+          <form id="attendanceForm" style="margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid var(--md-sys-color-outline-variant);">
+            <div class="form-row">
+              <div class="form-group"><label>Date</label><input type="date" class="form-control" id="attendanceDate" required></div>
+              <div class="form-group"><label>Employé</label><div class="select-dropdown"><select class="form-control" id="attendanceEmployee" required><option value="">Sélectionner</option></select></div></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label>Heure d'arrivée</label><input type="time" class="form-control" id="attendanceArrival"></div>
+              <div class="form-group"><label>Heure de départ</label><input type="time" class="form-control" id="attendanceDeparture"></div>
+            </div>
+            <button type="submit" class="btn"><span class="material-icons">add</span>Enregistrer</button>
+          </form>
+          <div class="search-container"><span class="material-icons search-icon">search</span><input type="text" class="search-input" id="attendanceSearch" placeholder="Rechercher une présence..."></div>
+          <div class="form-group" style="max-width:200px;margin-top:16px;">
+            <label for="attendanceItemsPerPageSelect">Éléments par page</label>
+            <select id="attendanceItemsPerPageSelect" class="form-control" onchange="changeItemsPerPage('attendance',this.value)"><option value="10">10</option><option value="20" selected>20</option><option value="50">50</option></select>
+          </div>
+          <div class="attendance-list" id="attendanceList"></div>
+          <div class="pagination-controls" id="attendancePagination"></div>
+        </div>
+      </div>
+
+      <!-- QR Presence -->
+      <div id="qr-presence" class="section">
+        <div class="card">
+          <h2><span class="material-icons">qr_code_scanner</span>Pointage par QR Code</h2>
+          <div style="margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid var(--md-sys-color-outline-variant);">
+            <div class="form-row">
+              <div class="form-group"><label>Date</label><input type="date" class="form-control" id="qrAttendanceDate"></div>
+            </div>
+            <button type="button" class="btn" onclick="startQRScan('attendance')"><span class="material-icons">camera_alt</span>Démarrer le Scan</button>
+          </div>
+          <div id="qrAttendanceList"></div>
+          <div class="pagination-controls" id="qrAttendancePagination"></div>
+        </div>
+      </div>
+
+      <!-- Face Presence -->
+      <div id="face-presence" class="section">
+        <div class="card">
+          <h2><span class="material-icons">face</span>Pointage par Reconnaissance Faciale</h2>
+          <div style="margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid var(--md-sys-color-outline-variant);">
+            <div class="form-row">
+              <div class="form-group"><label>Date</label><input type="date" class="form-control" id="facePresentDate"></div>
+            </div>
+            <button type="button" class="btn" id="startFaceScan" onclick="startFaceScan()"><span class="material-icons">camera_alt</span>Démarrer le Scan</button>
+            <button type="button" class="btn btn-secondary" id="stopFaceScan" onclick="stopFaceScan()" style="display:none;"><span class="material-icons">stop_circle</span>Arrêter le Scan</button>
+          </div>
+          <div id="faceOverlay" style="display:none;position:relative;width:100%;max-width:500px;margin:20px auto;background:#000;border-radius:12px;overflow:hidden;aspect-ratio:1;">
+            <video id="faceVideo" style="width:100%;height:100%;"></video>
+            <canvas id="faceCanvas" style="position:absolute;top:0;left:0;width:100%;height:100%;display:none;"></canvas>
+          </div>
+          <div id="faceResult" style="margin-top:16px;padding:12px;background:rgba(76,175,80,0.1);border-radius:8px;display:none;color:var(--md-sys-color-success);"></div>
+          <div id="faceStatus" style="margin-top:16px;padding:12px;background:rgba(33,150,243,0.1);border-radius:8px;color:var(--md-sys-color-primary);"></div>
+        </div>
+      </div>
+
+      <!-- Advances -->
+      <div id="advances" class="section">
+        <div class="card">
+          <h2><span class="material-icons">credit_score</span>Gestion des Avances</h2>
+          <form id="advanceForm">
+            <div class="form-row">
+              <div class="form-group"><label>Employé</label><div class="select-dropdown"><select class="form-control" id="advanceEmployee" required><option value="">Sélectionner</option></select><button type="button" class="btn btn-secondary" onclick="startQRScan('advance')" title="Scanner QR"><span class="material-icons">qr_code_scanner</span></button><button type="button" class="btn btn-secondary" onclick="window.startFaceScanForSelection?.('advance')" title="Visage"><span class="material-icons">face</span></button></div></div>
+              <div class="form-group"><label>Montant (Ar)</label><input type="text" class="form-control currency-input" id="advanceAmount" required data-type="currency"></div>
+            </div>
+            <div class="form-group"><label>Date</label><input type="date" class="form-control" id="advanceDate" required></div>
+            <div class="form-group"><label>Motif</label><textarea class="form-control" id="advanceReason" rows="3" placeholder="Motif de l'avance..."></textarea></div>
+            <div id="netSalaryPreview" style="margin-bottom:16px;padding:10px;border-radius:8px;background-color:var(--md-sys-color-surface);display:none;"></div>
+            <button type="submit" class="btn"><span class="material-icons">add</span>Ajouter Avance</button>
+          </form>
+          <div id="advancesSummary" style="margin-top:24px;margin-bottom:16px;padding:16px;background-color:var(--md-sys-color-surface-variant);border-radius:12px;border-left:5px solid var(--md-sys-color-primary);">
+            <h4 style="margin-top:0;margin-bottom:8px;color:var(--md-sys-color-primary);">Résumé des Avances</h4>
+            <div style="display:flex;justify-content:space-between;align-items:center;"><span>Total ce mois:</span><span id="totalAdvancesMonth" style="font-size:1.5em;font-weight:700;color:var(--md-sys-color-error);">0 Ar</span></div>
+            <p id="advancesSummaryPeriod" style="font-size:.9em;color:var(--md-sys-color-on-surface-variant);margin:8px 0 0;text-align:right;"></p>
+          </div>
+          <div style="margin-top:24px;margin-bottom:16px;display:flex;gap:12px;flex-wrap:wrap;">
+            <button class="btn btn-warning" onclick="window.exportAdvances?.('pdf')"><span class="material-icons">picture_as_pdf</span>Export PDF</button>
+            <button class="btn btn-success" onclick="window.exportAdvances?.('xlsx')"><span class="material-icons">table_view</span>Export Excel</button>
+          </div>
+          <div class="form-row" style="margin-top:24px;align-items:flex-end;">
+            <div class="form-group"><label for="advanceSearchInput">Rechercher</label><div class="search-container" style="margin-bottom:0;position:relative;"><span class="material-icons search-icon">search</span><input type="text" class="search-input" id="advanceSearchInput" placeholder="Taper pour filtrer..." style="padding-right:60px;"><button type="button" class="btn btn-secondary" onclick="startQRScan('advances-search')" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);padding:8px;border-radius:50%;min-width:40px;height:40px;"><span class="material-icons">qr_code_scanner</span></button></div></div>
+            <div class="form-group"><label for="advanceMonthFilter">Mois</label><input type="month" class="form-control" id="advanceMonthFilter"></div>
+            <div class="form-group"><label for="advanceGroupFilter">Groupe</label><select class="form-control" id="advanceGroupFilter"><option value="all">Tous</option></select></div>
+          </div>
+          <div class="form-group" style="max-width:200px;margin-top:16px;"><label for="advancesItemsPerPageSelect">Éléments par page</label><select id="advancesItemsPerPageSelect" class="form-control" onchange="changeItemsPerPage('advances',this.value)"><option value="10">10</option><option value="15" selected>15</option><option value="30">30</option><option value="50">50</option></select></div>
+          <div id="advancesList" style="margin-top:16px;"></div>
+          <div class="pagination-controls" id="advancesPagination"></div>
+        </div>
+      </div>
+
+      <!-- Payroll -->
+      <div id="payroll" class="section">
+        <div class="card">
+          <h2><span class="material-icons">price_check</span>Gestion de la Paie</h2>
+          <div class="form-row" style="align-items:flex-end;">
+            <div class="form-group"><label>Employé</label><div class="select-dropdown" style="display:flex;"><select class="form-control" id="payrollEmployeeSelect" onchange="handlePayrollEmployeeChange()"><option value="">Tous les employés</option></select><button type="button" class="btn btn-secondary" onclick="startQRScan('payroll')" title="QR"><span class="material-icons">qr_code_scanner</span></button><button type="button" class="btn btn-secondary" onclick="window.startFaceScanForSelection?.('payroll')" title="Visage"><span class="material-icons">face</span></button></div></div>
+            <div class="form-group"><label>Groupe</label><div class="select-dropdown"><select class="form-control" id="payrollGroupFilter" onchange="handlePayrollGroupChange()"><option value="all">Tous les Groupes</option></select></div></div>
+            <div class="form-group"><label>Mois</label><input type="month" class="form-control" id="payrollMonth"></div>
+            <div class="form-group" style="margin-top:16px;padding:12px;background-color:rgba(103,80,164,.08);border-radius:8px;">
+              <label for="includeAdvanceCheckbox" style="display:flex;align-items:center;cursor:pointer;font-weight:500;"><input type="checkbox" id="includeAdvanceCheckbox" class="checkbox" style="width:20px;height:20px;margin-right:12px;" onchange="toggleAdvanceDaysInput()">Inclure un acompte</label>
+              <div id="advanceDaysContainer" class="form-group" style="display:none;margin-top:12px;margin-bottom:0;"><label for="advanceDaysInput">Jours d'acompte</label><input type="number" id="advanceDaysInput" class="form-control" value="0" min="0" style="max-width:150px;"></div>
+            </div>
+          </div>
+          <button class="btn" onclick="calculatePayroll()"><span class="material-icons">calculate</span>Calculer Paie</button>
+          <div id="payrollSummary" style="margin-top:24px;padding:16px;background-color:var(--md-sys-color-surface-variant);border-radius:12px;display:none;">
+            <h3 style="color:var(--md-sys-color-primary);margin-top:0;margin-bottom:16px;">Résumé de la Paie</h3>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">
+              <div><p style="margin:0;font-size:.9em;color:var(--md-sys-color-on-surface-variant);">Total Brut</p><strong id="summaryTotalGross" style="color:var(--md-sys-color-primary);font-size:1.2em;">0 Ar</strong></div>
+              <div><p style="margin:0;font-size:.9em;color:var(--md-sys-color-on-surface-variant);">Total Avances</p><strong id="summaryTotalAdvances" style="color:var(--md-sys-color-error);font-size:1.2em;">0 Ar</strong></div>
+              <div><p style="margin:0;font-size:.9em;color:var(--md-sys-color-on-surface-variant);">Total Net</p><strong id="summaryTotalNet" style="color:var(--md-sys-color-success);font-size:1.3em;font-weight:700;">0 Ar</strong></div>
+            </div>
+            <div style="margin-top:16px;"><p style="margin:0;font-size:.8em;color:var(--md-sys-color-on-surface-variant);">Employés non payés:</p><div id="unpaidEmployeesList" style="font-size:.9em;max-height:100px;overflow-y:auto;"></div></div>
+          </div>
+          <div id="payrollResults"></div>
+        </div>
+      </div>
+
+      <!-- Payments -->
+      <div id="payments" class="section">
+        <div class="card">
+          <h2><span class="material-icons">history</span>Historique de Paiement</h2>
+          <div class="form-row">
+            <div class="form-group"><label>Filtrer par Employé</label><div class="select-dropdown"><select class="form-control" id="paymentEmployeeFilter" onchange="displayPayments()"><option value="">Tous les employés</option></select></div></div>
+            <div class="form-group"><label>Recherche</label><input type="text" class="form-control" id="paymentSearch" placeholder="Rechercher..." oninput="displayPayments()"></div>
+          </div>
+          <div id="paymentList"></div>
+        </div>
+      </div>
+
+      <!-- STC -->
+      <div id="stc" class="section">
+        <div class="card">
+          <h2><span class="material-icons">exit_to_app</span>Calcul du Solde de Tout Compte</h2>
+          <div class="form-group"><label>Sélectionner l'Employé (Départ Programmé)</label><div class="select-dropdown"><select class="form-control" id="stcEmployeeSelect" onchange="window.calculateSTC?.()"><option value="">-- Choisir un employé --</option></select></div></div>
+          <div id="stcResultsContainer" style="margin-top:24px;display:none;"></div>
+        </div>
+      </div>
+
+      <!-- Reports -->
+      <div id="reports" class="section">
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-icon"><span class="material-icons">today</span></div><div class="stat-content"><h3 id="reportPresentToday">0</h3><p>Présents Aujourd'hui</p></div></div>
+          <div class="stat-card"><div class="stat-icon"><span class="material-icons">calendar_month</span></div><div class="stat-content"><h3 id="reportPresentMonth">0</h3><p>Présences ce Mois</p></div></div>
+          <div class="stat-card"><div class="stat-icon"><span class="material-icons">payments</span></div><div class="stat-content"><h3 id="reportSalariesPaid">0 Ar</h3><p>Salaires Payés</p></div></div>
+          <div class="stat-card"><div class="stat-icon"><span class="material-icons">people</span></div><div class="stat-content"><h3 id="reportActiveEmployees">0</h3><p>Employés Actifs</p></div></div>
+        </div>
+        <div class="card">
+          <h2><span class="material-icons">analytics</span>Génération de Rapports</h2>
+          <div class="form-group" style="max-width:300px;"><label for="reportMonth">Mois pour les rapports</label><input type="month" class="form-control" id="reportMonth"></div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:16px;">
+            <button class="btn" onclick="window.exportGlobalReport?.()"><span class="material-icons">download</span>Export Global (JSON)</button>
+            <button class="btn btn-secondary" onclick="window.exportAttendanceReport?.()"><span class="material-icons">schedule</span>Export Présences (JSON)</button>
+            <button class="btn btn-warning" onclick="window.generatePayrollPDFReport?.()"><span class="material-icons">picture_as_pdf</span>Rapport Paie (PDF)</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Estimation -->
+      <div id="estimation" class="section">
+        <div class="card">
+          <h2><span class="material-icons">request_quote</span>Estimation des Salaires</h2>
+          <div class="form-row" style="align-items:flex-end;margin-bottom:16px;">
+            <div class="form-group"><label for="estimationStartDate">Date de Début</label><input type="date" class="form-control" id="estimationStartDate"></div>
+            <div class="form-group"><label for="estimationEndDate">Date de Fin</label><input type="date" class="form-control" id="estimationEndDate"></div>
+            <div class="form-group"><label for="estimationGroupFilter">Groupe</label><select class="form-control" id="estimationGroupFilter"><option value="all">Tous</option></select></div>
+          </div>
+          <button class="btn" onclick="window.calculateSalaryEstimation?.()"><span class="material-icons">calculate</span>Lancer l'Estimation</button>
+          <div id="estimationResultsContainer" style="margin-top:24px;display:none;"></div>
+        </div>
+      </div>
+
+    </div><!-- /container -->
+
+    <!-- Settings Panel -->
+    <div class="settings-overlay" id="settingsOverlay" onclick="window.toggleSettings?.()" style="cursor: pointer;"></div>
+    <div class="settings-panel" id="settingsPanel">
+      <div class="modal-header">
+        <h3><span class="material-icons">settings</span>Paramètres</h3>
+        <button class="close-btn" onclick="window.toggleSettings?.()" style="cursor: pointer;"><span class="material-icons">close</span></button>
+      </div>
+      <div class="settings-section">
+        <h3><span class="material-icons">palette</span>Apparence</h3>
+        <div class="form-group"><label>Thème</label><select class="form-control" id="themeSelect" onchange="window.changeTheme?.(this.value)"><option value="light">Clair</option><option value="dark">Sombre</option></select></div>
+      </div>
+      <div class="settings-section">
+        <h3><span class="material-icons">qr_code</span>QR Code</h3>
+        <div class="form-group"><label>Taille</label><select class="form-control" id="qrSizeSelect" onchange="window.updateQRSettings?.()"><option value="128">Petit (128px)</option><option value="256" selected>Moyen (256px)</option><option value="512">Grand (512px)</option></select></div>
+        <div class="form-group"><label>Couleur</label><input type="color" class="form-control" id="qrColorSelect" value="#6750A4" onchange="window.updateQRSettings?.()"></div>
+      </div>
+      <div class="settings-section">
+        <h3><span class="material-icons">import_export</span>Synchronisation & Sauvegarde</h3>
+        <div class="alert alert-info"><span class="material-icons">info</span><div>Téléchargez les données pour les sauvegarder ou les transférer.</div></div>
+        <button class="btn" onclick="exportData()" style="width:100%;margin-bottom:12px;"><span class="material-icons">file_download</span>Télécharger les Données</button>
+        <div class="form-group">
+          <label for="importFile" style="cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;padding:16px 28px;background:linear-gradient(135deg,rgba(255,105,180,.25),rgba(186,85,211,.25));color:#FF1493;text-align:center;border-radius:50px;font-weight:700;border:2px solid rgba(255,105,180,.4);box-shadow:0 8px 32px rgba(255,105,180,.2);transition:all 0.3s ease;">
+            <span class="material-icons" style="font-size:24px;">file_upload</span><span>Importer</span>
+          </label>
+          <input type="file" class="form-control" id="importFile" accept=".json" onchange="_importDataSafe(event)" style="display:none;">
+        </div>
+        <p id="lastBackupInfo" style="font-size:12px;text-align:center;color:var(--md-sys-color-on-surface-variant);"></p>
+      </div>
+      <div class="settings-section">
+        <h3><span class="material-icons">delete_forever</span>Réinitialisation</h3>
+        <p style="margin-bottom:8px;font-size:11px;color:var(--md-sys-color-on-surface-variant);font-style:italic;">Efface toutes les données de l'application.</p>
+        <button class="btn btn-danger" onclick="resetAllData()" style="width:100%;"><span class="material-icons">delete_forever</span>Reset total des données</button>
+      </div>
+      <div class="settings-section" style="margin-top:40px;text-align:center;opacity:.8;">
+        <h3 style="justify-content:center;"><span class="material-icons">code</span>À Propos</h3>
+        <p style="font-size:14px;margin-top:8px;">Noforonin'i Rado Arijao tamim-pitiavana.</p>
+        <p style="font-size:12px;margin-top:4px;">Version 2.0 (Modular) &copy; 2025</p>
+      </div>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal" id="addEmployeeModal"><div class="modal-content"><div class="modal-header"><h3><span class="material-icons">person_add</span>Ajouter un Employé</h3><button class="close-btn" onclick="window.closeModal?.('addEmployeeModal')"><span class="material-icons">close</span></button></div><form id="employeeForm"><div class="form-row"><div class="form-group"><label>Nom Complet</label><input type="text" class="form-control" id="employeeName_add" required></div><div class="form-group"><label>Poste</label><input type="text" class="form-control" id="employeePosition_add" required></div><div class="form-group"><label>Groupe</label><select class="form-control" id="employeeGroup_add"><option value="">Aucun groupe</option></select></div></div><div class="form-row"><div class="form-group"><label>Genre</label><select class="form-control" id="employeeGender_add" required><option value="">Sélectionner</option><option value="Homme">Homme</option><option value="Femme">Femme</option></select></div><div class="form-group"><label>Salaire Mensuel (Ar)</label><input type="text" class="form-control currency-input" id="employeeSalary_add" required data-type="currency"></div></div><button type="submit" class="btn"><span class="material-icons">add</span>Ajouter Employé</button></form></div></div>
+    <div class="modal" id="editEmployeeModal"><div class="modal-content"><div class="modal-header"><h3>Modifier Employé</h3><button class="close-btn" onclick="window.closeModal?.('editEmployeeModal')"><span class="material-icons">close</span></button></div><form id="editEmployeeForm"><input type="hidden" id="editEmployeeId"><div class="form-row"><div class="form-group"><label>Nom Complet</label><input type="text" class="form-control" id="editEmployeeName" required></div><div class="form-group"><label>Poste</label><input type="text" class="form-control" id="editEmployeePosition" required></div><div class="form-group"><label>Groupe</label><select class="form-control" id="editEmployeeGroup"><option value="">Aucun groupe</option></select></div></div><div class="form-row"><div class="form-group"><label>Genre</label><select class="form-control" id="editEmployeeGender" required><option value="Homme">Homme</option><option value="Femme">Femme</option></select></div><div class="form-group"><label>Salaire (Ar)</label><input type="text" class="form-control currency-input" id="editEmployeeSalary" required data-type="currency"></div></div><div class="form-group"><label>Statut</label><select class="form-control" id="editEmployeeStatus"><option value="actif">Actif</option><option value="depart">Départ Programmé</option><option value="inactif">Inactif</option></select></div><div class="form-group" id="editDepartureDateContainer" style="display:none;"><label>Date de Départ</label><input type="date" class="form-control" id="editEmployeeDepartureDate"></div><button type="submit" class="btn"><span class="material-icons">save</span>Sauvegarder</button></form></div></div>
+    <div class="modal" id="editAdvanceModal"><div class="modal-content"><div class="modal-header"><h3>Modifier une Avance</h3><button class="close-btn" onclick="window.closeModal?.('editAdvanceModal')"><span class="material-icons">close</span></button></div><form id="editAdvanceForm"><input type="hidden" id="editAdvanceId"><div class="form-group"><label>Employé</label><p id="editAdvanceEmployeeName" style="font-weight:500;font-size:1.1rem;"></p></div><div class="form-row"><div class="form-group"><label>Nouveau Montant (Ar)</label><input type="text" class="form-control currency-input" id="editAdvanceAmount" required data-type="currency"></div><div class="form-group"><label>Date</label><input type="date" class="form-control" id="editAdvanceDate" required></div></div><div class="form-group"><label>Motif</label><textarea class="form-control" id="editAdvanceReason" rows="3"></textarea></div><button type="submit" class="btn"><span class="material-icons">save</span>Enregistrer</button></form></div></div>
+
+    <!-- QR Scanner Modal -->
+    <div class="modal" id="qrScannerModal">
+      <div class="modal-content qr-modal-content" style="max-width:540px;">
+        <div class="modal-header"><h3 id="qrScannerTitle" style="display:flex;align-items:center;gap:8px;font-size:clamp(1rem,4vw,1.3rem);"><span class="material-icons">qr_code_scanner</span>Scanner le QR Code</h3><button class="close-btn" onclick="stopQRScan()"><span class="material-icons">close</span></button></div>
+        <div class="qr-modal-body" style="text-align:center;padding:12px 0;">
+          <p id="qrScannerInstruction" style="margin-bottom:12px;color:var(--md-sys-color-on-surface-variant);font-size:.9rem;"></p>
+          <div class="video-container qr-video-container qr-scanner-container" style="height:300px;aspect-ratio:unset;position:relative;">
+            <video id="qrVideo" playsinline autoplay muted style="position:absolute;top:0;left:0;width:100%;height:100%;border-radius:12px;object-fit:cover;display:none;z-index:1;"></video><canvas id="qrCanvas" style="display:none;"></canvas><div class="scan-overlay" id="scanOverlay" style="display:none;z-index:2;"></div></div>
+          <div id="cameraPermissionMessage" class="alert alert-warning" style="display:none;justify-content:center;margin-top:12px;padding:8px;font-size:.85rem;"><span class="material-icons" style="font-size:18px;">videocam_off</span><span>Permission caméra requise.</span></div>
+          <div id="qrScannerLoading" style="display:none;text-align:center;padding:24px;"><div style="display:inline-block;width:40px;height:40px;border:4px solid rgba(103,80,164,.3);border-top-color:var(--md-sys-color-primary);border-radius:50%;animation:spin 1s linear infinite;"></div><p style="margin-top:12px;color:var(--md-sys-color-on-surface-variant);font-size:14px;">Initialisation caméra...</p></div>
+          <div id="scannedCodeDisplay" class="scanned-code-display" style="display:none;margin-top:16px;padding:16px;background:linear-gradient(135deg, #10b981, #059669);border-radius:12px;box-shadow:0 4px 12px rgba(16, 185, 129, 0.3);text-align:center;">
+            <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.9);text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">Code Scanné</p>
+            <div id="scannedCodeText" style="margin-top:8px;padding:10px 12px;background:rgba(255,255,255,0.95);border-radius:8px;font-family:'Courier New', monospace;font-size:13px;font-weight:700;color:#059669;word-break:break-all;"></div>
+          </div>
+          <div id="scanResult" class="scan-result" style="display:none;margin-top:12px;padding:12px;font-size:.9rem;"></div>
+        </div>
+        <div style="text-align:center;margin-top:12px;border-top:1px solid var(--md-sys-color-outline-variant);padding-top:12px;"><button class="btn btn-danger" onclick="stopQRScan()" style="width:100%;max-width:200px;padding:10px;"><span class="material-icons">cancel</span>Annuler le Scan</button></div>
+      </div>
+    </div>
+
+    <!-- Scan Method Dropdown -->
+    <div id="scanMethodMenu" style="display:none;position:fixed;background:white;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.2);min-width:220px;z-index:9999;overflow:hidden;border:1px solid #e5e7eb;">
+      <div onclick="window.filterScanMethod?.('all')" class="menu-item" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;border-bottom:1px solid #f3f4f6;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'"><span class="material-icons" style="color:#6b7280;">apps</span><div><div style="font-weight:600;font-size:14px;color:#1f2937;">Tous</div><div style="font-size:12px;color:#6b7280;" id="allCount">0 pointages</div></div></div>
+      <div onclick="window.filterScanMethod?.('qr')" class="menu-item" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;border-bottom:1px solid #f3f4f6;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'"><span class="material-icons" style="color:#6750A4;">qr_code_scanner</span><div><div style="font-weight:600;font-size:14px;color:#1f2937;">QR Code</div><div style="font-size:12px;color:#6b7280;" id="qrCount">0 scans</div></div></div>
+      <div onclick="window.filterScanMethod?.('manual')" class="menu-item" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;border-bottom:1px solid #f3f4f6;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'"><span class="material-icons" style="color:#f59e0b;">edit</span><div><div style="font-weight:600;font-size:14px;color:#1f2937;">Manuel</div><div style="font-size:12px;color:#6b7280;" id="manualCount">0 entrées</div></div></div>
+      <div onclick="window.filterScanMethod?.('facial')" class="menu-item" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'"><span class="material-icons" style="color:#0ea5e9;">face</span><div><div style="font-weight:600;font-size:14px;color:#1f2937;">Facial</div><div style="font-size:12px;color:#6b7280;" id="facialCount">0 reconnaissances</div></div></div>
+    </div>
+
+  </div><!-- /appContent -->
+
+  <!-- ============================================================ -->
+  <!-- POINT D'ENTRÉE ES MODULE                                      -->
+  <!-- ============================================================ -->
+  <script type="module" src="js/main.js"></script>
+
+  <!-- Wrapper sécurisé pour importData (appelée avant que le module ne finisse de charger) -->
+  <script>
+    // Fonction wrapper qui attend que importData soit disponible
+    async function ensureImportDataAvailable() {
+      for (let i = 0; i < 100; i++) {
+        if (window.importData) return window.importData;
+        await new Promise(r => setTimeout(r, 10));
+      }
+      console.error('importData n\'a pas pu être correctement chargée');
+      return null;
+    }
+    
+    // Exposer un wrapper global qui attendimportData
+    window._importDataSafe = function(event) {
+      if (window.importData) {
+        return window.importData(event);
+      } else {
+        console.error('❌ importData n\'est pas encore chargée. Veuillez attendre que l\'app se charge complètement.');
+        alert('Veuillez attendre que l\'application se charge complètement avant d\'importer.');
+      }
+    };
+  </script>
+
+  <!-- Expose closeModal globalement (utilisé par les onclick HTML) -->
+  <script type="module">
+    import { closeModal, openModal } from './js/utils/ui.js';
+    import { toggleSettings } from './js/ui/navigation.js';
+    import { initSearch } from './js/ui/search.js';
+    import { initReports } from './js/ui/reports.js';
+    import { initSTC } from './js/ui/stc.js';
+    import { initEstimation } from './js/ui/estimation.js';
+    import { initFacePresence } from './js/face/recognition.js';
+    import { exportAdvances } from './js/ui/reports.js';
+
+    window.closeModal = closeModal;
+    window.openModal  = openModal;
+    window.toggleSettings = toggleSettings;
+    window.exportAdvances = exportAdvances;
+
+    // Init modules supplémentaires
+    document.addEventListener('DOMContentLoaded', () => {
+      initSearch();
+      initReports();
+      initSTC();
+      initEstimation();
+      initFacePresence();
+    });
+  </script>
+
+
+  <!-- Force l'activation immédiate du nouveau Service Worker dès qu'il est prêt -->
+  <!-- Résout le problème du SW bloqué en état "Wait" après mise à jour -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        // Le nouveau SW vient de prendre le contrôle — recharger silencieusement
+        // uniquement si la page n'est pas en train d'être utilisée activement
+        if (!document.hidden) {
+          console.log('🔄 Nouveau Service Worker actif — rechargement pour mise à jour');
+          window.location.reload();
+        }
+      });
+
+      navigator.serviceWorker.ready.then(reg => {
+        // Écouter les mises à jour du SW
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          if (!newWorker) return;
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              // Nouveau SW installé et en attente — forcer l'activation immédiate
+              console.log('🔄 Nouveau SW en attente, activation forcée...');
+              newWorker.postMessage({ type: 'SKIP_WAITING' });
+            }
+          });
+        });
+      });
+    }
+  </script>
+</body>
+</html>
