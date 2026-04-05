@@ -1,21 +1,6 @@
-/* ============================================================
-   Material Icons — Chargement hybride (CDN + fallback local)
-   ============================================================ */
-
-/* 1. @import DOIT être en premier — règle absolue CSS (ignoré sinon) */
+/* Material Icons — CDN Google Fonts */
 @import url('https://fonts.googleapis.com/icon?family=Material+Icons');
 
-/* 2. Fallback local (prioritaire si les fichiers .woff2/.woff sont présents) */
-@font-face {
-  font-family: 'Material Icons';
-  font-style: normal;
-  font-weight: 400;
-  font-display: block;
-  src: url('./MaterialIcons-Regular.woff2') format('woff2'),
-       url('./MaterialIcons-Regular.woff') format('woff');
-}
-
-/* 3. Classe utilitaire */
 .material-icons {
   font-family: 'Material Icons';
   font-weight: normal;
