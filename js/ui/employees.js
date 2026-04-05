@@ -9,6 +9,7 @@ import { setFormLoading, setButtonLoading } from '../utils/dialog-manager.js';
 import { formatCurrency, capitalizeWords, getCurrencyValue, setCurrencyValue } from '../utils/format.js';
 import { populateGroupSelects, populateEmployeeSelects } from './groups.js';
 import { registerSectionCallback } from './navigation.js';
+import { handleEmployeeSearch, initEmployeeSearchDropdown } from './smart-search.js';
 
 // ------ Init ------
 
@@ -16,9 +17,21 @@ export function initEmployees() {
   registerSectionCallback('employees', displayEmployees);
 
   document.getElementById('employeeSearch')
-    ?.addEventListener('input', () => { state.pagination.employee.current = 1; displayEmployees(); });
+    ?.addEventListener('input', () => {
+      state.pagination.employee.current = 1;
+      displayEmployees();       // filtre la liste paginée comme avant
+      handleEmployeeSearch();   // affiche le dropdown avec highlight
+    });
   document.getElementById('employeeGroupFilter')
-    ?.addEventListener('change', () => { state.pagination.employee.current = 1; displayEmployees(); });
+    ?.addEventListener('change', () => {
+      state.pagination.employee.current = 1;
+      displayEmployees();
+      // Rafraîchir le dropdown si une recherche est en cours
+      const term = document.getElementById('employeeSearch')?.value || '';
+      if (term.length >= 2) handleEmployeeSearch();
+    });
+
+  initEmployeeSearchDropdown();
 
   document.getElementById('employeeForm')
     ?.addEventListener('submit', handleAddEmployee);

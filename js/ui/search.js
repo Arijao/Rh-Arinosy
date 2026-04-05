@@ -25,6 +25,18 @@ export function initSearch() {
   });
 }
 
+// ------ Highlight utilitaire ------
+// Insensible à la casse · gère les caractères spéciaux regex
+// Retourne le texte brut si term.length < 2
+function highlight(text, term) {
+  if (!term || term.length < 2) return text;
+  const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return text.replace(
+    new RegExp(escaped, 'gi'),
+    match => `<mark style="background:rgba(208,188,255,.35);color:#D0BCFF;border-radius:2px;padding:0 1px;">${match}</mark>`
+  );
+}
+
 // ------ Smart Search ------
 
 export function handleSmartSearch() {
@@ -75,8 +87,8 @@ export function handleSmartSearch() {
            onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 8px 20px rgba(255,105,180,.2)'"
            onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='none'">
         <div class="employee-info">
-          <h4 style="margin:0 0 6px;color:#1e293b;font-size:1.1em;font-weight:800;">${emp.name}</h4>
-          <p style="margin:0 0 10px;color:#475569;font-weight:600;">${emp.position} • <strong style="color:#FF1493;">Groupe: ${groupName}</strong></p>
+          <h4 style="margin:0 0 6px;color:#1e293b;font-size:1.1em;font-weight:800;">${highlight(emp.name, term)}</h4>
+          <p style="margin:0 0 10px;color:#475569;font-weight:600;">${highlight(emp.position, term)} • <strong style="color:#FF1493;">Groupe: ${groupName}</strong></p>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">${badges}</div>
         </div>
         <span class="material-icons" style="color:#FF1493;">arrow_forward_ios</span>

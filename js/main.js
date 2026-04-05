@@ -251,6 +251,8 @@ function _exposeGlobals() {
   // Face
   window.openFacePointageModal   = () => import('./face/recognition.js').then(m => m.openFacePointageModal());
   window.startFaceScanForSelection = (p) => import('./face/recognition.js').then(m => m.startFaceScanForSelection(p));
+  window.openFaceRecognitionForAdvanceSearch = () => { window.startFaceScanForSelection?.('advances-search'); };
+  window.openFaceRecognitionForPaymentSearch = () => { window.startFaceScanForSelection?.('payments-search'); };
   window._openEnrollmentModal    = (id) => import('./face/recognition.js').then(m => m.openEnrollmentModal(id));
 
   // Data management

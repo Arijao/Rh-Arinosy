@@ -136,7 +136,7 @@
             <label for="employeeGroupFilter">Filtrer par Groupe</label>
             <select class="form-control" id="employeeGroupFilter"><option value="all">Tous les Groupes</option><option value="none">Sans Groupe</option></select>
           </div>
-          <div class="search-container"><span class="material-icons search-icon">search</span><input type="text" class="search-input" id="employeeSearch" placeholder="Rechercher un employé..."></div>
+          <div class="search-container" style="position:relative;"><span class="material-icons search-icon">search</span><input type="text" class="search-input" id="employeeSearch" placeholder="Rechercher un employé..."><div id="employeeSearchResults" style="display:none;position:absolute;top:100%;left:0;width:100%;z-index:100;background:rgba(30,41,59,.98);border:1px solid rgba(103,80,164,.4);border-radius:12px;padding:8px;margin-top:4px;box-shadow:0 8px 32px rgba(15,23,42,.5);max-height:320px;overflow-y:auto;"></div></div>
           <div class="form-group" style="max-width:200px;margin-top:16px;">
             <label for="employeeItemsPerPageSelect">Éléments par page</label>
             <select id="employeeItemsPerPageSelect" class="form-control" onchange="changeItemsPerPage('employee',this.value)"><option value="10">10</option><option value="20" selected>20</option><option value="50">50</option><option value="100">100</option></select>
@@ -284,7 +284,32 @@
             </div>
             <button type="submit" class="btn"><span class="material-icons">add</span>Enregistrer</button>
           </form>
-          <div class="search-container"><span class="material-icons search-icon">search</span><input type="text" class="search-input" id="attendanceSearch" placeholder="Rechercher une présence..."></div>
+          <div class="form-row" style="align-items:flex-end;margin-bottom:0;">
+            <div class="form-group" style="flex:1;position:relative;">
+              <label for="attendanceEmployeeSearch">Rechercher un employé</label>
+              <div class="search-container" style="margin-bottom:0;position:relative;">
+                <span class="material-icons search-icon">search</span>
+                <input type="text" class="search-input" id="attendanceEmployeeSearch"
+                       placeholder="Taper pour chercher..." autocomplete="off"
+                       oninput="window._handleAttendanceEmployeeSearch?.()">
+              </div>
+              <!-- Dropdown résultats dynamiques -->
+              <div id="attendanceSearchResults"
+                   style="display:none;position:absolute;width:100%;z-index:100;
+                          background:rgba(30,41,59,.98);border:1px solid rgba(103,80,164,.4);
+                          border-radius:12px;padding:8px;margin-top:4px;
+                          box-shadow:0 8px 32px rgba(15,23,42,.5);
+                          max-height:280px;overflow-y:auto;"></div>
+            </div>
+            <div class="form-group">
+              <label for="attendanceGroupFilter">Groupe</label>
+              <div class="select-dropdown">
+                <select class="form-control" id="attendanceGroupFilter">
+                  <option value="all">Tous les groupes</option>
+                </select>
+              </div>
+            </div>
+          </div>
           <div class="form-group" style="max-width:200px;margin-top:16px;">
             <label for="attendanceItemsPerPageSelect">Éléments par page</label>
             <select id="attendanceItemsPerPageSelect" class="form-control" onchange="changeItemsPerPage('attendance',this.value)"><option value="10">10</option><option value="20" selected>20</option><option value="50">50</option></select>

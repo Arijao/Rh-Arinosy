@@ -9,7 +9,7 @@ import { formatCurrency, formatDate, getDaysInMonth } from '../utils/format.js';
 import { countPresenceDays } from '../utils/attendance-calc.js';
 import { registerSectionCallback } from './navigation.js';
 import { populateEmployeeSelects } from './groups.js';
-import { handlePayrollEmployeeSearch, initSmartSearchDropdowns } from './smart-search.js';
+import { handlePayrollEmployeeSearch, initSmartSearchDropdowns, initScanBridge } from './smart-search.js';
 
 export function initPayroll() {
   registerSectionCallback('payroll', () => {
@@ -23,6 +23,7 @@ export function initPayroll() {
     ?.addEventListener('input', handlePayrollEmployeeSearch);
 
   initSmartSearchDropdowns();
+  initScanBridge();
 }
 
 export function handlePayrollGroupChange() {

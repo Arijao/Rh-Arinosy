@@ -8,7 +8,7 @@ import { showToast, openConfirm } from '../utils/notifications.js';
 import { formatCurrency, formatDate, getDaysInMonth, getCurrencyValue, setCurrencyValue } from '../utils/format.js';
 import { countPresenceDays } from '../utils/attendance-calc.js';
 import { registerSectionCallback } from './navigation.js';
-import { handleAdvanceEmployeeSearch, initSmartSearchDropdowns } from './smart-search.js';
+import { handleAdvanceEmployeeSearch, initSmartSearchDropdowns, initScanBridge } from './smart-search.js';
 
 export function initAdvances() {
   registerSectionCallback('advances', displayAdvances);
@@ -39,6 +39,7 @@ export function initAdvances() {
   if (ad) ad.value = new Date().toISOString().split('T')[0];
 
   initSmartSearchDropdowns();
+  initScanBridge();
 }
 
 // ------ Display ------

@@ -165,20 +165,56 @@ async function handleQRScanResult(raw) {
   switch (purpose) {
     case 'attendance':
       await processAttendanceScan(emp, 'QR'); break;
-    case 'payroll':
-      document.getElementById('payrollEmployeeSelect').value = empId;
-      window._handlePayrollEmployeeChange?.();
+    case 'payroll': {
+      const sel = document.getElementById('payrollEmployeeSelect');
+      if (sel) {
+        if (!sel.querySelector(`option[value="${empId}"]`)) {
+          const opt = document.createElement('option');
+          opt.value = empId;
+          opt.textContent = emp.name;
+          sel.appendChild(opt);
+        }
+        sel.value = empId;
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+      }
       showScanResult(`✅ ${emp.name} sélectionné`, 'success');
       setTimeout(() => stopQRScan(), 1500); break;
-    case 'advance':
-      document.getElementById('advanceEmployee').value = empId;
+    }
+    case 'advance': {
+      const sel = document.getElementById('advanceEmployee');
+      if (sel) {
+        if (!sel.querySelector(`option[value="${empId}"]`)) {
+          const opt = document.createElement('option');
+          opt.value = empId;
+          opt.textContent = emp.name;
+          sel.appendChild(opt);
+        }
+        sel.value = empId;
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+      }
       showScanResult(`✅ ${emp.name} sélectionné`, 'success');
       setTimeout(() => stopQRScan(), 1500); break;
+    }
     case 'advances-search': {
       const si = document.getElementById('advanceSearchInput');
-      if (si) { si.value = emp.name; si.dispatchEvent(new Event('input')); }
+      if (si) { 
+        si.value = emp.name; 
+        si.dispatchEvent(new Event('input', { bubbles: true }));
+        si.focus();
+      }
       playSuccessSound();
       showScanResult(`✅ Avances de ${emp.name}`, 'success');
+      setTimeout(() => stopQRScan(), 1500); break;
+    }
+    case 'payments-search': {
+      const si = document.getElementById('paymentSearch');
+      if (si) {
+        si.value = emp.name;
+        si.dispatchEvent(new Event('input', { bubbles: true }));
+        si.focus();
+      }
+      playSuccessSound();
+      showScanResult(`✅ Paie de ${emp.name}`, 'success');
       setTimeout(() => stopQRScan(), 1500); break;
     }
     case 'status-search': {

@@ -566,8 +566,53 @@ export async function startFaceScanForSelection(purpose) {
         const emp = r.employe;
         status.className = 'alert alert-success'; status.innerHTML = `✅ ${emp.name}`;
         playSuccessSound();
-        if (purpose === 'advance')  { const sel = document.getElementById('advanceEmployee');       if (sel) sel.value = emp.id; }
-        if (purpose === 'payroll')  { const sel = document.getElementById('payrollEmployeeSelect'); if (sel) sel.value = emp.id; }
+
+        // 1. Dispatch vers les sélecteurs de formulaires (Bridge Smart Search)
+        if (purpose === 'advance') {
+          const sel = document.getElementById('advanceEmployee');
+          if (sel) {
+            if (!sel.querySelector(`option[value="${emp.id}"]`)) {
+              const opt = document.createElement('option');
+              opt.value = emp.id;
+              opt.textContent = emp.name;
+              sel.appendChild(opt);
+            }
+            sel.value = emp.id;
+            sel.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        }
+        if (purpose === 'payroll') {
+          const sel = document.getElementById('payrollEmployeeSelect');
+          if (sel) {
+            if (!sel.querySelector(`option[value="${emp.id}"]`)) {
+              const opt = document.createElement('option');
+              opt.value = emp.id;
+              opt.textContent = emp.name;
+              sel.appendChild(opt);
+            }
+            sel.value = emp.id;
+            sel.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        }
+
+        // 2. Dispatch vers les barres de recherche de listes
+        if (purpose === 'advances-search') {
+          const si = document.getElementById('advanceSearchInput');
+          if (si) {
+            si.value = emp.name;
+            si.dispatchEvent(new Event('input', { bubbles: true }));
+            si.focus();
+          }
+        }
+        if (purpose === 'payments-search') {
+          const si = document.getElementById('paymentSearch');
+          if (si) {
+            si.value = emp.name;
+            si.dispatchEvent(new Event('input', { bubbles: true }));
+            si.focus();
+          }
+        }
+
         setTimeout(() => { stream.getTracks().forEach(t => t.stop()); modal.remove(); }, 1500);
       } else {
         status.innerHTML = r.message || 'Recherche...';

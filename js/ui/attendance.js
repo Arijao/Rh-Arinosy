@@ -7,6 +7,7 @@ import { renderPaginationControls } from '../utils/ui.js';
 import { showToast, openConfirm } from '../utils/notifications.js';
 import { formatDisplayTime, formatCurrency } from '../utils/format.js';
 import { registerSectionCallback } from './navigation.js';
+import { handleAttendanceEmployeeSearch, initAttendanceSearchDropdown } from './smart-search.js';
 
 export function initAttendance() {
   registerSectionCallback('attendance', displayAttendance);
@@ -14,9 +15,20 @@ export function initAttendance() {
   document.getElementById('attendanceDate')
     ?.addEventListener('change', () => { state.pagination.attendance.current = 1; displayAttendance(); });
   document.getElementById('attendanceEmployeeSearch')
-    ?.addEventListener('input', () => { state.pagination.attendance.current = 1; displayAttendance(); });
+    ?.addEventListener('input', () => {
+      state.pagination.attendance.current = 1;
+      displayAttendance();           // filtre la liste paginée
+      handleAttendanceEmployeeSearch(); // affiche le dropdown avec highlight
+    });
   document.getElementById('attendanceGroupFilter')
-    ?.addEventListener('change', () => displayAttendance());
+    ?.addEventListener('change', () => {
+      displayAttendance();
+      // Rafraîchir le dropdown si une recherche est en cours
+      const term = document.getElementById('attendanceEmployeeSearch')?.value || '';
+      if (term.length >= 2) handleAttendanceEmployeeSearch();
+    });
+
+  initAttendanceSearchDropdown();
 }
 
 export function displayAttendance() {
