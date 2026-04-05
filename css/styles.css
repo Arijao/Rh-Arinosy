@@ -548,7 +548,7 @@ body::before {
   border: 1px solid rgba(148,163,184,.2); position: relative; overflow: hidden;
 }
 .nav-menu-item:hover { box-shadow: 0 0 0 1px rgba(200,210,255,.55), 0 3px 12px rgba(165,180,252,.22); transform: translateX(4px); }
-.nav-menu-item.active { box-shadow: 0 0 0 1px #3257fd, 0 0 6px 1px #65b0ff, -4px 0 20px rgba(147,197,253,.45), 4px 0 20px rgba(147,197,253,.45); }
+.nav-menu-item.active { box-shadow: 0 0 0 1px #65b0ff, 0 0 5px rgba(101,176,255,.3); }
 .nav-menu-item.active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: linear-gradient(180deg, #818cf8, #6366f1); border-radius: 0 4px 4px 0; }
 .nav-menu-item .material-icons { font-size: 24px; color: #cbd5e1 !important; min-width: 24px; flex-shrink: 0; }
 .nav-menu-item:hover .material-icons, .nav-menu-item.active .material-icons { color: #a5b4fc; transform: scale(1.1); }
