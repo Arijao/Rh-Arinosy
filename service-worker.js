@@ -55,6 +55,7 @@ const CACHE_URLS = [
   '/icon-512.png',
   '/icon.svg',
   '/service-worker.js',
+  '/MaterialIcons-Regular.woff2',
   '/model/tiny_face_detector_model-weights_manifest.json',
   '/model/tiny_face_detector_model-weights.bin',
   '/model/face_landmark_68_model-weights_manifest.json',

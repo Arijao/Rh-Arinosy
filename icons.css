@@ -1,5 +1,13 @@
-/* Material Icons — CDN Google Fonts */
+/* Material Icons — CDN + fallback local pour offline */
 @import url('https://fonts.googleapis.com/icon?family=Material+Icons');
+
+@font-face {
+  font-family: 'Material Icons';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url('./MaterialIcons-Regular.woff2') format('woff2');
+}
 
 .material-icons {
   font-family: 'Material Icons';
