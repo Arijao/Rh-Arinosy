@@ -70,6 +70,10 @@ export function generatePayrollPDFReport() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
 
+  const formatPDFAmount = (amount) =>
+    Math.round(amount).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' Ar';
+
+  doc.setTextColor(0, 0, 0); // Noir pur
   doc.setFontSize(18); doc.setFont('helvetica', 'bold');
   doc.text('Rapport de Paie Mensuel', 105, 20, { align: 'center' });
   doc.setFontSize(12); doc.setFont('helvetica', 'normal');
@@ -84,7 +88,7 @@ export function generatePayrollPDFReport() {
       .reduce((s, a) => s + a.amount, 0);
     const net = gross - advances;
     totalGross += gross; totalAdv += advances; totalNet += net;
-    return [emp.name, present, formatCurrency(gross), formatCurrency(advances), formatCurrency(net)];
+    return [emp.name, present, formatPDFAmount(gross), formatPDFAmount(advances), formatPDFAmount(net)];
   });
 
   doc.autoTable({
@@ -92,15 +96,16 @@ export function generatePayrollPDFReport() {
     head: [['Employé', 'Jours', 'Brut', 'Avances', 'Net']],
     body: rows,
     theme: 'grid',
-    headStyles: { fillColor: [103, 80, 164] },
-    styles: { fontSize: 8 },
+    headStyles: { fillColor: [0, 0, 0], textColor: 255 }, // Header noir pour lisibilité
+    styles: { fontSize: 8.5, textColor: [0, 0, 0] }, // Texte noir pur
   });
 
   const fy = doc.lastAutoTable.finalY + 10;
   doc.setFontSize(10); doc.setFont('helvetica', 'bold');
-  doc.text(`Total Brut: ${formatCurrency(totalGross)}`, 14, fy);
-  doc.text(`Total Avances: ${formatCurrency(totalAdv)}`, 14, fy + 7);
-  doc.text(`Total Net: ${formatCurrency(totalNet)}`, 14, fy + 14);
+  doc.setTextColor(0, 0, 0);
+  doc.text(`Total Brut: ${formatPDFAmount(totalGross)}`, 14, fy);
+  doc.text(`Total Avances: ${formatPDFAmount(totalAdv)}`, 14, fy + 7);
+  doc.text(`Total Net: ${formatPDFAmount(totalNet)}`, 14, fy + 14);
 
   doc.save(`rapport-paie-${reportMonth}.pdf`);
   showToast('Rapport PDF généré!', 'success');
@@ -116,6 +121,7 @@ export function exportQRAttendancePDF() {
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
+  doc.setTextColor(0, 0, 0);
   doc.setFontSize(18); doc.setFont('helvetica', 'bold');
   doc.text('PRÉSENCES QR CODE', 105, 20, { align: 'center' });
   doc.setFontSize(14); doc.setFont('helvetica', 'normal');
@@ -128,8 +134,8 @@ export function exportQRAttendancePDF() {
     startY: 45,
     head: [['#', 'Nom', 'Poste', 'Heure', 'Méthode']],
     body: rows,
-    headStyles: { fillColor: [103, 80, 164], textColor: 255, fontStyle: 'bold' },
-    styles: { fontSize: 10 },
+    headStyles: { fillColor: [0, 0, 0], textColor: 255, fontStyle: 'bold' },
+    styles: { fontSize: 10, textColor: [0, 0, 0] },
   });
 
   doc.save(`presences-qr-${date}.pdf`);
@@ -154,26 +160,26 @@ export function exportAdvances(format) {
   if (!data.length) { showToast('Aucune donnée à exporter.', 'warning'); return; }
 
   if (format === 'pdf') {
-    // Filter only pending
-    const pending = data.filter(a => (a.status || 'En attente') === 'En attente');
-    if (!pending.length) { showToast('Aucune avance En attente à imprimer.', 'warning'); return; }
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation: 'landscape' });
-    doc.setFontSize(18); doc.setFont('helvetica', 'bold');
-    doc.text('Liste des Avances à Payer', doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
-
-    // Séparateur milliers = espace (remplace '/')
-    const formatMontant = (amount) =>
+    
+    // Séparateur milliers = espace
+    const formatPDFAmount = (amount) =>
       Math.round(amount).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' Ar';
 
-    // Colonnes : Date · Nom · Montant · Statut
-    const rows = pending.map(a => {
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(18); doc.setFont('helvetica', 'bold');
+    doc.text('Liste des Avances sur Salaire', doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
+
+    // Colonnes : Date (étroit) · Nom · Montant · Statut
+    const rows = data.map(a => {
       const emp = state.employees.find(e => e.id === a.employeeId);
+      const isPaid = a.status === 'Confirmé';
       return [
-        formatDate(a.date, false),
+        formatDate(a.date, false).split(' ').slice(0, 2).join(' '), // Date plus compacte si besoin
         emp ? emp.name : 'N/A',
-        formatMontant(a.amount),
-        a.status || 'En attente',
+        formatPDFAmount(a.amount),
+        isPaid ? 'PAYÉ (Confirmé)' : 'NON PAYÉ (En attente)',
       ];
     });
 
@@ -182,27 +188,28 @@ export function exportAdvances(format) {
       columns: [
         { header: 'Date',     dataKey: 0 },
         { header: 'Employé', dataKey: 1 },
-        { header: 'Montant (Ar)', dataKey: 2 },
-        { header: 'Statut',  dataKey: 3 },
+        { header: 'Montant', dataKey: 2 },
+        { header: 'Statut du Paiement',  dataKey: 3 },
       ],
       columnStyles: {
-        0: { cellWidth: 28 },  // Date — réduit
+        0: { cellWidth: 35 },
         1: { cellWidth: 'auto' },
-        2: { cellWidth: 38, halign: 'right' },
-        3: { cellWidth: 32 },
+        2: { cellWidth: 40, halign: 'right' },
+        3: { cellWidth: 50, fontStyle: 'bold' },
       },
       startY: 30, theme: 'grid',
-      headStyles: { fillColor: [103, 80, 164], textColor: 255, fontStyle: 'bold', fontSize: 9 },
-      // Texte noir pur pour lisibilité impression
-      styles: { fontSize: 8.5, textColor: [0, 0, 0] }, minCellHeight: 12,
+      headStyles: { fillColor: [0, 0, 0], textColor: 255, fontStyle: 'bold', fontSize: 10 },
+      styles: { fontSize: 9.5, textColor: [0, 0, 0] }, 
+      minCellHeight: 12,
     });
 
-    const total = pending.reduce((s, a) => s + a.amount, 0);
+    const total = data.reduce((s, a) => s + a.amount, 0);
     doc.setFontSize(12); doc.setFont('helvetica', 'bold');
     doc.setTextColor(0, 0, 0);
-    doc.text(`Total: ${formatMontant(total)}`, 14, doc.lastAutoTable.finalY + 10);
-    doc.save(`avances-${month || 'tous'}.pdf`);
-    showToast('PDF avances généré!', 'success');
+    doc.text(`TOTAL DES AVANCES: ${formatPDFAmount(total)}`, 14, doc.lastAutoTable.finalY + 10);
+    
+    doc.save(`export-avances-${month || 'global'}.pdf`);
+    showToast('PDF exporté avec succès!', 'success');
 
   } else if (format === 'xlsx' && window.XLSX) {
     const headers = ["Date", "Nom", "Groupe", "Montant (Ar)", "Motif", "Statut"];
