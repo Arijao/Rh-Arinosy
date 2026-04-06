@@ -27,6 +27,7 @@ import { exportData, importData, resetAllData, handleImportedFile } from './ui/d
 import { initAuth, checkSession, logout } from './ui/auth.js';
 import { showToast } from './utils/notifications.js';
 import { showNotification } from './utils/dialog-manager.js';
+import { initScanMenu, toggleScanMethodMenu, filterScanMethod, refreshScanCard, navigateToScanSection } from './ui/scan-menu.js';
 
 // Exposer importData IMMÉDIATEMENT (avant que l'HTML ne l'appelle)
 window.importData = importData;
@@ -153,6 +154,7 @@ export async function _bootApp() {
   updateStats();
   displayDashboardCharts();
   runSmartChecks();
+  initScanMenu(); // initialise le menu scan après que les stats sont calculées
 
   // ✅ OFFLINE-FIRST: Pré-charger les modèles face-api en arrière-plan
   // Cela va améliorer les performances pour la reconnaissance faciale même offline
@@ -280,8 +282,10 @@ function _exposeGlobals() {
   window._toggleNotifDetails = (id) => import('./ui/stats.js').then(m => m.toggleNotificationDetails(id));
 
   // Scan method menu
-  window.toggleScanMethodMenu = (e) => import('./ui/scan-menu.js').then(m => m.toggleScanMethodMenu(e));
-  window.filterScanMethod     = (m) => import('./ui/scan-menu.js').then(mod => mod.filterScanMethod(m));
+  window.toggleScanMethodMenu   = toggleScanMethodMenu;
+  window.filterScanMethod       = filterScanMethod;
+  window.refreshScanCard        = refreshScanCard;
+  window.navigateToScanSection  = navigateToScanSection;
 
   // Change items per page
   window.changeItemsPerPage = (type, val) => {

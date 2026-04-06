@@ -106,11 +106,11 @@
           <div class="stat-card"><div class="stat-icon"><span class="material-icons">people</span></div><div class="stat-content"><h3 id="totalEmployees">0</h3><p>Total Employés</p></div></div>
           <div class="stat-card"><div class="stat-icon" style="background-color:var(--md-sys-color-secondary);"><span class="material-icons">fact_check</span></div><div class="stat-content"><h3 id="checkedInToday">0</h3><p>Employés Ayant Pointé</p></div></div>
           <div class="stat-card"><div class="stat-icon"><span class="material-icons">check_circle</span></div><div class="stat-content"><h3 id="presentToday">0</h3><p>Journées Complètes (&ge; 4h)</p></div></div>
-          <div class="stat-card" style="overflow:visible!important;position:relative;cursor:pointer" onclick="showSection('qr-presence')">
+          <div class="stat-card" style="overflow:visible!important;position:relative;cursor:pointer" onclick="window.navigateToScanSection?.()">
             <div class="stat-icon"><span class="material-icons" id="scanMethodIcon">qr_code_scanner</span></div>
             <div class="stat-content"><h3 id="qrScansToday">0</h3><p id="scanMethodLabel">Scans Aujourd'hui</p></div>
             <div style="position:absolute;top:12px;right:12px;z-index:10;">
-              <button onclick="window.toggleScanMethodMenu?.(event);event.stopPropagation()" style="background:none;border:none;cursor:pointer;padding:4px;border-radius:50%;"><span class="material-icons" style="color:var(--md-sys-color-on-surface);font-size:20px;">more_vert</span></button>
+              <button id="scanMethodMenuBtn" onclick="event.stopPropagation();window.toggleScanMethodMenu?.(event,this)" style="background:none;border:none;cursor:pointer;padding:4px;border-radius:50%;"><span class="material-icons" style="color:var(--md-sys-color-on-surface);font-size:20px;">more_vert</span></button>
             </div>
           </div>
           <div class="stat-card"><div class="stat-icon"><span class="material-icons">payments</span></div><div class="stat-content"><h3 id="totalSalaries">0 Ar</h3><p>Salaires ce Mois</p></div></div>
@@ -273,17 +273,12 @@
       <div id="attendance" class="section">
         <div class="card">
           <h2><span class="material-icons">schedule</span>Saisie Manuelle des Présences</h2>
-          <form id="attendanceForm" style="margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid var(--md-sys-color-outline-variant);">
-            <div class="form-row">
-              <div class="form-group"><label>Date</label><input type="date" class="form-control" id="attendanceDate" required></div>
-              <div class="form-group"><label>Employé</label><div class="select-dropdown"><select class="form-control" id="attendanceEmployee" required><option value="">Sélectionner</option></select></div></div>
+          <div style="margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid var(--md-sys-color-outline-variant);">
+            <div class="form-group" style="max-width:220px;">
+              <label>Date</label>
+              <input type="date" class="form-control" id="attendanceDate">
             </div>
-            <div class="form-row">
-              <div class="form-group"><label>Heure d'arrivée</label><input type="time" class="form-control" id="attendanceArrival"></div>
-              <div class="form-group"><label>Heure de départ</label><input type="time" class="form-control" id="attendanceDeparture"></div>
-            </div>
-            <button type="submit" class="btn"><span class="material-icons">add</span>Enregistrer</button>
-          </form>
+          </div>
           <div class="form-row" style="align-items:flex-end;margin-bottom:0;">
             <div class="form-group" style="flex:1;position:relative;">
               <label for="attendanceEmployeeSearch">Rechercher un employé</label>
@@ -595,10 +590,10 @@
 
     <!-- Scan Method Dropdown -->
     <div id="scanMethodMenu" style="display:none;position:fixed;background:white;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.2);min-width:220px;z-index:9999;overflow:hidden;border:1px solid #e5e7eb;">
-      <div onclick="window.filterScanMethod?.('all')" class="menu-item" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;border-bottom:1px solid #f3f4f6;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'"><span class="material-icons" style="color:#6b7280;">apps</span><div><div style="font-weight:600;font-size:14px;color:#1f2937;">Tous</div><div style="font-size:12px;color:#6b7280;" id="allCount">0 pointages</div></div></div>
-      <div onclick="window.filterScanMethod?.('qr')" class="menu-item" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;border-bottom:1px solid #f3f4f6;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'"><span class="material-icons" style="color:#6750A4;">qr_code_scanner</span><div><div style="font-weight:600;font-size:14px;color:#1f2937;">QR Code</div><div style="font-size:12px;color:#6b7280;" id="qrCount">0 scans</div></div></div>
-      <div onclick="window.filterScanMethod?.('manual')" class="menu-item" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;border-bottom:1px solid #f3f4f6;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'"><span class="material-icons" style="color:#f59e0b;">edit</span><div><div style="font-weight:600;font-size:14px;color:#1f2937;">Manuel</div><div style="font-size:12px;color:#6b7280;" id="manualCount">0 entrées</div></div></div>
-      <div onclick="window.filterScanMethod?.('facial')" class="menu-item" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'"><span class="material-icons" style="color:#0ea5e9;">face</span><div><div style="font-weight:600;font-size:14px;color:#1f2937;">Facial</div><div style="font-size:12px;color:#6b7280;" id="facialCount">0 reconnaissances</div></div></div>
+      <div data-method="all"    onclick="window.filterScanMethod?.('all')"    class="menu-item" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;border-bottom:1px solid #f3f4f6;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'"><span class="material-icons" style="color:#6b7280;">apps</span><div><div style="font-weight:600;font-size:14px;color:#1f2937;">Tous</div><div style="font-size:12px;color:#6b7280;" id="allCount">0 pointages</div></div></div>
+      <div data-method="qr"     onclick="window.filterScanMethod?.('qr')"     class="menu-item" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;border-bottom:1px solid #f3f4f6;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'"><span class="material-icons" style="color:#6750A4;">qr_code_scanner</span><div><div style="font-weight:600;font-size:14px;color:#1f2937;">QR Code</div><div style="font-size:12px;color:#6b7280;" id="qrCount">0 scans</div></div></div>
+      <div data-method="manual" onclick="window.filterScanMethod?.('manual')" class="menu-item" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;border-bottom:1px solid #f3f4f6;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'"><span class="material-icons" style="color:#f59e0b;">edit</span><div><div style="font-weight:600;font-size:14px;color:#1f2937;">Manuel</div><div style="font-size:12px;color:#6b7280;" id="manualCount">0 entrées</div></div></div>
+      <div data-method="facial" onclick="window.filterScanMethod?.('facial')" class="menu-item" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'"><span class="material-icons" style="color:#0ea5e9;">face_retouching_natural</span><div><div style="font-weight:600;font-size:14px;color:#1f2937;">Facial</div><div style="font-size:12px;color:#6b7280;" id="facialCount">0 reconnaissances</div></div></div>
     </div>
 
   </div><!-- /appContent -->

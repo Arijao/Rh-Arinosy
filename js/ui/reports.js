@@ -162,22 +162,45 @@ export function exportAdvances(format) {
     doc.setFontSize(18); doc.setFont('helvetica', 'bold');
     doc.text('Liste des Avances à Payer', doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
 
+    // Séparateur milliers = espace (remplace '/')
+    const formatMontant = (amount) =>
+      Math.round(amount).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' Ar';
+
+    // Colonnes : Date · Nom · Montant · Statut
     const rows = pending.map(a => {
       const emp = state.employees.find(e => e.id === a.employeeId);
-      const grp = state.groups.find(g => g.id === emp?.groupId);
-      return [formatDate(a.date, false), grp ? grp.name : 'Sans Groupe', emp ? emp.name : 'N/A', formatCurrency(a.amount).replace(' Ar', '').trim(), ''];
+      return [
+        formatDate(a.date, false),
+        emp ? emp.name : 'N/A',
+        formatMontant(a.amount),
+        a.status || 'En attente',
+      ];
     });
 
     doc.autoTable({
       body: rows,
-      columns: [{ header: 'Date', dataKey: 0 }, { header: 'Groupe', dataKey: 1 }, { header: 'Employé', dataKey: 2 }, { header: 'Montant (Ar)', dataKey: 3 }, { header: 'Signature', dataKey: 4 }],
+      columns: [
+        { header: 'Date',     dataKey: 0 },
+        { header: 'Employé', dataKey: 1 },
+        { header: 'Montant (Ar)', dataKey: 2 },
+        { header: 'Statut',  dataKey: 3 },
+      ],
+      columnStyles: {
+        0: { cellWidth: 28 },  // Date — réduit
+        1: { cellWidth: 'auto' },
+        2: { cellWidth: 38, halign: 'right' },
+        3: { cellWidth: 32 },
+      },
       startY: 30, theme: 'grid',
       headStyles: { fillColor: [103, 80, 164], textColor: 255, fontStyle: 'bold', fontSize: 9 },
-      styles: { fontSize: 8.5 }, minCellHeight: 12,
+      // Texte noir pur pour lisibilité impression
+      styles: { fontSize: 8.5, textColor: [0, 0, 0] }, minCellHeight: 12,
     });
+
     const total = pending.reduce((s, a) => s + a.amount, 0);
     doc.setFontSize(12); doc.setFont('helvetica', 'bold');
-    doc.text(`Total: ${formatCurrency(total)}`, 14, doc.lastAutoTable.finalY + 10);
+    doc.setTextColor(0, 0, 0);
+    doc.text(`Total: ${formatMontant(total)}`, 14, doc.lastAutoTable.finalY + 10);
     doc.save(`avances-${month || 'tous'}.pdf`);
     showToast('PDF avances généré!', 'success');
 
