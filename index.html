@@ -569,6 +569,64 @@
     <div class="modal" id="editAdvanceModal"><div class="modal-content"><div class="modal-header"><h3>Modifier une Avance</h3><button class="close-btn" onclick="window.closeModal?.('editAdvanceModal')"><span class="material-icons">close</span></button></div><form id="editAdvanceForm"><input type="hidden" id="editAdvanceId"><div class="form-group"><label>Employé</label><p id="editAdvanceEmployeeName" style="font-weight:500;font-size:1.1rem;"></p></div><div class="form-row"><div class="form-group"><label>Nouveau Montant (Ar)</label><input type="text" class="form-control currency-input" id="editAdvanceAmount" required data-type="currency"></div><div class="form-group"><label>Date</label><input type="date" class="form-control" id="editAdvanceDate" required></div></div><div class="form-group"><label>Motif</label><textarea class="form-control" id="editAdvanceReason" rows="3"></textarea></div><button type="submit" class="btn"><span class="material-icons">save</span>Enregistrer</button></form></div></div>
 
     <!-- QR Scanner Modal -->
+    <!-- ===== MODALE REMARQUES EMPLOYÉ ===== -->
+    <div class="modal" id="remarksModal">
+      <div class="modal-content" style="max-width:600px;max-height:90vh;display:flex;flex-direction:column;">
+        <div class="modal-header">
+          <h3 id="remarksModalTitle" style="display:flex;align-items:center;gap:8px;">
+            <span class="material-icons">comment</span>Remarques
+          </h3>
+          <button class="close-btn" onclick="window._closeRemarksModal?.()">
+            <span class="material-icons">close</span>
+          </button>
+        </div>
+
+        <!-- Liste des remarques existantes -->
+        <div id="remarksList" style="flex:1;overflow-y:auto;padding:16px 20px 8px;min-height:80px;"></div>
+
+        <!-- Formulaire d'ajout -->
+        <div style="padding:12px 20px 16px;border-top:1px solid var(--md-sys-color-outline-variant);">
+          <h4 style="margin:0 0 10px;font-size:14px;color:var(--md-sys-color-on-surface-variant);">
+            <span class="material-icons" style="font-size:16px;vertical-align:middle;">add_comment</span>
+            Ajouter une remarque
+          </h4>
+          <form id="remarkForm">
+            <input type="hidden" id="remarkEmployeeId">
+            <div class="form-row" style="gap:10px;margin-bottom:10px;">
+              <div class="form-group" style="flex:1;margin:0;">
+                <label style="font-size:12px;">Type</label>
+                <select class="form-control" id="remarkType" required style="height:38px;">
+                  <option value="remarque">Remarque</option>
+                  <option value="avertissement">Avertissement</option>
+                  <option value="alerte">⚠️ Alerte Critique</option>
+                  <option value="note">Note</option>
+                </select>
+              </div>
+              <div class="form-group" style="flex:1;margin:0;">
+                <label style="font-size:12px;">Date</label>
+                <input type="date" class="form-control" id="remarkDate" style="height:38px;">
+              </div>
+            </div>
+            <div class="form-group" style="margin-bottom:8px;">
+              <label style="font-size:12px;display:flex;align-items:center;gap:8px;">
+                <input type="checkbox" id="remarkBlocking" style="width:16px;height:16px;cursor:pointer;">
+                <span style="color:#ef4444;">☒ Alerte bloquante</span>
+                <small style="color:#94a3b8;font-weight:normal;">(nécessite confirmation)</small>
+              </label>
+            </div>
+            <div class="form-group" style="margin-bottom:10px;">
+              <label style="font-size:12px;">Contenu</label>
+              <textarea class="form-control" id="remarkContent" rows="3"
+                placeholder="Saisissez votre remarque..." required
+                style="resize:vertical;min-height:72px;"></textarea>
+            </div>
+            <button type="submit" class="btn" style="width:100%;">
+              <span class="material-icons">add</span>Ajouter
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
     <div class="modal" id="qrScannerModal">
       <div class="modal-content qr-modal-content" style="max-width:540px;">
         <div class="modal-header"><h3 id="qrScannerTitle" style="display:flex;align-items:center;gap:8px;font-size:clamp(1rem,4vw,1.3rem);"><span class="material-icons">qr_code_scanner</span>Scanner le QR Code</h3><button class="close-btn" onclick="stopQRScan()"><span class="material-icons">close</span></button></div>

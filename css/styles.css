@@ -1546,3 +1546,103 @@ textarea[disabled] {
   }
 }
 
+
+/* ============================================================
+
+/* ============================================================
+   REMARQUES EMPLOYÉ — Indicateurs & Badges
+   ============================================================ */
+
+/* Indicateur compact dans la liste employés */
+.remark-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  vertical-align: middle;
+  border: 1px solid transparent;
+  transition: opacity 0.15s, transform 0.15s;
+  user-select: none;
+}
+
+.remark-indicator:hover {
+  opacity: 0.82;
+  transform: scale(1.05);
+}
+
+.remark-indicator .material-icons {
+  font-size: 14px;
+}
+
+.remark-indicator.warning {
+  background: rgba(var(--md-sys-color-error-rgb, 220,38,38), 0.12);
+  color: var(--md-sys-color-error);
+  border-color: rgba(var(--md-sys-color-error-rgb, 220,38,38), 0.3);
+}
+
+.remark-indicator.info {
+  background: rgba(var(--md-sys-color-tertiary-rgb, 107,70,193), 0.12);
+  color: var(--md-sys-color-tertiary);
+  border-color: rgba(var(--md-sys-color-tertiary-rgb, 107,70,193), 0.3);
+}
+
+.remark-indicator.empty {
+  background: transparent;
+  color: var(--md-sys-color-on-surface-variant);
+  border-color: var(--md-sys-color-outline-variant);
+  opacity: 0.5;
+}
+
+.remark-indicator.empty:hover {
+  opacity: 1;
+}
+
+/* Badge inline (paie, présences) */
+.remark-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  vertical-align: middle;
+  border: 1px solid transparent;
+  transition: opacity 0.15s, transform 0.15s;
+  user-select: none;
+}
+
+.remark-badge:hover {
+  opacity: 0.82;
+  transform: scale(1.05);
+}
+
+.remark-badge .material-icons {
+  font-size: 14px;
+}
+
+/* Liste des remarques dans la modale */
+.remark-item {
+  transition: opacity 0.2s, border-color 0.2s;
+}
+
+.remark-item:hover {
+  filter: brightness(1.04);
+}
+
+/* Modale remarques — hauteur adaptative */
+#remarksModal .modal-content {
+  max-height: 88vh;
+}
+
+@media (max-width: 600px) {
+  #remarksModal .modal-content {
+    max-width: 98vw !important;
+    max-height: 95vh;
+  }
+}

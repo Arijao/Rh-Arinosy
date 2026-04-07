@@ -8,6 +8,7 @@ import { showToast, openConfirm } from '../utils/notifications.js';
 import { formatDisplayTime, formatCurrency } from '../utils/format.js';
 import { registerSectionCallback } from './navigation.js';
 import { handleAttendanceEmployeeSearch, initAttendanceSearchDropdown } from './smart-search.js';
+import { getRemarkBadge } from './remarks.js';
 
 export function initAttendance() {
   registerSectionCallback('attendance', displayAttendance);
@@ -89,7 +90,7 @@ export function displayAttendance() {
         <div class="attendance-status">
           <div class="status-indicator ${p ? 'present' : ''}"></div>
           <div>
-            <h4 class="employee-name">${emp.name}</h4>
+            <h4 class="employee-name">${emp.name} ${getRemarkBadge(emp.id)}</h4>
             <p class="employee-position">${emp.position}</p>
             <p style="font-size:12px;"><strong>Groupe:</strong> ${group ? group.name : '<i>Sans groupe</i>'}</p>
           </div>

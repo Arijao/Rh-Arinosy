@@ -25,6 +25,7 @@ export const state = {
   payrolls:     [],
   advances:     [],
   qrAttendance: [],
+  remarks:      [],
 
   // Paramètres
   currentTheme: 'light',
@@ -76,6 +77,9 @@ export async function saveData() {
     await dbManager.clear('advances');
     for (const a of state.advances)      await dbManager.add('advances', a);
 
+    await dbManager.clear('remarks');
+    for (const r of (state.remarks || [])) await dbManager.add('remarks', r);
+
     await dbManager.put('settings', { key: 'theme',      value: state.currentTheme });
     await dbManager.put('settings', { key: 'qrSettings', value: state.qrSettings   });
     await dbManager.put('settings', { key: 'lastUpdated',value: new Date().toISOString() });
@@ -124,7 +128,8 @@ export async function loadData() {
     state.advances     = await dbManager.getAll('advances');
     state.groups       = await dbManager.getAll('groups');
     state.qrAttendance = await dbManager.getAll('qr_attendance');
-    dbManager.log(`✅ Données complètes chargées (Groupes: ${state.groups.length}, Paies: ${state.payrolls.length})`, 'success');
+    state.remarks      = await dbManager.getAll('remarks');
+    dbManager.log(`✅ Données complètes chargées (Groupes: ${state.groups.length}, Paies: ${state.payrolls.length}, Remarques: ${state.remarks.length})`, 'success');
 
     const themeSetting = await dbManager.get('settings', 'theme');
     if (themeSetting) state.currentTheme = themeSetting.value;
@@ -145,6 +150,7 @@ export async function loadData() {
     state.payrolls = [];
     state.advances = [];
     state.qrAttendance = [];
+    state.remarks = [];
     
     throw err; // Re-lever pour que main.js le capture
   }

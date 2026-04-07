@@ -6,7 +6,7 @@ export class IndexedDBManager {
   constructor() {
     this.db = null;
     this.dbName = 'BehavanaHRSystem';
-    this.version = 1;
+    this.version = 2;
     this.isInitialized = false;
     this.diagnosticLog = [];
   }
@@ -191,6 +191,7 @@ export class IndexedDBManager {
           'settings': { keyPath: 'key', indexes: [] },
           'qr_attendance': { keyPath: 'id', indexes: [['employeeId', 'employeeId', { unique: false }], ['date', 'date', { unique: false }], ['timestamp', 'timestamp', { unique: false }]] },
           'qr_codes': { keyPath: 'employeeId', indexes: [['generated', 'generated', { unique: false }]] },
+          'remarks': { keyPath: 'id', indexes: [['employeeId', 'employeeId', { unique: false }], ['type', 'type', { unique: false }], ['status', 'status', { unique: false }]] },
         };
 
         for (const [storeName, storeConfig] of Object.entries(requiredStores)) {

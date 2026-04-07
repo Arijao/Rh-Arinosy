@@ -9,6 +9,7 @@ import { formatCurrency, formatDate, getDaysInMonth, getCurrencyValue, setCurren
 import { countPresenceDays } from '../utils/attendance-calc.js';
 import { registerSectionCallback } from './navigation.js';
 import { handleAdvanceEmployeeSearch, initSmartSearchDropdowns, initScanBridge } from './smart-search.js';
+import { checkAndShowEmployeeAlerts, TRIGGER_POINTS } from '../utils/alert-system.js';
 
 export function initAdvances() {
   registerSectionCallback('advances', displayAdvances);
@@ -138,6 +139,17 @@ async function handleAddAdvance(e) {
   const emp    = state.employees.find(e => e.id === empId);
   if (!emp) return;
   if (amount === 0) { showToast('Montant invalide!', 'error'); return; }
+
+  // VÉRIFICATION DES ALERTES AVANT L'AVANCE
+  const alertResult = await checkAndShowEmployeeAlerts(empId, TRIGGER_POINTS.ADVANCE_REQUEST, {
+    showNonBlocking: true
+  });
+  
+  // Si l'utilisateur a annulé à cause d'alertes bloquantes, on arrête
+  if (!alertResult.confirmed) {
+    showToast('Avance annulée - Alerte bloquante', 'warning');
+    return;
+  }
 
   const adv = {
     id: Date.now().toString(), employeeId: empId, employeeName: emp.name,

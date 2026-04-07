@@ -28,6 +28,7 @@ import { initAuth, checkSession, logout } from './ui/auth.js';
 import { showToast } from './utils/notifications.js';
 import { showNotification } from './utils/dialog-manager.js';
 import { initScanMenu, toggleScanMethodMenu, filterScanMethod, refreshScanCard, navigateToScanSection } from './ui/scan-menu.js';
+import { initRemarks } from './ui/remarks.js';
 
 // Exposer importData IMMÉDIATEMENT (avant que l'HTML ne l'appelle)
 window.importData = importData;
@@ -139,6 +140,7 @@ export async function _bootApp() {
   initFacePresence();
   initAdvances();
   initPayroll();
+  initRemarks();
 
   // UI de base
   initializeTheme();

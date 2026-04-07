@@ -9,6 +9,7 @@ import { showToast, openConfirm } from '../utils/notifications.js';
 import { formatDisplayTime, formatDate } from '../utils/format.js';
 import { playSuccessSound, playGenericErrorSound, playErrorSound } from '../utils/audio.js';
 import { registerSectionCallback } from './navigation.js';
+import { checkAndShowEmployeeAlerts, TRIGGER_POINTS } from '../utils/alert-system.js';
 
 export function initQR() {
   registerSectionCallback('qr-presence', displayQRAttendance);
@@ -232,6 +233,23 @@ async function handleQRScanResult(raw) {
 // ===== ATTENDANCE SCAN =====
 
 export async function processAttendanceScan(emp, method = 'QR', skipSound = false) {
+  // VÉRIFICATION DES ALERTES AVANT LE POINTAGE
+  const triggerPoint = method === 'QR' ? TRIGGER_POINTS.QR_SCAN : 
+                       method === 'FACIAL' ? TRIGGER_POINTS.FACIAL_SCAN : 
+                       TRIGGER_POINTS.MANUAL_ATTENDANCE;
+  
+  const alertResult = await checkAndShowEmployeeAlerts(emp.id, triggerPoint, {
+    showNonBlocking: true
+  });
+  
+  // Si des alertes bloquantes et que l'utilisateur a annulé, on arrête
+  if (!alertResult.confirmed) {
+    playErrorSound();
+    showScanResult(`<strong>⚠️ POINTAGE BLOQUÉ</strong><br>${emp.name}<br>Veuillez contacter le responsable.`, 'error');
+    setTimeout(() => stopQRScan(), 3000);
+    return false;
+  }
+
   const now  = new Date();
   const y    = now.getFullYear();
   const mo   = String(now.getMonth() + 1).padStart(2, '0');

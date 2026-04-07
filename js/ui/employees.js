@@ -10,6 +10,7 @@ import { formatCurrency, capitalizeWords, getCurrencyValue, setCurrencyValue } f
 import { populateGroupSelects, populateEmployeeSelects } from './groups.js';
 import { registerSectionCallback } from './navigation.js';
 import { handleEmployeeSearch, initEmployeeSearchDropdown } from './smart-search.js';
+import { checkAndShowEmployeeAlerts, TRIGGER_POINTS, getAlertsSummary } from '../utils/alert-system.js';
 
 // ------ Init ------
 
@@ -112,10 +113,29 @@ export function displayEmployees() {
            <span class="material-icons" style="font-size:14px;">lock</span></span>`
       : '';
 
+    // Gestion des remarques
+    const empRemarks = state.remarks.filter(r => r.employeeId === emp.id && r.status === 'actif');
+    const hasWarning = empRemarks.some(r => r.type === 'avertissement');
+    const remarkIndicator = empRemarks.length > 0
+      ? `<div class="remark-indicator ${hasWarning ? 'warning' : 'info'}" 
+              onclick="window._openRemarksModal?.('${emp.id}')"
+              title="${empRemarks.length} remarque(s) active(s)">
+           <span class="material-icons">${hasWarning ? 'report_problem' : 'info'}</span>
+           <span class="remark-count">${empRemarks.length}</span>
+         </div>`
+      : `<div class="remark-indicator empty" 
+              onclick="window._openRemarksModal?.('${emp.id}')"
+              title="Ajouter une remarque">
+           <span class="material-icons">add_comment</span>
+         </div>`;
+
     return `
       <div class="employee-item">
         <div class="employee-info">
-          <h4>${emp.name}</h4>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <h4>${emp.name}</h4>
+            ${remarkIndicator}
+          </div>
           <p><strong>Poste:</strong> ${emp.position} | <strong>Groupe:</strong> ${groupName}</p>
           <p><strong>Salaire:</strong> ${formatCurrency(emp.salary)}${customBadge}</p>
           ${advHtml}
@@ -223,6 +243,22 @@ async function handleEditEmployee(e) {
 
     const idx = state.employees.findIndex(e => e.id === id);
     if (idx === -1) { showToast("Employé non trouvé.", 'error'); return; }
+
+    const oldStatus = state.employees[idx].status;
+    
+    // VÉRIFICATION DES ALERTES LORS DU CHANGEMENT DE STATUT
+    if (oldStatus !== status && (status === 'depart' || status === 'inactif')) {
+      const alertResult = await checkAndShowEmployeeAlerts(id, TRIGGER_POINTS.EMPLOYEE_STATUS_CHANGE, {
+        showNonBlocking: true
+      });
+      
+      // Si l'utilisateur a annulé à cause d'alertes bloquantes, on arrête
+      if (!alertResult.confirmed) {
+        showToast('Modification annulée - Alerte bloquante', 'warning');
+        setFormLoading(form, false);
+        return;
+      }
+    }
 
     Object.assign(state.employees[idx], { name, position, gender, salary, groupId: groupId || null, status, departureDate: depDate });
     await saveData();

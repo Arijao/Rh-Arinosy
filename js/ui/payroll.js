@@ -10,6 +10,8 @@ import { countPresenceDays } from '../utils/attendance-calc.js';
 import { registerSectionCallback } from './navigation.js';
 import { populateEmployeeSelects } from './groups.js';
 import { handlePayrollEmployeeSearch, initSmartSearchDropdowns, initScanBridge } from './smart-search.js';
+import { getRemarkBadge } from './remarks.js';
+import { checkAndShowEmployeeAlerts, TRIGGER_POINTS, getAlertsSummary } from '../utils/alert-system.js';
 
 export function initPayroll() {
   registerSectionCallback('payroll', () => {
@@ -108,6 +110,7 @@ export async function calculatePayroll() {
       <div class="payroll-item ${isPaid ? 'paid' : ''}" id="payroll-item-${emp.id}" style="display:flex;justify-content:space-between;align-items:center;padding:12px;margin-bottom:8px;border:1px solid var(--md-sys-color-outline-variant);border-left-width:6px;">
         <div>
           <h4>${emp.name}
+            ${getRemarkBadge(emp.id)}
             <span class="attendance-badge ${present === 0 ? 'no-attendance' : ''}">
               <span class="material-icons" style="font-size:16px;">${present === 0 ? 'event_busy' : 'check_circle'}</span>
               <span>${present} jour${present > 1 ? 's' : ''}</span>
@@ -161,6 +164,17 @@ export async function savePayroll(empId, month, total, acompte = 0) {
   if (!emp) return;
   if (state.payrolls.find(p => p.employeeId === empId && p.month === month)) {
     showToast("Déjà payé pour ce mois.", 'error'); return;
+  }
+
+  // VÉRIFICATION DES ALERTES AVANT LE PAIEMENT
+  const alertResult = await checkAndShowEmployeeAlerts(empId, TRIGGER_POINTS.PAYROLL_PAY, {
+    showNonBlocking: true
+  });
+  
+  // Si l'utilisateur a annulé à cause d'alertes bloquantes, on arrête
+  if (!alertResult.confirmed) {
+    showToast('Paiement annulé - Alerte bloquante', 'warning');
+    return;
   }
 
   const rec = { id: Date.now().toString(), employeeId: empId, employeeName: emp.name, position: emp.position, month, amount: total, date: new Date().toISOString() };
