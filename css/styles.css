@@ -156,15 +156,28 @@ body::before {
   border: 2px solid rgba(148,163,184,.3);
   border-radius: 8px;
   background: rgba(51,65,85,.4); backdrop-filter: blur(10px);
-  color: #f1f5f9; font-size: 16px; transition: all 0.3s ease;
+  color: #f1f5f9; -webkit-text-fill-color: #f1f5f9; /* ← FIX Chrome/Safari dark select */
+  font-size: 16px; transition: all 0.3s ease;
 }
 .form-control:focus {
   outline: none; border-color: #818cf8;
   background: rgba(51,65,85,.6);
-  box-shadow: 0 0 0 3px rgba(129,140,248,.15); color: white;
+  box-shadow: 0 0 0 3px rgba(129,140,248,.15);
+  color: white; -webkit-text-fill-color: white;      /* ← FIX cohérence au focus */
 }
 .form-control::placeholder { color: rgba(203,213,225,.5); }
 .form-control option { background: #1e293b; color: #f1f5f9; }
+/* Fix select remarkType : texte visible et non tronqué */
+select.form-control {
+  appearance: auto;
+  -webkit-appearance: auto;
+  -webkit-text-fill-color: #f1f5f9;
+  color: #f1f5f9;
+  padding-right: 32px;          /* espace pour la flèche native */
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
 /* --- Buttons --- */
