@@ -29,7 +29,7 @@ export class IndexedDBManager {
         return { available: false, error: 'IndexedDB non disponible' };
       }
       
-      this.log('✅ IndexedDB est disponible', 'info');
+      this.log(' IndexedDB est disponible', 'info');
       
       // Essayer de se connecter à la base de données existante
       return await this._tryConnect();
@@ -47,7 +47,7 @@ export class IndexedDBManager {
       request.onsuccess = () => {
         const db = request.result;
         const storeNames = Array.from(db.objectStoreNames);
-        this.log(`✅ Connexion réussie à '${this.dbName}' (v${db.version})`, 'success');
+        this.log(`Connexion réussie à '${this.dbName}' (v${db.version})`, 'success');
         this.log(`   Stores existants: ${storeNames.join(', ') || 'Aucun'}`, 'success');
         db.close();
         resolve({ 
@@ -84,7 +84,7 @@ export class IndexedDBManager {
       console.groupEnd();
       return { fatal: true, message: 'IndexedDB non disponible' };
     }
-    console.log('✅ IndexedDB disponible');
+    console.log(' IndexedDB disponible');
     
     // Lister toutes les DB existantes (impossible directement, donc tester les noms communs)
     const possibleNames = ['BehavanaHRSystem', 'behavana', 'hrdb', 'rh-system'];
@@ -118,7 +118,7 @@ export class IndexedDBManager {
       console.log('  4. Quota de stockage dépassé');
       console.log('  5. Problème de permissions du navigateur');
     } else {
-      console.log('✅ Connexion réussie');
+      console.log(' Connexion réussie');
       console.log(`   Stores trouvés: ${diagnosis.stores.join(', ')}`);
     }
     
@@ -151,7 +151,7 @@ export class IndexedDBManager {
         this.db = request.result;
         this.isInitialized = true;
         const storeNames = Array.from(this.db.objectStoreNames);
-        this.log(`✅ Base de données connectée. Version: ${this.db.version}`, 'success');
+        this.log(` Base de données connectée. Version: ${this.db.version}`, 'success');
         this.log(`Stores disponibles: ${storeNames.length > 0 ? storeNames.join(', ') : 'Aucun'}`, 'success');
         
         // VÉRIFICATION IMPORTANTE: Si la DB est vide, la supprimer et la recréer
@@ -162,7 +162,7 @@ export class IndexedDBManager {
           // Supprimer la vieille DB
           const deleteRequest = indexedDB.deleteDatabase(this.dbName);
           deleteRequest.onsuccess = () => {
-            this.log('✅ Ancienne DB supprimée. Recréation avec v' + this.version, 'info');
+            this.log(' Ancienne DB supprimée. Recréation avec v' + this.version, 'info');
             // Réappeler init() pour recréer avec les bons stores
             this.init().then(resolve).catch(reject);
           };
@@ -201,19 +201,19 @@ export class IndexedDBManager {
               for (const [indexName, keyPath, options] of storeConfig.indexes) {
                 store.createIndex(indexName, keyPath, options);
               }
-              this.log(`  ✅ Store créé: ${storeName}`, 'info');
+              this.log(` Store créé: ${storeName}`, 'info');
             } catch (err) {
               this.log(`  ⚠️  Erreur création store ${storeName}: ${err.message}`, 'warn');
             }
           } else {
-            this.log(`  ℹ️  Store existant: ${storeName}`, 'info');
+            this.log(`  Store existant: ${storeName}`, 'info');
             // Ajouter les indexes manquants si nécessaire
             const store = event.target.transaction.objectStore(storeName);
             for (const [indexName, keyPath, options] of storeConfig.indexes) {
               if (!store.indexNames.contains(indexName)) {
                 try {
                   store.createIndex(indexName, keyPath, options);
-                  this.log(`    ✅ Index créé: ${storeName}.${indexName}`, 'info');
+                  this.log(`   Index créé: ${storeName}.${indexName}`, 'info');
                 } catch (err) {
                   this.log(`    ⚠️  Erreur création index ${storeName}.${indexName}: ${err.message}`, 'warn');
                 }
@@ -316,7 +316,7 @@ export class IndexedDBManager {
     console.log('\n📊 Résumé:');
     console.log('  Nombre d\'événements:', this.diagnosticLog.length);
     console.log('  Classe initialisée:', !!this.db);
-    console.log('  Connexion active:', this.db ? 'OUI ✅' : 'NON ❌');
+    console.log('  Connexion active:', this.db ? 'OUI ' : 'NON ');
     
     console.groupEnd();
   }

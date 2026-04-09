@@ -12,7 +12,10 @@ import { handleAdvanceEmployeeSearch, initSmartSearchDropdowns, initScanBridge }
 import { checkAndShowEmployeeAlerts, TRIGGER_POINTS } from '../utils/alert-system.js';
 
 export function initAdvances() {
-  registerSectionCallback('advances', displayAdvances);
+  registerSectionCallback('advances', () => {
+    resetAdvanceForm();
+    displayAdvances();
+  });
 
   document.getElementById('advanceForm')
     ?.addEventListener('submit', handleAddAdvance);
@@ -33,14 +36,28 @@ export function initAdvances() {
   document.getElementById('advanceEmployeeInput')
     ?.addEventListener('input', handleAdvanceEmployeeSearch);
 
-  // Mois courant par défaut
+  // Mois courant par défaut pour le filtre
   const mf = document.getElementById('advanceMonthFilter');
   if (mf) mf.value = new Date().toISOString().slice(0, 7);
-  const ad = document.getElementById('advanceDate');
-  if (ad) ad.value = new Date().toISOString().split('T')[0];
+  
+  resetAdvanceForm();
 
   initSmartSearchDropdowns();
   initScanBridge();
+}
+
+/**
+ * Réinitialise le formulaire d'ajout d'avance avec la date du jour
+ */
+function resetAdvanceForm() {
+  const form = document.getElementById('advanceForm');
+  if (form) form.reset();
+  
+  const ad = document.getElementById('advanceDate');
+  if (ad) ad.value = new Date().toISOString().split('T')[0];
+  
+  const box = document.getElementById('netSalaryPreview');
+  if (box) box.style.display = 'none';
 }
 
 // ------ Display ------
@@ -159,7 +176,7 @@ async function handleAddAdvance(e) {
   await saveData();
   displayAdvances();
   window._updateStats?.();
-  e.target.reset();
+  resetAdvanceForm();
   showToast('Avance ajoutée!', 'success');
 }
 
