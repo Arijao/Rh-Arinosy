@@ -258,7 +258,17 @@ export async function processAttendanceScan(emp, method = 'QR', skipSound = fals
   const time  = now.toTimeString().split(' ')[0].substring(0, 5);
 
   if (!state.attendance[today]) state.attendance[today] = {};
-  const existing = state.attendance[today][emp.id];
+  const raw = state.attendance[today][emp.id];
+
+  // Normaliser l'ancien format booléen (true) en objet structuré
+  const existing = (raw && typeof raw === 'object')
+    ? raw
+    : raw === true
+      ? { arrivee: '--:--', depart: null, checks: [] }
+      : null;
+
+  // Réécrire en place si c'était un booléen
+  if (raw === true) state.attendance[today][emp.id] = existing;
 
   if (!existing) {
     // Arrivée
