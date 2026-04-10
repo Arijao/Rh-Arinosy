@@ -53,6 +53,7 @@ export function displayAttendance() {
 
   // Tri: présents d'abord
   const dayAtt = state.attendance[selectedDate];
+  renderAttendanceSummary(active, dayAtt); 
   filtered.sort((a, b) => {
     const aHas = !!dayAtt[a.id]?.arrivee;
     const bHas = !!dayAtt[b.id]?.arrivee;
@@ -135,6 +136,74 @@ export function displayAttendance() {
     state.pagination.attendance.current = p;
     displayAttendance();
   });
+}
+
+function renderAttendanceSummary(active, dayAtt) {
+  const container = document.getElementById('attendanceSummary');
+  if (!container) return;
+
+  let presents = 0, demi = 0, absents = 0;
+
+  active.forEach(emp => {
+    const p = dayAtt[emp.id];
+    if (!p) {
+      absents++;
+    } else if (p === 'demi') {
+      demi++;
+    } else if (typeof p === 'object' && p.arrivee) {
+      if (p.depart) {
+        // Présence horodatée : calculer si demi-journée
+        const [ah, am] = p.arrivee.split(':').map(Number);
+        const [dh, dm] = p.depart.split(':').map(Number);
+        const minutes  = (dh * 60 + dm) - (ah * 60 + am);
+        if (minutes > 0 && minutes < 240) demi++; else presents++;
+      } else {
+        demi++; // arrivée sans départ = demi
+      }
+    } else {
+      presents++; // true ou 'journee'
+    }
+  });
+
+  container.innerHTML = `
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin:16px 0;">
+      <div style="flex:1;min-width:120px;display:flex;align-items:center;gap:10px;
+                  padding:12px 16px;border-radius:12px;
+                  background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);">
+        <span class="material-icons" style="color:#22c55e;font-size:22px;">check_circle</span>
+        <div>
+          <div style="font-size:22px;font-weight:700;color:#22c55e;">${presents}</div>
+          <div style="font-size:11px;color:var(--md-sys-color-on-surface-variant);">Présents</div>
+        </div>
+      </div>
+      <div style="flex:1;min-width:120px;display:flex;align-items:center;gap:10px;
+                  padding:12px 16px;border-radius:12px;
+                  background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);">
+        <span class="material-icons" style="color:#f59e0b;font-size:22px;">schedule</span>
+        <div>
+          <div style="font-size:22px;font-weight:700;color:#f59e0b;">${demi}</div>
+          <div style="font-size:11px;color:var(--md-sys-color-on-surface-variant);">Demi-journée</div>
+        </div>
+      </div>
+      <div style="flex:1;min-width:120px;display:flex;align-items:center;gap:10px;
+                  padding:12px 16px;border-radius:12px;
+                  background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);">
+        <span class="material-icons" style="color:#ef4444;font-size:22px;">cancel</span>
+        <div>
+          <div style="font-size:22px;font-weight:700;color:#ef4444;">${absents}</div>
+          <div style="font-size:11px;color:var(--md-sys-color-on-surface-variant);">Absents</div>
+        </div>
+      </div>
+      <div style="flex:1;min-width:120px;display:flex;align-items:center;gap:10px;
+                  padding:12px 16px;border-radius:12px;
+                  background:rgba(103,80,164,.12);border:1px solid rgba(103,80,164,.3);">
+        <span class="material-icons" style="color:var(--md-sys-color-primary);font-size:22px;">people</span>
+        <div>
+          <div style="font-size:22px;font-weight:700;color:var(--md-sys-color-primary);">${active.length}</div>
+          <div style="font-size:11px;color:var(--md-sys-color-on-surface-variant);">Total</div>
+        </div>
+      </div>
+    </div>`;
 }
 
 // ------ Actions ------
