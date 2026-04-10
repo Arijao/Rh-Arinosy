@@ -212,8 +212,54 @@ export async function saveAttendanceManual() {
   showToast('Présences enregistrées!', 'success');
 }
 
+export async function checkAllAttendance() {
+  const selectedDate = document.getElementById('attendanceDate')?.value;
+  if (!selectedDate) { showToast('Veuillez sélectionner une date.', 'error'); return; }
+
+  const groupFilter = document.getElementById('attendanceGroupFilter')?.value || 'all';
+  const searchTerm  = (document.getElementById('attendanceEmployeeSearch')?.value || '').toLowerCase();
+
+  // Même filtre que displayAttendance
+  let active = state.employees.filter(e => e.status !== 'inactif');
+  if (groupFilter !== 'all') active = active.filter(e => e.groupId === groupFilter);
+  const filtered = active.filter(e =>
+    e.name.toLowerCase().includes(searchTerm) || e.position.toLowerCase().includes(searchTerm)
+  );
+
+  if (!filtered.length) return;
+
+  if (!state.attendance[selectedDate]) state.attendance[selectedDate] = {};
+  const dayAtt = state.attendance[selectedDate];
+
+  // Détecter l'état global : tous présents → tout décocher, sinon → tout cocher
+  const allPresent = filtered.every(e => !!dayAtt[e.id]);
+
+  filtered.forEach(emp => {
+    if (allPresent) {
+      // Tout décocher : supprimer uniquement les présences simples (true)
+      // Ne pas toucher aux présences détaillées (QR, facial, manuel horodaté)
+      if (dayAtt[emp.id] === true) delete dayAtt[emp.id];
+    } else {
+      // Tout cocher : marquer présent uniquement ceux qui ne le sont pas encore
+      if (!dayAtt[emp.id]) dayAtt[emp.id] = true;
+    }
+  });
+
+  await saveAttendanceData();
+  displayAttendance();
+  window._updateStats?.();
+  window._runSmartChecks?.();
+
+  // Mettre à jour le libellé du bouton
+  const label = document.getElementById('checkAllAttendanceBtnLabel');
+  if (label) label.textContent = allPresent ? 'Tout cocher' : 'Tout décocher';
+
+  showToast(allPresent ? 'Présences décochées.' : 'Tous marqués présents.', 'success');
+}
+
 // Exposer pour onclick HTML
 window._toggleAttType       = toggleAttendanceType;
 window._updateAttCheckbox   = updateAttendanceCheckbox;
 window._recordTime          = recordTime;
 window._clearAttendance     = clearAttendance;
+window._checkAllAttendance  = checkAllAttendance;
