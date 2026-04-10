@@ -62,7 +62,8 @@ export function calculateSalaryEstimation() {
         }
         pastDays += val;
       } else {
-        if (dow !== 6) val = 1; // Sam = 0, tout le reste compte
+        // Estimation future : on compte les jours ouvrés (ex: hors dimanche)
+        if (dow !== 0) val = 1; 
         futureDays += val;
       }
       totalGross += dailySal * val;
@@ -77,6 +78,7 @@ export function calculateSalaryEstimation() {
   });
 
   const totalNet = totalGross - totalAdv;
+  const empCount = emps.length;
 
   container.innerHTML = `
     <h3>Résultats de l'Estimation</h3>
@@ -87,10 +89,12 @@ export function calculateSalaryEstimation() {
       <div class="stat-card" style="background:var(--md-sys-color-primary-container);"><div class="stat-icon"><span class="material-icons">payments</span></div><div class="stat-content"><h3 style="color:var(--md-sys-color-on-primary-container);">${formatCurrency(totalNet)}</h3><p>Total NET Estimé</p></div></div>
     </div>
     <div style="padding:12px;background:var(--md-sys-color-surface-variant);border-radius:8px;">
-      <ul>
-        <li>Jours passés (réels): <strong>${pastDays.toFixed(2)} jours</strong></li>
-        <li>Jours futurs (estimés): <strong>${futureDays.toFixed(2)} jours</strong></li>
-        <li>Total jours-homme: <strong>${(pastDays + futureDays).toFixed(2)}</strong></li>
+      <ul style="margin:0;padding-left:20px;">
+        <li>Nombre d'employés concernés : <strong>${empCount}</strong></li>
+        <li>Jours passés (réels) : <strong>${pastDays.toFixed(2)} j-homme</strong> ${empCount > 0 ? `(soit ${(pastDays/empCount).toFixed(1)} j/emp)` : ''}</li>
+        <li>Jours futurs (estimés) : <strong>${futureDays.toFixed(2)} j-homme</strong> ${empCount > 0 ? `(soit ${(futureDays/empCount).toFixed(1)} j/emp)` : ''}</li>
+        <li>Total jours-homme : <strong>${(pastDays + futureDays).toFixed(2)}</strong></li>
       </ul>
+      <p style="font-size:0.85em;margin-top:8px;opacity:0.8;"><i>Note : L'estimation future exclut les dimanches.</i></p>
     </div>`;
 }

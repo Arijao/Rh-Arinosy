@@ -55,9 +55,6 @@
         <button class="settings-btn" onclick="window.toggleSettings?.()">
           <span class="material-icons">settings</span>
         </button>
-        <button class="theme-toggle" onclick="window.toggleTheme?.()">
-          <span class="material-icons" id="theme-icon">dark_mode</span>
-        </button>
         <h1>
           <span class="material-icons" style="font-size:2.5rem;vertical-align:middle;">qr_code_scanner</span>
           RH RiseVanilla
@@ -531,12 +528,7 @@
         <button class="close-btn" onclick="window.toggleSettings?.()" style="cursor: pointer;"><span class="material-icons">close</span></button>
       </div>
       <div class="settings-section">
-        <h3><span class="material-icons">palette</span>Apparence</h3>
-        <div class="form-group"><label>Thème</label><select class="form-control" id="themeSelect" onchange="window.changeTheme?.(this.value)"><option value="light">Clair</option><option value="dark">Sombre</option></select></div>
-      </div>
-      <div class="settings-section">
-        <h3><span class="material-icons">qr_code</span>QR Code</h3>
-        <div class="form-group"><label>Taille</label><select class="form-control" id="qrSizeSelect" onchange="window.updateQRSettings?.()"><option value="128">Petit (128px)</option><option value="256" selected>Moyen (256px)</option><option value="512">Grand (512px)</option></select></div>
+        <h3><span class="material-icons">qr_code</span>QR Code</h3>        <div class="form-group"><label>Taille</label><select class="form-control" id="qrSizeSelect" onchange="window.updateQRSettings?.()"><option value="128">Petit (128px)</option><option value="256" selected>Moyen (256px)</option><option value="512">Grand (512px)</option></select></div>
         <div class="form-group"><label>Couleur</label><input type="color" class="form-control" id="qrColorSelect" value="#6750A4" onchange="window.updateQRSettings?.()"></div>
       </div>
       <div class="settings-section">
