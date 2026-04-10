@@ -79,16 +79,39 @@ body::before {
 .header p  { font-size: 1.1rem; opacity: .9; position: relative; z-index: 1; }
 
 /* --- Buttons header --- */
-.theme-toggle, .settings-btn {
+/* Groupe de boutons header — aligné à droite, jamais en overlap */
+.header-actions {
   position: absolute; top: 24px; right: 24px;
-  background: rgba(255,255,255,.2); border: none; border-radius: 50%;
-  width: 48px; height: 48px;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer; color: var(--md-sys-color-on-primary);
-  transition: all 0.3s ease; z-index: 2;
+  display: flex; align-items: center; gap: 8px; z-index: 2;
 }
-.settings-btn { right: 80px; }
-.theme-toggle:hover, .settings-btn:hover { background: rgba(255,255,255,.3); transform: scale(1.1); }
+
+.header-action-btn {
+  position: relative;
+  background: rgba(255,255,255,.2); border: none; border-radius: 50%;
+  width: 48px; height: 48px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: white;
+  transition: all 0.3s ease;
+}
+.header-action-btn:hover { background: rgba(255,255,255,.3); transform: scale(1.1); }
+
+/* Tooltip au survol */
+.header-action-btn::after {
+  content: attr(data-tooltip);
+  position: absolute; top: calc(100% + 8px); right: 0;
+  background: rgba(15,23,42,.92); color: #f1f5f9;
+  font-size: 12px; font-weight: 500; white-space: nowrap;
+  padding: 4px 10px; border-radius: 6px;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+.header-action-btn:hover::after { opacity: 1; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .header-actions { top: 12px; right: 12px; gap: 6px; }
+  .header-action-btn { width: 40px; height: 40px; }
+}
 
 /* --- Nav Tabs (caché — remplacé par hamburger) --- */
 .nav-tabs { display: none !important; }
@@ -616,8 +639,6 @@ table td { color: #e2e8f0 !important; font-weight: 500 !important; }
   .stats-grid { grid-template-columns: 1fr; }
   .form-row   { grid-template-columns: 1fr; }
   .card       { padding: 16px; }
-  .settings-btn { right: 70px; }
-  .theme-toggle { right: 16px; }
   .settings-panel { width: 100%; right: -100%; }
   .settings-panel.active { right: 0; }
   .video-container { max-width: 100%; border-radius: 0; }

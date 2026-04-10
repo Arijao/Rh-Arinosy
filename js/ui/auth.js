@@ -152,20 +152,26 @@ function _setupAutoLock() {
 }
 
 function _injectLockButton() {
-  // Ajouter bouton de verrouillage dans le header
   const header = document.querySelector('.header');
   if (!header) return;
+
+  // Créer ou récupérer le groupe de boutons
+  let actions = header.querySelector('.header-actions');
+  if (!actions) {
+    actions = document.createElement('div');
+    actions.className = 'header-actions';
+    header.appendChild(actions);
+  }
+
   const btn = document.createElement('button');
-  btn.id = 'lockBtn';
-  btn.title = 'Verrouiller';
-  btn.style.cssText = `
-    position:absolute;top:24px;right:136px;
-    background:rgba(255,255,255,0.2);border:none;border-radius:50%;
-    width:48px;height:48px;display:flex;align-items:center;justify-content:center;
-    cursor:pointer;color:white;transition:all 0.3s ease;z-index:2;`;
+  btn.id        = 'lockBtn';
+  btn.className = 'header-action-btn';
+  btn.setAttribute('data-tooltip', 'Verrouiller');
   btn.innerHTML = '<span class="material-icons">lock</span>';
   btn.onclick   = logout;
-  header.appendChild(btn);
+
+  // Insérer avant le bouton Settings s'il est déjà dans le groupe
+  actions.prepend(btn);
 }
 
 function _injectLoginPage() {
