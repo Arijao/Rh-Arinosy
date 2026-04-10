@@ -326,6 +326,29 @@ export async function checkAllAttendance() {
   showToast(allPresent ? 'Présences décochées.' : 'Tous marqués présents.', 'success');
 }
 
+export function changeItemsPerPage(section, value) {
+  const n = parseInt(value, 10);
+  if (!n || n < 1) return;
+
+  if (state.pagination[section]) {
+    state.pagination[section].perPage  = n;
+    state.pagination[section].current  = 1; // retour page 1
+  }
+
+  // Rafraîchir la vue correspondante
+  switch (section) {
+    case 'attendance':    displayAttendance();             break;
+    case 'employee':      window._displayEmployees?.();   break;
+    case 'advances':      window._displayAdvances?.();    break;
+    case 'enrolled':      window._displayEnrolled?.();    break;
+    case 'faceAttendance':window._displayFaceAttendance?.(); break;
+    case 'qrAttendance':  window._displayQRAttendance?.(); break;
+    default: break;
+  }
+}
+
+// Exposer globalement (appelé via onchange HTML)
+window.changeItemsPerPage = changeItemsPerPage;
 // Exposer pour onclick HTML
 window._toggleAttType       = toggleAttendanceType;
 window._updateAttCheckbox   = updateAttendanceCheckbox;
