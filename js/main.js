@@ -15,7 +15,7 @@ import { initStats, updateStats, displayDashboardCharts, runSmartChecks } from '
 import { initEmployees, displayEmployees, openAddEmployeeModal } from './ui/employees.js';
 import { initGroups, displayGroups, populateGroupSelects,
          populateEmployeeSelects, showMasseSalairePreview, applyMasseSalaire, cancelGroupEdit } from './ui/groups.js';
-import { initAttendance } from './ui/attendance.js';
+import { initAttendance, displayAttendance } from './ui/attendance.js';
 import { initQR, startQRScan, stopQRScan, displayQRAttendance,
          generateAllQRCodes, downloadQRFromDB, printAllQRCodes, filterQRCodes,
          handleQRImageUpload } from './ui/qr.js';
