@@ -130,44 +130,49 @@ self.addEventListener('fetch', event => {
     request.url.includes('fonts.gstatic.com')
   ) return;
 
-  // SPECIAL: Intercepter les requêtes /models/ pour servir depuis IndexedDB
+  // SPECIAL: Intercepter les requêtes /model/ — Cache Storage → IndexedDB → réseau
   if (request.url.includes('/model/')) {
     event.respondWith(
       (async () => {
+        // 1. Cache Storage (précaché à l'install — zéro réseau)
+        const cached = await caches.match(request);
+        if (cached) return cached;
+
+        // 2. IndexedDB (téléchargé par model-cache.js)
         try {
           const db = await new Promise((resolve, reject) => {
             const req = indexedDB.open('face_api_models', 1);
             req.onerror = () => reject(req.error);
             req.onsuccess = () => resolve(req.result);
+            req.onupgradeneeded = e =>
+              e.target.result.createObjectStore('models', { keyPath: 'name' });
           });
 
           const modelName = request.url.split('/model/')[1];
-          const transaction = db.transaction('models', 'readonly');
-          const store = transaction.objectStore('models');
-          
           const model = await new Promise((resolve, reject) => {
-            const req = store.get(modelName);
-            req.onerror = () => reject(req.error);
+            const tx  = db.transaction('models', 'readonly');
+            const req = tx.objectStore('models').get(modelName);
+            req.onerror  = () => reject(req.error);
             req.onsuccess = () => resolve(req.result);
           });
 
-          if (model && model.data) {
-            const mimeType = modelName.endsWith('.json') 
-              ? 'application/json' 
-              : 'application/octet-stream';
+          if (model?.data) {
             return new Response(model.data, {
               status: 200,
               headers: {
-                'Content-Type': mimeType,
-                'Cache-Control': 'max-age=604800'
-              }
+                'Content-Type': modelName.endsWith('.json')
+                  ? 'application/json'
+                  : 'application/octet-stream',
+                'Cache-Control': 'max-age=604800',
+              },
             });
           }
-          return fetch(request);
         } catch (err) {
-          console.warn('[SW] Model fetch failed, trying network:', err.message);
-          return fetch(request);
+          console.warn('[SW] IndexedDB lookup failed:', err.message);
         }
+
+        // 3. Réseau en dernier recours
+        return fetch(request);
       })()
     );
     return;

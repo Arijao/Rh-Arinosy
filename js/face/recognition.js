@@ -87,7 +87,7 @@ const FR = {
       // Le service worker va intercepter et servir depuis IndexedDB
       try {
         console.log('[FR] 🔍 Loading models via Service Worker...');
-        const modelsPath = `${baseUrl}/models`;
+        const modelsPath = `${baseUrl}/model`;
         
         // Charger les trois modèles
         await Promise.all([

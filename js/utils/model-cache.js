@@ -97,9 +97,9 @@ export class ModelCacheManager {
     
     // Essayer CDN primary d'abord
     const urls = [
-      `${this.cdnUrl}${modelName}`,
+      `./model/${modelName}`,              // local/SW en premier — zéro réseau si précaché
+      `${this.cdnUrl}${modelName}`,        // CDN seulement si local échoue
       `${this.cdnUrlFallback}${modelName}`,
-      `./model/${modelName}`,
     ];
     
     let lastError = null;
