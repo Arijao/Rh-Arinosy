@@ -37,12 +37,13 @@ export function calculateSalaryEstimation() {
   if (groupFilter !== 'all') emps = emps.filter(e => e.groupId === groupFilter);
 
   let totalGross = 0, totalAdv = 0, pastDays = 0, futureDays = 0;
+  const presentEmployees = new Set(); // employés ayant au moins 1 présence réelle
   const today = new Date(); today.setUTCHours(0, 0, 0, 0);
 
   for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-    const ds  = d.toISOString().slice(0, 10);
-    const dow = d.getUTCDay();
+    const ds    = d.toISOString().slice(0, 10);
     const daysM = getDaysInMonth(d.getUTCFullYear(), d.getUTCMonth() + 1);
+    const isToday = ds === today.toISOString().slice(0, 10);
 
     emps.forEach(emp => {
       const dailySal = emp.salary / daysM;
@@ -50,8 +51,8 @@ export function calculateSalaryEstimation() {
 
       const p = state.attendance[ds]?.[emp.id];
 
-      if (d < today) {
-        // Jours passés : présence réelle uniquement
+      if (d < today || isToday) {
+        // Jours passés + aujourd'hui : présence réelle uniquement
         if (p) {
           if (typeof p === 'object' && p.arrivee) {
             if (p.depart) {
@@ -61,14 +62,7 @@ export function calculateSalaryEstimation() {
           } else if (p === true || p === 'journee') val = 1;
           else if (p === 'demi') val = 0.5;
         }
-        pastDays += val;
-      } else if (d.toISOString().slice(0, 10) === today.toISOString().slice(0, 10)) {
-        // Aujourd'hui : présence réelle si disponible, sinon 0
-        if (p) {
-          if (typeof p === 'object' && p.arrivee) val = p.depart ? 1 : 0.5;
-          else if (p === true || p === 'journee') val = 1;
-          else if (p === 'demi') val = 0.5;
-        }
+        if (val > 0) presentEmployees.add(emp.id); // ← compter les présents réels
         pastDays += val;
       } else {
         // Jours futurs : tous payés (salaire ÷ nb jours mois, dimanches inclus)
@@ -100,7 +94,7 @@ export function calculateSalaryEstimation() {
     <div style="padding:12px;background:var(--md-sys-color-surface-variant);border-radius:8px;">
       <ul style="margin:0;padding-left:20px;">
         <li>Nombre d'employés concernés : <strong>${empCount}</strong></li>
-        <li>Jours passés (réels) : <strong>${pastDays.toFixed(2)} j-homme</strong> ${empCount > 0 ? `(soit ${(pastDays/empCount).toFixed(2)} j/emp)` : ''}</li>
+        <li>Jours passés (réels) : <strong>${pastDays.toFixed(2)} j-homme</strong> ${presentEmployees.size > 0 ? `(soit ${(pastDays/presentEmployees.size).toFixed(2)} j/emp sur ${presentEmployees.size} présent(s))` : '(aucune présence)'}</li>
         <li>Jours futurs (estimés) : <strong>${futureDays.toFixed(2)} j-homme</strong> ${empCount > 0 ? `(soit ${(futureDays/empCount).toFixed(2)} j/emp)` : ''}</li>
         <li>Total jours-homme : <strong>${(pastDays + futureDays).toFixed(2)}</strong></li>
       </ul>
