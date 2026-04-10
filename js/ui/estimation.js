@@ -100,10 +100,10 @@ export function calculateSalaryEstimation() {
     <div style="padding:12px;background:var(--md-sys-color-surface-variant);border-radius:8px;">
       <ul style="margin:0;padding-left:20px;">
         <li>Nombre d'employés concernés : <strong>${empCount}</strong></li>
-        <li>Jours passés (réels) : <strong>${pastDays.toFixed(2)} j-homme</strong> ${empCount > 0 ? `(soit ${(pastDays/empCount).toFixed(1)} j/emp)` : ''}</li>
-        <li>Jours futurs (estimés) : <strong>${futureDays.toFixed(2)} j-homme</strong> ${empCount > 0 ? `(soit ${(futureDays/empCount).toFixed(1)} j/emp)` : ''}</li>
+        <li>Jours passés (réels) : <strong>${pastDays.toFixed(2)} j-homme</strong> ${empCount > 0 ? `(soit ${(pastDays/empCount).toFixed(2)} j/emp)` : ''}</li>
+        <li>Jours futurs (estimés) : <strong>${futureDays.toFixed(2)} j-homme</strong> ${empCount > 0 ? `(soit ${(futureDays/empCount).toFixed(2)} j/emp)` : ''}</li>
         <li>Total jours-homme : <strong>${(pastDays + futureDays).toFixed(2)}</strong></li>
       </ul>
-      <p style="font-size:0.85em;margin-top:8px;opacity:0.8;"><i>Note : L'estimation future exclut les dimanches.</i></p>
+      <p style="font-size:0.85em;margin-top:8px;opacity:0.8;"><i>Note : L'estimation future inclut tous les jours calendaires (salaire mensuel proratisé).</i></p>
     </div>`;
 }
