@@ -48,11 +48,12 @@ export function calculateSalaryEstimation() {
       const dailySal = emp.salary / daysM;
       let val = 0;
 
+      const p = state.attendance[ds]?.[emp.id];
+
       if (d < today) {
-        const p = state.attendance[ds]?.[emp.id];
+        // Jours passés : présence réelle uniquement
         if (p) {
-          if (dow === 0) { val = 1; }
-          else if (typeof p === 'object' && p.arrivee) {
+          if (typeof p === 'object' && p.arrivee) {
             if (p.depart) {
               const { totalMinutes } = calculateWorkDuration(p.arrivee, p.depart);
               val = totalMinutes / 60 >= 4 ? 1 : totalMinutes > 0 ? 0.5 : 0;
@@ -61,9 +62,17 @@ export function calculateSalaryEstimation() {
           else if (p === 'demi') val = 0.5;
         }
         pastDays += val;
+      } else if (d.toISOString().slice(0, 10) === today.toISOString().slice(0, 10)) {
+        // Aujourd'hui : présence réelle si disponible, sinon 0
+        if (p) {
+          if (typeof p === 'object' && p.arrivee) val = p.depart ? 1 : 0.5;
+          else if (p === true || p === 'journee') val = 1;
+          else if (p === 'demi') val = 0.5;
+        }
+        pastDays += val;
       } else {
-        // Estimation future : on compte les jours ouvrés (ex: hors dimanche)
-        if (dow !== 0) val = 1; 
+        // Jours futurs : tous payés (salaire ÷ nb jours mois, dimanches inclus)
+        val = 1;
         futureDays += val;
       }
       totalGross += dailySal * val;
