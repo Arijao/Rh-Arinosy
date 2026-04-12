@@ -110,15 +110,18 @@ export function computeStandardPayroll(employeeId, baseSalary, year, month) {
  * @param {number} advanceDays    N : nombre de jours du mois M+1 utilisés
  * @returns {object} Résultat détaillé
  */
-export function computeDelayedPayroll(employeeId, baseSalary, year, month, advanceDays) {
+export function computeDelayedPayroll(employeeId, baseSalary, year, month, advanceDays, inheritedSkipDays = 0) {
   const totalDaysM = daysInMonth(year, month);
   const dailyRate  = baseSalary / totalDaysM;
 
-  // Présence sur le mois M complet
-  const datesM    = buildDateRange(year, month);
+  // inheritedSkipDays : jours du début du mois M déjà imputés au mois M-1
+  // (cas où M-1 avait lui-même été payé en retard avec N jours d'acompte sur M).
+  // Le calcul de M démarre donc au jour inheritedSkipDays+1, pas au jour 1.
+  const startDay = inheritedSkipDays + 1;
+  const datesM    = buildDateRange(year, month, startDay);
   const presenceM = countPresence(employeeId, datesM);
 
-  // Jours d'acompte : 1–N du mois M+1
+  // Jours d'acompte : 1–advanceDays du mois M+1
   const nextMonth = month === 12 ? 1     : month + 1;
   const nextYear  = month === 12 ? year + 1 : year;
   const datesAdv  = buildDateRange(nextYear, nextMonth, 1, advanceDays);
@@ -129,12 +132,14 @@ export function computeDelayedPayroll(employeeId, baseSalary, year, month, advan
   return {
     mode: 'delayed',
     year, month, totalDays: totalDaysM,
-    // Présence mois M
+    inheritedSkipDays,
+    startDay,
+    // Présence mois M (à partir de startDay)
     present:       presenceM.present,
     demi:          presenceM.demi,
     absent:        presenceM.absent,
     effectiveDays: presenceM.effectiveDays,
-    // Jours d'acompte (mois M+1, jours 1–N)
+    // Jours d'acompte (mois M+1, jours 1–advanceDays)
     advanceDays,
     nextYear, nextMonth,
     advanceDates:   datesAdv,
@@ -291,10 +296,13 @@ export function getStartDateForCalculation(lastPaid, employeeId) {
   return new Date(Date.UTC(nextYear, nextMonth - 1, 1));
 }
 
-export function buildPresenceReport(employeeId, year, month, advanceDays = 0) {
+export function buildPresenceReport(employeeId, year, month, advanceDays = 0, skipDays = 0) {
   const emp = state.employees?.find(e => e.id === employeeId);
 
-  const details = buildDateRange(year, month).map(dateStr => {
+  // skipDays : nombre de jours à exclure en début de mois (déjà imputés au mois précédent
+  // dans le cadre d'un paiement tardif exceptionnel). Ces jours ne sont ni affichés
+  // ni comptabilisés dans le présent rapport.
+  const details = buildDateRange(year, month, skipDays + 1).map(dateStr => {
     const day    = parseInt(dateStr.split('-')[2], 10);
     const status = getPresenceStatus(employeeId, dateStr);
     return {
@@ -322,6 +330,10 @@ export function buildPresenceReport(employeeId, year, month, advanceDays = 0) {
     year, month,
     totalDays:       daysInMonth(year, month),
     advanceDays,
+    skipDays,
+    // Si skipDays > 0, les jours imputés au mois précédent sont absents de details.
+    // countedDays = nombre de jours réellement présents dans ce rapport.
+    countedDays:     daysInMonth(year, month) - skipDays,
     advanceSummary:  sum(details.filter(d =>  d.isAdvanceDay)),
     mainSummary:     sum(details.filter(d => !d.isAdvanceDay)),
     total:           sum(details),

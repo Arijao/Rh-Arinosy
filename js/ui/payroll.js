@@ -271,12 +271,39 @@ export function calculatePayroll() {
     return;
   }
 
+  // Pré-calculer le mois précédent une seule fois (commun aux deux branches)
+  const prevMonth = month === 1 ? 12 : month - 1;
+  const prevYear  = month === 1 ? year - 1 : year;
+
   const results = employees.map(emp => {
+    // ── Héritage d'un paiement tardif sur le mois précédent ──────────────
+    // Si le mois M-1 de cet employé a été payé avec N jours d'acompte sur M,
+    // le calcul de M doit démarrer au jour N+1 dans TOUS les cas (standard,
+    // delayed ou following_month) pour éviter toute double comptabilisation.
+    const prevPayment = (state.payments || []).find(
+      p => p.employeeId === emp.id &&
+           Number(p.year) === prevYear &&
+           Number(p.month) === prevMonth &&
+           p.advDays > 0
+    );
+    const inheritedSkip = prevPayment ? prevPayment.advDays : 0;
+
     let calc;
     if (!withAdv || advDays === 0) {
-      calc = computeStandardPayroll(emp.id, emp.salary || 0, year, month);
+      if (inheritedSkip > 0) {
+        // Mois précédent avait un acompte → démarrer au jour inheritedSkip+1
+        calc = computeFollowingMonthPayroll(
+          emp.id, emp.salary || 0, year, month, inheritedSkip
+        );
+      } else {
+        calc = computeStandardPayroll(emp.id, emp.salary || 0, year, month);
+      }
     } else {
-      calc = computeDelayedPayroll(emp.id, emp.salary || 0, year, month, advDays);
+      // Paiement tardif sur M : passer inheritedSkip pour que le mois M
+      // lui-même commence au bon jour si M-1 avait déjà un acompte.
+      calc = computeDelayedPayroll(
+        emp.id, emp.salary || 0, year, month, advDays, inheritedSkip
+      );
     }
     const advances = _getAdvancesForPeriod(emp.id, year, month);
     const netPay   = Math.max(0, calc.grossPay - advances.total);
@@ -308,13 +335,23 @@ function _renderPayrollResults(results, { year, month, advDays, withAdv }) {
   if (!container) return;
 
   const isDelayed = withAdv && advDays > 0;
-  let periodLabel = isDelayed
-    ? (() => {
-        const nm = month === 12 ? 1 : month + 1;
-        const ny = month === 12 ? year + 1 : year;
-        return `${MONTH_NAMES[month]} ${year} + jours 1–${advDays} ${MONTH_NAMES[nm]} ${ny}`;
-      })()
-    : `${MONTH_NAMES[month]} ${year}`;
+  // Détecter si au moins un employé est en mode following_month (décalage automatique)
+  const followingModeResult = !isDelayed
+    ? results.find(r => r.calc.mode === 'following_month')
+    : null;
+
+  let periodLabel;
+  if (isDelayed) {
+    const nm = month === 12 ? 1 : month + 1;
+    const ny = month === 12 ? year + 1 : year;
+    periodLabel = `${MONTH_NAMES[month]} ${year} + jours 1–${advDays} ${MONTH_NAMES[nm]} ${ny}`;
+  } else if (followingModeResult) {
+    const sd = followingModeResult.calc.startDay;
+    const td = followingModeResult.calc.totalDays;
+    periodLabel = `${MONTH_NAMES[month]} ${year} (jours ${sd}–${td})`;
+  } else {
+    periodLabel = `${MONTH_NAMES[month]} ${year}`;
+  }
 
   container.innerHTML = `
     <div style="margin-top:24px;">
@@ -330,6 +367,12 @@ function _renderPayrollResults(results, { year, month, advDays, withAdv }) {
                     font-size:12px;font-weight:600;color:#f59e0b;">
           <span class="material-icons" style="font-size:16px;">warning</span>
           Paiement tardif exceptionnel
+        </div>` : followingModeResult ? `
+        <div style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;
+                    background:rgba(14,165,233,.10);border:1px solid rgba(14,165,233,.3);
+                    font-size:12px;font-weight:600;color:#0ea5e9;">
+          <span class="material-icons" style="font-size:16px;">skip_next</span>
+          Décalage acompte appliqué automatiquement
         </div>` : ''}
       </div>
       ${results.map(({ emp, calc, advances, netPay }) =>
@@ -519,8 +562,9 @@ function _renderFollowingMonthInfo(year, month, advDays, results) {
       <div style="margin-top:10px;padding:8px 12px;border-radius:8px;
                   background:rgba(14,165,233,.08);font-size:12px;font-style:italic;
                   color:var(--md-sys-color-on-surface-variant);">
-        💡 Pour générer la paie de ${MONTH_NAMES[nm]} ${ny}, sélectionnez ce mois et activez
-        "Inclure un acompte" avec ${advDays} jours.
+        💡 Pour générer la paie de ${MONTH_NAMES[nm]} ${ny}, sélectionnez simplement ce mois :
+        le système démarrera automatiquement au <strong>${advDays + 1} ${MONTH_NAMES[nm]}</strong>
+        grâce à la mémorisation de cet acompte.
       </div>
     </div>`;
 }
@@ -577,6 +621,13 @@ export async function markEmployeePaid(employeeId, amount, name) {
 
   if (!state.payments) state.payments = [];
 
+  // Récupérer le nombre de jours d'acompte actif pour le stocker dans le paiement.
+  // Cela permet au calcul du mois suivant de savoir à partir de quel jour démarrer.
+  const withAdvNow = document.getElementById('includeAdvanceCheckbox')?.checked || false;
+  const advDaysNow = withAdvNow
+    ? Math.max(0, parseInt(document.getElementById('advanceDaysInput')?.value, 10) || 0)
+    : 0;
+
   const payment = {
     id:           crypto.randomUUID?.() || `pay-${Date.now()}`,
     employeeId,
@@ -587,6 +638,8 @@ export async function markEmployeePaid(employeeId, amount, name) {
     date:         new Date().toISOString().split('T')[0],
     timestamp:    Date.now(),
     note:         `Paie ${MONTH_NAMES[pm] || ''} ${py}`.trim(),
+    // Stocke le décalage d'acompte pour que le mois suivant sache où démarrer
+    advDays:      advDaysNow > 0 ? advDaysNow : undefined,
   };
 
   state.payments.push(payment);
@@ -640,6 +693,12 @@ export async function repayEmployee(employeeId, amount, name) {
     if (idx !== -1) state.payments.splice(idx, 1);
   }
 
+  // Récupérer le nombre de jours d'acompte actif pour le stocker dans le paiement.
+  const withAdvNow = document.getElementById('includeAdvanceCheckbox')?.checked || false;
+  const advDaysNow = withAdvNow
+    ? Math.max(0, parseInt(document.getElementById('advanceDaysInput')?.value, 10) || 0)
+    : 0;
+
   // Créer le nouveau sans re-confirmer
   if (!state.payments) state.payments = [];
   const payment = {
@@ -652,6 +711,8 @@ export async function repayEmployee(employeeId, amount, name) {
     date:         new Date().toISOString().split('T')[0],
     timestamp:    Date.now(),
     note:         `Paie ${MONTH_NAMES[pm] || ''} ${py} (refait)`.trim(),
+    // Stocke le décalage d'acompte pour que le mois suivant sache où démarrer
+    advDays:      advDaysNow > 0 ? advDaysNow : undefined,
   };
 
   state.payments.push(payment);
@@ -676,11 +737,67 @@ export function showPayrollDetail(employeeId) {
     ? Math.max(0, parseInt(document.getElementById('advanceDaysInput')?.value, 10) || 0)
     : 0;
 
-  const displayYear   = (withAdv && advDays > 0 && m === 12) ? y + 1 : y;
-  const displayMonth  = (withAdv && advDays > 0) ? (m === 12 ? 1 : m + 1) : m;
-  const reportAdvDays = (withAdv && advDays > 0) ? advDays : 0;
+  // Mois précédent — calculé une fois, utilisé dans les deux branches
+  const prevMonth = m === 1 ? 12 : m - 1;
+  const prevYear  = m === 1 ? y - 1 : y;
 
-  const report = buildPresenceReport(employeeId, displayYear, displayMonth, reportAdvDays);
+  let report;
+  let periodTitle;
+
+  if (withAdv && advDays > 0) {
+    const nextMonth = m === 12 ? 1     : m + 1;
+    const nextYear  = m === 12 ? y + 1 : y;
+
+    // Vérifier si M lui-même hérite d'un acompte de M-1 :
+    // dans ce cas, le rapport de M ne doit démarrer qu'au jour prevPayment.advDays+1.
+    const prevPaymentAdv = (state.payments || []).find(
+      p => p.employeeId === employeeId &&
+           Number(p.year) === prevYear &&
+           Number(p.month) === prevMonth &&
+           p.advDays > 0
+    );
+    const inheritedSkip = prevPaymentAdv ? prevPaymentAdv.advDays : 0;
+
+    const reportM   = buildPresenceReport(employeeId, y, m, 0, inheritedSkip);
+    const reportAdv = buildPresenceReport(employeeId, nextYear, nextMonth, advDays);
+    const advDetails = reportAdv.details.filter(d => d.isAdvanceDay);
+
+    report = {
+      employeeName:   reportM.employeeName,
+      details:        [...reportM.details, ...advDetails],
+      advanceSummary: reportAdv.advanceSummary,
+      skipDays:       inheritedSkip,
+      total: {
+        effective: reportM.total.effective + reportAdv.advanceSummary.effective
+      }
+    };
+    const startLabel = inheritedSkip > 0
+      ? `${inheritedSkip + 1}–${daysInMonth(y, m)}`
+      : `entier`;
+    periodTitle = `${MONTH_NAMES[m]} ${y} (${startLabel}) + 1–${advDays} ${MONTH_NAMES[nextMonth]} ${nextYear}`;
+  } else {
+    // ── Détection automatique d'un acompte sur le mois précédent ──
+    // Si le mois M-1 a été payé avec un acompte de N jours, le détail
+    // de présence du mois M ne doit afficher qu'à partir du jour N+1.
+    // (prevMonth / prevYear sont déclarés plus haut)
+    const prevPayment = (state.payments || []).find(
+      p => p.employeeId === employeeId &&
+           Number(p.year) === prevYear &&
+           Number(p.month) === prevMonth &&
+           p.advDays > 0
+    );
+
+    if (prevPayment) {
+      // Les N premiers jours ont déjà été imputés au mois M-1 :
+      // buildPresenceReport avec skipDays les exclut complètement.
+      report      = buildPresenceReport(employeeId, y, m, 0, prevPayment.advDays);
+      periodTitle = `${MONTH_NAMES[m]} ${y} — du ${prevPayment.advDays + 1} au ${daysInMonth(y, m)}`;
+    } else {
+      report      = buildPresenceReport(employeeId, y, m, 0);
+      periodTitle = `${MONTH_NAMES[m]} ${y}`;
+    }
+  }
+
   if (!report) return;
 
   const rows = report.details.map(d => {
@@ -696,15 +813,25 @@ export function showPayrollDetail(employeeId) {
     </tr>`;
   }).join('');
 
+  // Détecter si le rapport exclut des jours de début de mois
+  const skippedDays = report.skipDays || 0;
+
   const html = `
     <div style="max-height:72vh;overflow-y:auto;">
       <h4 style="margin:0 0 12px;color:var(--md-sys-color-primary);">
-        ${report.employeeName} — ${MONTH_NAMES[displayMonth]} ${displayYear}
+        ${report.employeeName} — ${periodTitle}
       </h4>
-      ${reportAdvDays > 0 ? `
+      ${skippedDays > 0 ? `
+      <div style="padding:10px 14px;border-radius:8px;background:rgba(14,165,233,.09);
+                  margin-bottom:12px;font-size:13px;border-left:3px solid #0ea5e9;">
+        <strong>ℹ️ Jours exclus (1–${skippedDays} ${MONTH_NAMES[m]}) :</strong>
+        déjà imputés au salaire de ${MONTH_NAMES[prevMonth]} ${prevYear}.<br>
+        Ce détail commence au <strong>${skippedDays + 1} ${MONTH_NAMES[m]} ${y}</strong>.
+      </div>` : ''}
+      ${(withAdv && advDays > 0) ? `
       <div style="padding:10px 14px;border-radius:8px;background:rgba(245,158,11,.1);
                   margin-bottom:12px;font-size:13px;border-left:3px solid #f59e0b;">
-        <strong>⚠️ Jours d'acompte (1–${reportAdvDays}) :</strong>
+        <strong>⚠️ Jours d'acompte (1–${advDays}) :</strong>
         imputés au salaire de ${MONTH_NAMES[m]} ${y}<br>
         Présents: ${report.advanceSummary.present} |
         Demi: ${report.advanceSummary.demi} |
@@ -811,14 +938,40 @@ export function displayPayments() {
   const container = document.getElementById('paymentList');
   if (!container) return;
 
+  // ── Normalisation des anciens paiements ─────────────────────
+  // Les paiements créés avant le nouveau système n'ont pas year/month/timestamp.
+  // On les reconstruit à la volée depuis p.date sans modifier la DB.
+  const normalize = (p) => {
+    const out = { ...p };
+
+    // Normaliser la date : ISO complet → YYYY-MM-DD
+    if (out.date && out.date.includes('T')) {
+      out.date = out.date.split('T')[0];
+    }
+
+    // Reconstruire year + month depuis la date si absents
+    if ((!out.year || !out.month) && out.date && /^\d{4}-\d{2}-\d{2}$/.test(out.date)) {
+      const parts = out.date.split('-').map(Number);
+      if (!out.year)  out.year  = parts[0];
+      if (!out.month) out.month = parts[1];
+    }
+
+    // Reconstruire timestamp depuis la date si absent
+    if (!out.timestamp && out.date) {
+      out.timestamp = new Date(out.date).getTime() || 0;
+    }
+
+    return out;
+  };
+
   // Champ de recherche unique
-  const search    = (document.getElementById('paymentSearch')?.value || '').toLowerCase().trim();
+  const search      = (document.getElementById('paymentSearch')?.value || '').toLowerCase().trim();
   // Filtre mois (YYYY-MM)
   const monthFilter = document.getElementById('paymentMonthFilter')?.value || '';
 
-  let list = [...(state.payments || [])];
+  let list = (state.payments || []).map(normalize);
 
-  // Filtre texte : nom, date, mois, note
+  // Filtre texte : nom, date, mois, note, année
   if (search) {
     list = list.filter(p =>
       (p.employeeName || '').toLowerCase().includes(search) ||
@@ -829,13 +982,18 @@ export function displayPayments() {
     );
   }
 
-  // Filtre par mois/année sélectionné
+  // Filtre par mois/année sélectionné — comparaison souple (== au lieu de ===)
   if (monthFilter) {
     const [fy, fm] = monthFilter.split('-').map(Number);
-    list = list.filter(p => p.year === fy && p.month === fm);
+    list = list.filter(p => Number(p.year) === fy && Number(p.month) === fm);
   }
 
-  list.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+  // Tri : plus récent en premier ; anciens sans timestamp envoyés à la fin par date décroissante
+  list.sort((a, b) => {
+    const ta = b.timestamp || new Date(b.date || 0).getTime() || 0;
+    const tb = a.timestamp || new Date(a.date || 0).getTime() || 0;
+    return ta - tb;
+  });
 
   if (!list.length) {
     container.innerHTML = `
@@ -1012,8 +1170,24 @@ function _populatePaymentMonthFilter() {
 
   const currentVal = sel.value;
   const months = new Set();
+
   (state.payments || []).forEach(p => {
-    if (p.year && p.month) months.add(`${p.year}-${String(p.month).padStart(2,'0')}`);
+    let year  = p.year;
+    let month = p.month;
+
+    // Anciens paiements sans year/month : les dériver de la date
+    if ((!year || !month) && p.date) {
+      const dateStr = p.date.includes('T') ? p.date.split('T')[0] : p.date;
+      const parts   = dateStr.split('-').map(Number);
+      if (parts.length >= 2 && parts[0] > 2000) {
+        year  = year  || parts[0];
+        month = month || parts[1];
+      }
+    }
+
+    if (year && month && MONTH_NAMES[month]) {
+      months.add(`${year}-${String(month).padStart(2,'0')}`);
+    }
   });
 
   const sorted = [...months].sort().reverse();
