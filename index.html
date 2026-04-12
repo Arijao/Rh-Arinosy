@@ -464,9 +464,27 @@
             </div>
             <div class="form-group"><label>Groupe</label><div class="select-dropdown"><select class="form-control" id="payrollGroupFilter" onchange="handlePayrollGroupChange()"><option value="all">Tous les Groupes</option></select></div></div>
             <div class="form-group"><label>Mois</label><input type="month" class="form-control" id="payrollMonth"></div>
-            <div class="form-group" style="margin-top:16px;padding:12px;background-color:rgba(103,80,164,.08);border-radius:8px;">
-              <label for="includeAdvanceCheckbox" style="display:flex;align-items:center;cursor:pointer;font-weight:500;"><input type="checkbox" id="includeAdvanceCheckbox" class="checkbox" style="width:20px;height:20px;margin-right:12px;" onchange="toggleAdvanceDaysInput()">Inclure un acompte</label>
-              <div id="advanceDaysContainer" class="form-group" style="display:none;margin-top:12px;margin-bottom:0;"><label for="advanceDaysInput">Jours d'acompte</label><input type="number" id="advanceDaysInput" class="form-control" value="0" min="0" style="max-width:150px;"></div>
+            <div class="form-group" style="margin-top:16px;padding:14px;background-color:rgba(103,80,164,.08);border-radius:10px;border:1px solid rgba(103,80,164,.15);">
+              <label for="includeAdvanceCheckbox" style="display:flex;align-items:center;cursor:pointer;font-weight:500;gap:10px;">
+                <input type="checkbox" id="includeAdvanceCheckbox" class="checkbox" style="width:20px;height:20px;" onchange="toggleAdvanceDaysInput()">
+                <span>Paiement tardif exceptionnel (jours d'acompte)</span>
+              </label>
+              <p style="margin:5px 0 0 30px;font-size:12px;color:var(--md-sys-color-on-surface-variant);">
+                À utiliser uniquement si le salaire d'un mois est versé avec quelques jours de retard sur le mois suivant.
+              </p>
+              <div id="advanceDaysContainer" style="display:none;margin-top:12px;">
+                <div class="form-group" style="margin-bottom:0;max-width:220px;">
+                  <label for="advanceDaysInput" style="font-size:13px;">Nombre de jours d'acompte</label>
+                  <input type="number" id="advanceDaysInput" class="form-control"
+                         value="5" min="1" max="15" style="max-width:120px;"
+                         oninput="window._onAdvanceDaysChange?.()">
+                </div>
+                <!-- Explication contextuelle mise à jour dynamiquement -->
+                <div id="advanceExplanation" style="display:none;margin-top:10px;padding:10px 12px;
+                     border-radius:8px;background:rgba(245,158,11,.08);border-left:3px solid #f59e0b;
+                     font-size:12px;color:var(--md-sys-color-on-surface-variant);line-height:1.7;">
+                </div>
+              </div>
             </div>
           </div>
           <button class="btn" onclick="calculatePayroll()"><span class="material-icons">calculate</span>Calculer Paie</button>
@@ -486,11 +504,66 @@
       <!-- Payments -->
       <div id="payments" class="section">
         <div class="card">
-          <h2><span class="material-icons">history</span>Historique de Paiement</h2>
-          <div class="form-row">
-            <div class="form-group"><label>Filtrer par Employé</label><div class="select-dropdown"><select class="form-control" id="paymentEmployeeFilter" onchange="displayPayments()"><option value="">Tous les employés</option></select></div></div>
-            <div class="form-group"><label>Recherche</label><div class="search-container" style="margin-bottom:0;position:relative;"><span class="material-icons search-icon">search</span><input type="text" class="search-input" id="paymentSearch" placeholder="Rechercher..." oninput="displayPayments()" style="padding-right:96px;"><div style="position:absolute;right:12px;top:50%;transform:translateY(-50%);display:flex;gap:8px;z-index:5;"><button type="button" class="btn-icon" onclick="startQRScan('payments-search')" title="Scanner QR" style="background:linear-gradient(135deg,#6750A4,#7C4DFF);color:white;border:none;border-radius:8px;padding:8px;cursor:pointer;"><span class="material-icons" style="font-size:20px;">qr_code_scanner</span></button><button type="button" class="btn-icon" onclick="window.openFaceRecognitionForPaymentSearch?.()" title="Scanner Visage" style="background:linear-gradient(135deg,#0ea5e9,#0284c7);color:white;border:none;border-radius:8px;padding:8px;cursor:pointer;"><span class="material-icons" style="font-size:20px;">face_retouching_natural</span></button></div></div></div>
+          <h2><span class="material-icons">history</span>Historique des Paiements</h2>
+
+          <!-- Filtres : recherche texte + filtre mois -->
+          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:20px;">
+
+            <!-- Champ de recherche unique avec scan QR + scan facial -->
+            <div style="flex:1;min-width:200px;">
+              <label style="font-size:12px;font-weight:500;color:var(--md-sys-color-on-surface-variant);
+                            display:block;margin-bottom:6px;">Rechercher</label>
+              <div class="search-container" style="margin-bottom:0;position:relative;">
+                <span class="material-icons search-icon">search</span>
+                <input type="text" class="search-input" id="paymentSearch"
+                       placeholder="Nom, date, mois..."
+                       oninput="displayPayments()"
+                       style="padding-right:92px;">
+                <div style="position:absolute;right:10px;top:50%;transform:translateY(-50%);
+                            display:flex;gap:6px;z-index:5;">
+                  <!-- Scan QR -->
+                  <button type="button"
+                          onclick="startQRScan('payments-search')"
+                          title="Scanner QR"
+                          style="display:flex;align-items:center;justify-content:center;
+                                 width:34px;height:34px;
+                                 background:linear-gradient(135deg,#6750A4,#7C4DFF);
+                                 color:white;border:none;border-radius:8px;
+                                 cursor:pointer;transition:transform .2s;"
+                          onmouseover="this.style.transform='scale(1.1)'"
+                          onmouseout="this.style.transform='scale(1)'">
+                    <span class="material-icons" style="font-size:18px;">qr_code_scanner</span>
+                  </button>
+                  <!-- Scan Facial — sélectionne un employé et filtre l'historique -->
+                  <button type="button"
+                          onclick="window.startFaceScanForSelection?.('payments-search')"
+                          title="Scanner Visage"
+                          style="display:flex;align-items:center;justify-content:center;
+                                 width:34px;height:34px;
+                                 background:linear-gradient(135deg,#0ea5e9,#0284c7);
+                                 color:white;border:none;border-radius:8px;
+                                 cursor:pointer;transition:transform .2s;"
+                          onmouseover="this.style.transform='scale(1.1)'"
+                          onmouseout="this.style.transform='scale(1)'">
+                    <span class="material-icons" style="font-size:18px;">face_retouching_natural</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Filtre par mois -->
+            <div style="min-width:160px;">
+              <label style="font-size:12px;font-weight:500;color:var(--md-sys-color-on-surface-variant);
+                            display:block;margin-bottom:6px;">Mois</label>
+              <select id="paymentMonthFilter" class="form-control"
+                      onchange="displayPayments()"
+                      style="padding:10px 12px;border-radius:10px;">
+                <option value="">Tous les mois</option>
+              </select>
+            </div>
+
           </div>
+
           <div id="paymentList"></div>
         </div>
       </div>

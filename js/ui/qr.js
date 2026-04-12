@@ -546,10 +546,79 @@ export async function printAllQRCodes() {
   const items = all.map(qr => {
     const emp = state.employees.find(e => e.id === qr.employeeId);
     if (!emp || !qr.dataURL) return '';
-    return `<div class="qr-item-print"><h3>${emp.name}</h3><p>${emp.position}</p><img src="${qr.dataURL}" alt="QR"><p>Scanner pour présence</p></div>`;
+    return `<div class="qr-item-print"><h3>${emp.name}</h3><p>${emp.position}</p><img src="${qr.dataURL}" alt="QR"><p>Scanner pour présence/avance/paie</p></div>`;
   }).join('');
   const w = window.open('', '_blank');
-  w.document.write(`<html><head><title>QR Codes</title><style>body{font-family:Arial}.page-container{display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:15px}.qr-item-print{border:1px solid #666;padding:15px;text-align:center;page-break-inside:avoid}img{max-width:180px}</style></head><body><div class="page-container">${items}</div></body></html>`);
+  w.document.write(`
+    <html>
+    <head>
+      <title>QR Codes — BEHAVANA HR</title>
+      <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: Arial, sans-serif; background: #fff; }
+
+        /* 2 colonnes × 3 lignes = 6 QR par page A4 portrait */
+        .page-container {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 10px;
+          padding: 10px;
+        }
+
+        .qr-item-print {
+          border: 1.5px solid #ccc;
+          border-radius: 8px;
+          padding: 8px 10px;
+          text-align: center;
+          page-break-inside: avoid;
+          break-inside: avoid;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        }
+
+        /* Nom : une seule ligne, tronqué si trop long */
+        .qr-item-print h3 {
+          font-size: 10px;
+          font-weight: 700;
+          margin-bottom: 1px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          width: 100%;
+        }
+
+        /* Poste et label pied : compact */
+        .qr-item-print p {
+          font-size: 8px;
+          color: #666;
+          margin-bottom: 4px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          width: 100%;
+        }
+
+        /* QR image : taille maximale préservée */
+        .qr-item-print img {
+          width: 180px;
+          height: 180px;
+          display: block;
+          margin: 4px auto;
+          image-rendering: pixelated;
+        }
+
+        @media print {
+          @page { margin: 6mm; size: A4 portrait; }
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          .page-container { gap: 8px; padding: 0; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="page-container">${items}</div>
+    </body>
+    </html>`);
   w.document.close();
   setTimeout(() => { w.focus(); w.print(); }, 500);
 }
