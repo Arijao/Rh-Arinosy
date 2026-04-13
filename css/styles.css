@@ -1680,3 +1680,257 @@ textarea[disabled] {
     max-height: 95vh;
   }
 }
+
+/* ============================================================
+   PAYMENT CARD — Historique des Paiements
+   Responsive : layout colonne sur mobile, ligne sur desktop.
+   ============================================================ */
+
+/* Conteneur carte */
+.payment-card {
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  margin-bottom: 10px;
+  overflow: hidden;
+  background: var(--md-sys-color-surface);
+  transition: box-shadow .15s;
+  border: 1px solid var(--md-sys-color-outline-variant);
+}
+.payment-card:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,.1);
+}
+.payment-card.delayed {
+  border-color: rgba(245,158,11,.35);
+}
+
+/* Bandeau "Paiement tardif" — visible uniquement sur .delayed */
+.payment-card-banner {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(245,158,11,.10);
+  color: #d97706;
+  border-bottom: 1px solid rgba(245,158,11,.2);
+}
+.payment-card.delayed .payment-card-banner {
+  display: flex;
+}
+
+/* Corps principal : avatar + info + montant sur la même ligne */
+.payment-card-body {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 14px 0;
+  flex-wrap: nowrap;        /* ligne unique sur desktop */
+}
+
+/* Avatar */
+.payment-card-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.payment-card-avatar.normal {
+  background: linear-gradient(135deg,rgba(34,197,94,.2),rgba(34,197,94,.08));
+  border: 1px solid rgba(34,197,94,.25);
+  color: #22c55e;
+}
+.payment-card-avatar.delayed {
+  background: linear-gradient(135deg,rgba(245,158,11,.22),rgba(245,158,11,.08));
+  border: 1px solid rgba(245,158,11,.3);
+  color: #d97706;
+}
+
+/* Bloc info : prend l'espace disponible */
+.payment-card-info {
+  flex: 1;
+  min-width: 0;
+}
+.payment-card-name {
+  font-weight: 700;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--md-sys-color-on-surface);
+}
+.payment-card-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+  flex-wrap: wrap;
+}
+.payment-card-month {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  background: rgba(103,80,164,.14);
+  color: var(--md-sys-color-primary);
+  white-space: nowrap;
+}
+.payment-card-adv-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(245,158,11,.15);
+  color: #d97706;
+  border: 1px solid rgba(245,158,11,.35);
+  white-space: nowrap;
+}
+.payment-card-group {
+  font-size: 11px;
+  color: var(--md-sys-color-on-surface-variant);
+  opacity: .7;
+  white-space: nowrap;
+}
+.payment-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+.payment-card-date {
+  font-size: 11px;
+  color: var(--md-sys-color-on-surface-variant);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+.payment-card-note {
+  font-size: 11px;
+  font-style: italic;
+  color: var(--md-sys-color-on-surface-variant);
+  opacity: .65;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 180px;
+}
+
+/* Bloc montant — aligné à droite dans le corps, inline sur desktop */
+.payment-card-amount {
+  flex-shrink: 0;
+  text-align: right;
+  min-width: 90px;
+}
+.payment-card-amount-value {
+  font-weight: 700;
+  font-size: 17px;
+  white-space: nowrap;
+}
+.payment-card-amount-value.normal  { color: #22c55e; }
+.payment-card-amount-value.delayed { color: #d97706; }
+.payment-card-amount-label {
+  font-size: 11px;
+  color: var(--md-sys-color-on-surface-variant);
+  margin-top: 1px;
+}
+
+/* Pied de carte : bouton Annuler */
+.payment-card-footer {
+  padding: 10px 14px 12px;
+  display: flex;
+  justify-content: flex-end;
+}
+.payment-card-cancel-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 18px;
+  border-radius: 10px;
+  border: 1px solid rgba(239,68,68,.3);
+  cursor: pointer;
+  background: rgba(239,68,68,.07);
+  color: #ef4444;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background .15s, border-color .15s;
+  width: auto;
+}
+.payment-card-cancel-btn:hover {
+  background: rgba(239,68,68,.16);
+  border-color: rgba(239,68,68,.5);
+}
+
+/* ── MOBILE (≤ 520px) ─────────────────────────────────────── */
+@media (max-width: 520px) {
+
+  .payment-card-body {
+    padding: 12px 12px 0;
+    align-items: flex-start; /* avatar aligné en haut quand contenu wrap */
+  }
+
+  /* Le montant quitte la ligne principale et passe sous l'avatar+info */
+  .payment-card-amount {
+    display: none;          /* masqué dans le body */
+  }
+
+  /* Montant réinjecté dans le footer via .payment-card-amount-mobile */
+  .payment-card-amount-mobile {
+    display: flex !important;  /* visible uniquement sur mobile */
+    align-items: baseline;
+    gap: 6px;
+  }
+
+  .payment-card-footer {
+    padding: 8px 12px 12px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  /* Bouton Annuler pleine largeur sur mobile */
+  .payment-card-cancel-btn {
+    width: 100%;
+    padding: 10px 16px;
+    font-size: 13px;
+    justify-content: center;
+  }
+
+  /* Nom légèrement plus grand pour lisibilité tactile */
+  .payment-card-name {
+    font-size: 15px;
+  }
+
+  .payment-card-month {
+    font-size: 12px;
+  }
+
+  /* Note tronquée à 120px max sur mobile */
+  .payment-card-note {
+    max-width: 120px;
+  }
+}
+
+/* ── TRÈS PETIT (≤ 360px) ────────────────────────────────── */
+@media (max-width: 360px) {
+  .payment-card-body {
+    gap: 9px;
+  }
+  .payment-card-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+  }
+  .payment-card-name {
+    font-size: 14px;
+  }
+}

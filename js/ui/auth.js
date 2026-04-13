@@ -336,4 +336,25 @@ function _injectLoginPage() {
     const btn = document.getElementById('loginSubmit');
     if (btn) btn.disabled = true;
   };
+
+  // ── Saisie clavier (pavé numérique & clavier principal) ──────────────
+  document.addEventListener('keydown', (e) => {
+    const overlay = document.getElementById('loginOverlay');
+    if (!overlay || overlay.classList.contains('hidden')) return; // actif seulement si login visible
+
+    if (e.key >= '0' && e.key <= '9') {
+      e.preventDefault();
+      window._pinKey(e.key);
+    } else if (e.key === 'Backspace') {
+      e.preventDefault();
+      window._pinKey('⌫');
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const btn = document.getElementById('loginSubmit');
+      if (btn && !btn.disabled) window._submitLogin(new Event('submit'));
+    }
+  });
+  // ─────────────────────────────────────────────────────────────────────
 }
+
+

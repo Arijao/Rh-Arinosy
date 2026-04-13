@@ -280,7 +280,7 @@ export function calculatePayroll() {
     // Si le mois M-1 de cet employé a été payé avec N jours d'acompte sur M,
     // le calcul de M doit démarrer au jour N+1 dans TOUS les cas (standard,
     // delayed ou following_month) pour éviter toute double comptabilisation.
-    const prevPayment = (state.payments || []).find(
+    const prevPayment = (state.payrolls || []).find(
       p => p.employeeId === emp.id &&
            Number(p.year) === prevYear &&
            Number(p.month) === prevMonth &&
@@ -387,7 +387,7 @@ function _renderEmployeeCard(emp, calc, advances, netPay, year, month) {
   const isDelayed = calc.mode === 'delayed';
 
   // Chercher un paiement existant pour ce mois
-  const existingPayment = (state.payments || []).find(
+  const existingPayment = (state.payrolls || []).find(
     p => p.employeeId === emp.id && p.year === year && p.month === month
   );
 
@@ -637,7 +637,7 @@ export async function markEmployeePaid(employeeId, amount, name) {
   );
   if (!confirmed) return;
 
-  if (!state.payments) state.payments = [];
+  if (!state.payrolls) state.payrolls = [];
 
   // Récupérer le nombre de jours d'acompte actif pour le stocker dans le paiement.
   // Cela permet au calcul du mois suivant de savoir à partir de quel jour démarrer.
@@ -660,7 +660,7 @@ export async function markEmployeePaid(employeeId, amount, name) {
     advDays:      advDaysNow > 0 ? advDaysNow : undefined,
   };
 
-  state.payments.push(payment);
+  state.payrolls.push(payment);
   await saveData();
 
   showToast(`✅ ${name} marqué(e) comme payé(e).`, 'success');
@@ -679,11 +679,11 @@ export async function cancelPayment(paymentId, employeeName) {
   );
   if (!confirmed) return;
 
-  if (!state.payments) return;
-  const idx = state.payments.findIndex(p => p.id === paymentId);
+  if (!state.payrolls) return;
+  const idx = state.payrolls.findIndex(p => p.id === paymentId);
   if (idx === -1) { showToast('Paiement introuvable.', 'error'); return; }
 
-  state.payments.splice(idx, 1);
+  state.payrolls.splice(idx, 1);
   await saveData();
 
   showToast(`Paiement de ${employeeName} annulé.`, 'info');
@@ -704,11 +704,11 @@ export async function repayEmployee(employeeId, amount, name) {
   if (!confirmed) return;
 
   // Supprimer l'ancien paiement du mois
-  if (state.payments) {
-    const idx = state.payments.findIndex(
+  if (state.payrolls) {
+    const idx = state.payrolls.findIndex(
       p => p.employeeId === employeeId && p.year === py && p.month === pm
     );
-    if (idx !== -1) state.payments.splice(idx, 1);
+    if (idx !== -1) state.payrolls.splice(idx, 1);
   }
 
   // Récupérer le nombre de jours d'acompte actif pour le stocker dans le paiement.
@@ -718,7 +718,7 @@ export async function repayEmployee(employeeId, amount, name) {
     : 0;
 
   // Créer le nouveau sans re-confirmer
-  if (!state.payments) state.payments = [];
+  if (!state.payrolls) state.payrolls = [];
   const payment = {
     id:           crypto.randomUUID?.() || `pay-${Date.now()}`,
     employeeId,
@@ -733,7 +733,7 @@ export async function repayEmployee(employeeId, amount, name) {
     advDays:      advDaysNow > 0 ? advDaysNow : undefined,
   };
 
-  state.payments.push(payment);
+  state.payrolls.push(payment);
   await saveData();
 
   showToast(`✅ Paiement de ${name} refait.`, 'success');
@@ -768,7 +768,7 @@ export function showPayrollDetail(employeeId) {
 
     // Vérifier si M lui-même hérite d'un acompte de M-1 :
     // dans ce cas, le rapport de M ne doit démarrer qu'au jour prevPayment.advDays+1.
-    const prevPaymentAdv = (state.payments || []).find(
+    const prevPaymentAdv = (state.payrolls || []).find(
       p => p.employeeId === employeeId &&
            Number(p.year) === prevYear &&
            Number(p.month) === prevMonth &&
@@ -798,7 +798,7 @@ export function showPayrollDetail(employeeId) {
     // Si le mois M-1 a été payé avec un acompte de N jours, le détail
     // de présence du mois M ne doit afficher qu'à partir du jour N+1.
     // (prevMonth / prevYear sont déclarés plus haut)
-    const prevPayment = (state.payments || []).find(
+    const prevPayment = (state.payrolls || []).find(
       p => p.employeeId === employeeId &&
            Number(p.year) === prevYear &&
            Number(p.month) === prevMonth &&
@@ -987,7 +987,7 @@ export function displayPayments() {
   // Filtre mois (YYYY-MM)
   const monthFilter = document.getElementById('paymentMonthFilter')?.value || '';
 
-  let list = (state.payments || []).map(normalize);
+  let list = (state.payrolls || []).map(normalize);
 
   // Filtre texte : nom, date, mois, note, année
   if (search) {
@@ -1062,7 +1062,9 @@ export function displayPayments() {
 
 /**
  * Génère le HTML d'une carte dans l'historique des paiements.
- * Distingue visuellement un paiement normal d'un paiement tardif exceptionnel.
+ * Utilise les classes CSS .payment-card pour le responsive (styles.css).
+ * Mobile  (≤520px) : montant + bouton Annuler en pied de carte, pleine largeur.
+ * Desktop (>520px) : montant inline à droite, bouton compact.
  */
 function _renderPaymentCard(p) {
   const isDelayed = p.advDays > 0;
@@ -1070,121 +1072,100 @@ function _renderPaymentCard(p) {
   const group     = emp ? state.groups?.find(g => g.id === emp.groupId) : null;
   const safeName  = (p.employeeName || 'Employé').replace(/'/g, "\'");
 
-  // ── Étiquette de période ─────────────────────────────────────
+  // ── Libellés ────────────────────────────────────────────────
   const mainMonthLabel = MONTH_NAMES[p.month]
     ? `${MONTH_NAMES[p.month]} ${p.year}`
     : (p.month || '');
 
-  let advBadge = '';
+  let advBadgeHTML = '';
+  let advLabelText = '';
   if (isDelayed) {
     const nm = p.month === 12 ? 1 : p.month + 1;
     const ny = p.month === 12 ? p.year + 1 : p.year;
-    advBadge = `
-      <span style="display:inline-flex;align-items:center;gap:3px;
-                   padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;
-                   background:rgba(245,158,11,.15);color:#d97706;
-                   border:1px solid rgba(245,158,11,.35);">
+    advLabelText = `+ ${p.advDays} j. ${MONTH_NAMES[nm]} ${ny}`;
+    advBadgeHTML = `
+      <span class="payment-card-adv-badge">
         <span class="material-icons" style="font-size:12px;">add_circle</span>
-        + ${p.advDays} j. ${MONTH_NAMES[nm]} ${ny}
+        ${advLabelText}
       </span>`;
   }
 
-  // ── Style selon type de paiement ─────────────────────────────
-  const cardBorder  = isDelayed
-    ? 'border:1px solid rgba(245,158,11,.35);'
-    : 'border:1px solid var(--md-sys-color-outline-variant);';
-  const avatarBg    = isDelayed
-    ? 'background:linear-gradient(135deg,rgba(245,158,11,.22),rgba(245,158,11,.08));border:1px solid rgba(245,158,11,.3);'
-    : 'background:linear-gradient(135deg,rgba(34,197,94,.2),rgba(34,197,94,.08));border:1px solid rgba(34,197,94,.25);';
-  const avatarColor = isDelayed ? '#d97706' : '#22c55e';
+  const avatarType  = isDelayed ? 'delayed' : 'normal';
   const avatarIcon  = isDelayed ? 'schedule' : 'payments';
-  const amountColor = isDelayed ? '#d97706' : '#22c55e';
+  const amountType  = isDelayed ? 'delayed' : 'normal';
   const amountLabel = isDelayed ? 'Tardif — net payé' : 'Net payé';
+  const amountHTML  = formatCurrency(p.amount);
+
+  // Bloc montant réutilisé dans le body (desktop) et le footer (mobile)
+  const amountBlock = `
+    <div style="font-weight:700;font-size:17px;white-space:nowrap;"
+         class="payment-card-amount-value ${amountType}">
+      ${amountHTML} Ar
+    </div>
+    <div class="payment-card-amount-label">${amountLabel}</div>`;
 
   return `
-    <div style="display:flex;flex-direction:column;
-                border-radius:14px;margin-bottom:10px;overflow:hidden;
-                ${cardBorder}
-                background:var(--md-sys-color-surface);
-                transition:box-shadow .15s,transform .1s;"
-         onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,.08)';this.style.transform='translateY(-1px)'"
-         onmouseout="this.style.boxShadow='none';this.style.transform='translateY(0)'">
+    <div class="payment-card${isDelayed ? ' delayed' : ''}">
 
-      ${isDelayed ? `
-      <div style="display:flex;align-items:center;gap:6px;
-                  padding:5px 14px;font-size:11px;font-weight:700;
-                  background:rgba(245,158,11,.10);color:#d97706;
-                  border-bottom:1px solid rgba(245,158,11,.2);">
+      <!-- Bandeau tardif (affiché via CSS uniquement sur .delayed) -->
+      <div class="payment-card-banner">
         <span class="material-icons" style="font-size:13px;">warning_amber</span>
         Paiement tardif exceptionnel
-      </div>` : ''}
+      </div>
 
-      <div style="display:flex;align-items:center;justify-content:space-between;
-                  gap:12px;padding:14px 16px;">
+      <!-- Corps : avatar · info · montant (desktop) -->
+      <div class="payment-card-body">
 
-        <!-- Avatar + Info -->
-        <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;">
-          <div style="width:44px;height:44px;border-radius:14px;flex-shrink:0;
-                      display:flex;align-items:center;justify-content:center;
-                      ${avatarBg}">
-            <span class="material-icons" style="color:${avatarColor};font-size:22px;">${avatarIcon}</span>
+        <!-- Avatar -->
+        <div class="payment-card-avatar ${avatarType}">
+          <span class="material-icons" style="font-size:21px;">${avatarIcon}</span>
+        </div>
+
+        <!-- Info -->
+        <div class="payment-card-info">
+          <div class="payment-card-name">${p.employeeName || 'Employé'}</div>
+          <div class="payment-card-badges">
+            <span class="payment-card-month">${mainMonthLabel}</span>
+            ${advBadgeHTML}
+            ${group ? `<span class="payment-card-group">${group.name}</span>` : ''}
           </div>
-          <div style="min-width:0;flex:1;">
-            <div style="font-weight:600;font-size:14px;white-space:nowrap;
-                        overflow:hidden;text-overflow:ellipsis;">
-              ${p.employeeName || 'Employé'}
-            </div>
-            <!-- Mois principal + badge jours d'acompte -->
-            <div style="display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap;">
-              <span style="padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700;
-                           background:rgba(103,80,164,.12);color:var(--md-sys-color-primary);">
-                ${mainMonthLabel}
-              </span>
-              ${advBadge}
-              ${group ? `
-              <span style="font-size:11px;color:var(--md-sys-color-on-surface-variant);opacity:.7;">
-                ${group.name}
-              </span>` : ''}
-            </div>
-            <!-- Date de versement + note -->
-            <div style="display:flex;align-items:center;gap:5px;margin-top:4px;flex-wrap:wrap;">
-              <span style="font-size:11px;color:var(--md-sys-color-on-surface-variant);
-                           display:flex;align-items:center;gap:3px;">
-                <span class="material-icons" style="font-size:12px;">calendar_today</span>
-                Versé le ${p.date}
-              </span>
-              ${p.note ? `
-              <span style="font-size:11px;font-style:italic;
-                           color:var(--md-sys-color-on-surface-variant);opacity:.65;">
-                · ${p.note}
-              </span>` : ''}
-            </div>
+          <div class="payment-card-meta">
+            <span class="payment-card-date">
+              <span class="material-icons" style="font-size:12px;">calendar_today</span>
+              Versé le ${p.date}
+            </span>
+            ${p.note ? `<span class="payment-card-note">· ${p.note}</span>` : ''}
           </div>
         </div>
 
-        <!-- Montant + Bouton Annuler -->
-        <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;">
-          <div style="text-align:right;">
-            <div style="font-weight:700;font-size:16px;color:${amountColor};white-space:nowrap;">
-              ${formatCurrency(p.amount)} Ar
-            </div>
-            <div style="font-size:11px;color:var(--md-sys-color-on-surface-variant);">${amountLabel}</div>
-          </div>
-          <button title="Annuler ce paiement"
-                  onclick="window._cancelPayment?.('${p.id}','${safeName}')"
-                  style="display:flex;align-items:center;justify-content:center;gap:4px;
-                         padding:7px 12px;border-radius:10px;border:1px solid rgba(239,68,68,.3);
-                         cursor:pointer;background:rgba(239,68,68,.08);color:#ef4444;
-                         font-size:12px;font-weight:600;
-                         transition:background .15s,transform .1s,border-color .15s;"
-                  onmouseover="this.style.background='rgba(239,68,68,.18)';this.style.borderColor='rgba(239,68,68,.5)';this.style.transform='scale(1.03)'"
-                  onmouseout="this.style.background='rgba(239,68,68,.08)';this.style.borderColor='rgba(239,68,68,.3)';this.style.transform='scale(1)'">
-            <span class="material-icons" style="font-size:16px;">undo</span>
-            Annuler
-          </button>
+        <!-- Montant (masqué sur mobile via CSS, visible sur desktop) -->
+        <div class="payment-card-amount">
+          ${amountBlock}
         </div>
 
       </div>
+
+      <!-- Pied : montant mobile + bouton Annuler -->
+      <div class="payment-card-footer">
+
+        <!-- Montant visible uniquement sur mobile (display:none par défaut, flex sur ≤520px) -->
+        <div class="payment-card-amount-mobile" style="display:none;">
+          <span style="font-weight:700;font-size:16px;white-space:nowrap;"
+                class="payment-card-amount-value ${amountType}">
+            ${amountHTML} Ar
+          </span>
+          <span class="payment-card-amount-label">${amountLabel}</span>
+        </div>
+
+        <button class="payment-card-cancel-btn"
+                title="Annuler ce paiement"
+                onclick="window._cancelPayment?.('${p.id}','${safeName}')">
+          <span class="material-icons" style="font-size:16px;">undo</span>
+          Annuler ce paiement
+        </button>
+
+      </div>
+
     </div>`;
 }
 
@@ -1232,7 +1213,7 @@ window.selectPayrollEmployeeFromScan = selectPayrollEmployeeFromScan;
 
 /**
  * Remplit le sélecteur de mois dans l'historique des paiements
- * avec les mois uniques présents dans state.payments.
+ * avec les mois uniques présents dans state.payrolls.
  */
 function _populatePaymentMonthFilter() {
   const sel = document.getElementById('paymentMonthFilter');
@@ -1241,7 +1222,7 @@ function _populatePaymentMonthFilter() {
   const currentVal = sel.value;
   const months = new Set();
 
-  (state.payments || []).forEach(p => {
+  (state.payrolls || []).forEach(p => {
     let year  = p.year;
     let month = p.month;
 
