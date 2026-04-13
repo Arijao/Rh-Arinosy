@@ -608,6 +608,24 @@ function _renderPayrollSummary(results) {
 // ACTIONS — MARQUER PAYÉ / ANNULER / REFAIRE
 // ============================================================
 
+/**
+ * Construit la note lisible d'un paiement.
+ * Paiement normal  → "Paie Mars 2025"
+ * Paiement tardif  → "Paie Mars 2025 + 5 j. Avril"
+ * (refait)         → idem + " (refait)"
+ */
+function _buildPaymentNote(month, year, advDays = 0, isRedo = false) {
+  const base = `Paie ${MONTH_NAMES[month] || ''} ${year}`.trim();
+  let note = base;
+  if (advDays > 0) {
+    const nm = month === 12 ? 1 : month + 1;
+    const ny = month === 12 ? year + 1 : year;
+    note += ` + ${advDays} j. ${MONTH_NAMES[nm]} ${ny}`;
+  }
+  if (isRedo) note += ' (refait)';
+  return note;
+}
+
 export async function markEmployeePaid(employeeId, amount, name) {
   const monthVal = document.getElementById('payrollMonth')?.value;
   const [py, pm] = monthVal ? monthVal.split('-').map(Number) : [0, 0];
@@ -637,7 +655,7 @@ export async function markEmployeePaid(employeeId, amount, name) {
     month:        pm,
     date:         new Date().toISOString().split('T')[0],
     timestamp:    Date.now(),
-    note:         `Paie ${MONTH_NAMES[pm] || ''} ${py}`.trim(),
+    note:         _buildPaymentNote(pm, py, advDaysNow),
     // Stocke le décalage d'acompte pour que le mois suivant sache où démarrer
     advDays:      advDaysNow > 0 ? advDaysNow : undefined,
   };
@@ -710,7 +728,7 @@ export async function repayEmployee(employeeId, amount, name) {
     month:        pm,
     date:         new Date().toISOString().split('T')[0],
     timestamp:    Date.now(),
-    note:         `Paie ${MONTH_NAMES[pm] || ''} ${py} (refait)`.trim(),
+    note:         _buildPaymentNote(pm, py, advDaysNow, true),
     // Stocke le décalage d'acompte pour que le mois suivant sache où démarrer
     advDays:      advDaysNow > 0 ? advDaysNow : undefined,
   };
@@ -1039,67 +1057,118 @@ export function displayPayments() {
       </div>
     </div>`;
 
-  container.innerHTML = header + list.map(p => {
-    const monthLabel = MONTH_NAMES[p.month]
-      ? `${MONTH_NAMES[p.month]} ${p.year}`
-      : (p.month || '');
-    const emp   = state.employees?.find(e => e.id === p.employeeId);
-    const group = emp ? state.groups?.find(g => g.id === emp.groupId) : null;
-    const safeName = (p.employeeName || 'Employé').replace(/'/g, "\\'");
+  container.innerHTML = header + list.map(p => _renderPaymentCard(p)).join('');
+}
 
-    return `
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;
-                  padding:14px 16px;border-radius:12px;margin-bottom:10px;
-                  border:1px solid var(--md-sys-color-outline-variant);
-                  background:var(--md-sys-color-surface);
-                  transition:box-shadow .15s,transform .1s;"
-           onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,.08)';this.style.transform='translateY(-1px)'"
-           onmouseout="this.style.boxShadow='none';this.style.transform='translateY(0)'">
+/**
+ * Génère le HTML d'une carte dans l'historique des paiements.
+ * Distingue visuellement un paiement normal d'un paiement tardif exceptionnel.
+ */
+function _renderPaymentCard(p) {
+  const isDelayed = p.advDays > 0;
+  const emp       = state.employees?.find(e => e.id === p.employeeId);
+  const group     = emp ? state.groups?.find(g => g.id === emp.groupId) : null;
+  const safeName  = (p.employeeName || 'Employé').replace(/'/g, "\'");
+
+  // ── Étiquette de période ─────────────────────────────────────
+  const mainMonthLabel = MONTH_NAMES[p.month]
+    ? `${MONTH_NAMES[p.month]} ${p.year}`
+    : (p.month || '');
+
+  let advBadge = '';
+  if (isDelayed) {
+    const nm = p.month === 12 ? 1 : p.month + 1;
+    const ny = p.month === 12 ? p.year + 1 : p.year;
+    advBadge = `
+      <span style="display:inline-flex;align-items:center;gap:3px;
+                   padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;
+                   background:rgba(245,158,11,.15);color:#d97706;
+                   border:1px solid rgba(245,158,11,.35);">
+        <span class="material-icons" style="font-size:12px;">add_circle</span>
+        + ${p.advDays} j. ${MONTH_NAMES[nm]} ${ny}
+      </span>`;
+  }
+
+  // ── Style selon type de paiement ─────────────────────────────
+  const cardBorder  = isDelayed
+    ? 'border:1px solid rgba(245,158,11,.35);'
+    : 'border:1px solid var(--md-sys-color-outline-variant);';
+  const avatarBg    = isDelayed
+    ? 'background:linear-gradient(135deg,rgba(245,158,11,.22),rgba(245,158,11,.08));border:1px solid rgba(245,158,11,.3);'
+    : 'background:linear-gradient(135deg,rgba(34,197,94,.2),rgba(34,197,94,.08));border:1px solid rgba(34,197,94,.25);';
+  const avatarColor = isDelayed ? '#d97706' : '#22c55e';
+  const avatarIcon  = isDelayed ? 'schedule' : 'payments';
+  const amountColor = isDelayed ? '#d97706' : '#22c55e';
+  const amountLabel = isDelayed ? 'Tardif — net payé' : 'Net payé';
+
+  return `
+    <div style="display:flex;flex-direction:column;
+                border-radius:14px;margin-bottom:10px;overflow:hidden;
+                ${cardBorder}
+                background:var(--md-sys-color-surface);
+                transition:box-shadow .15s,transform .1s;"
+         onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,.08)';this.style.transform='translateY(-1px)'"
+         onmouseout="this.style.boxShadow='none';this.style.transform='translateY(0)'">
+
+      ${isDelayed ? `
+      <div style="display:flex;align-items:center;gap:6px;
+                  padding:5px 14px;font-size:11px;font-weight:700;
+                  background:rgba(245,158,11,.10);color:#d97706;
+                  border-bottom:1px solid rgba(245,158,11,.2);">
+        <span class="material-icons" style="font-size:13px;">warning_amber</span>
+        Paiement tardif exceptionnel
+      </div>` : ''}
+
+      <div style="display:flex;align-items:center;justify-content:space-between;
+                  gap:12px;padding:14px 16px;">
 
         <!-- Avatar + Info -->
         <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;">
           <div style="width:44px;height:44px;border-radius:14px;flex-shrink:0;
-                      background:linear-gradient(135deg,rgba(34,197,94,.2),rgba(34,197,94,.08));
                       display:flex;align-items:center;justify-content:center;
-                      border:1px solid rgba(34,197,94,.25);">
-            <span class="material-icons" style="color:#22c55e;font-size:22px;">payments</span>
+                      ${avatarBg}">
+            <span class="material-icons" style="color:${avatarColor};font-size:22px;">${avatarIcon}</span>
           </div>
           <div style="min-width:0;flex:1;">
             <div style="font-weight:600;font-size:14px;white-space:nowrap;
                         overflow:hidden;text-overflow:ellipsis;">
               ${p.employeeName || 'Employé'}
             </div>
-            <div style="display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap;">
-              <span style="font-size:12px;color:var(--md-sys-color-on-surface-variant);
-                           display:flex;align-items:center;gap:3px;">
-                <span class="material-icons" style="font-size:13px;">calendar_today</span>
-                ${p.date}
-              </span>
-              ${monthLabel ? `
-              <span style="padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;
+            <!-- Mois principal + badge jours d'acompte -->
+            <div style="display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap;">
+              <span style="padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700;
                            background:rgba(103,80,164,.12);color:var(--md-sys-color-primary);">
-                ${monthLabel}
-              </span>` : ''}
+                ${mainMonthLabel}
+              </span>
+              ${advBadge}
               ${group ? `
               <span style="font-size:11px;color:var(--md-sys-color-on-surface-variant);opacity:.7;">
                 ${group.name}
               </span>` : ''}
             </div>
-            ${p.note ? `
-            <div style="font-size:11px;font-style:italic;margin-top:3px;
-                        color:var(--md-sys-color-on-surface-variant);opacity:.7;">
-              ${p.note}
-            </div>` : ''}
+            <!-- Date de versement + note -->
+            <div style="display:flex;align-items:center;gap:5px;margin-top:4px;flex-wrap:wrap;">
+              <span style="font-size:11px;color:var(--md-sys-color-on-surface-variant);
+                           display:flex;align-items:center;gap:3px;">
+                <span class="material-icons" style="font-size:12px;">calendar_today</span>
+                Versé le ${p.date}
+              </span>
+              ${p.note ? `
+              <span style="font-size:11px;font-style:italic;
+                           color:var(--md-sys-color-on-surface-variant);opacity:.65;">
+                · ${p.note}
+              </span>` : ''}
+            </div>
           </div>
         </div>
 
         <!-- Montant + Bouton Annuler -->
         <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;">
           <div style="text-align:right;">
-            <div style="font-weight:700;font-size:16px;color:#22c55e;white-space:nowrap;">
+            <div style="font-weight:700;font-size:16px;color:${amountColor};white-space:nowrap;">
               ${formatCurrency(p.amount)} Ar
             </div>
-            <div style="font-size:11px;color:var(--md-sys-color-on-surface-variant);">Net payé</div>
+            <div style="font-size:11px;color:var(--md-sys-color-on-surface-variant);">${amountLabel}</div>
           </div>
           <button title="Annuler ce paiement"
                   onclick="window._cancelPayment?.('${p.id}','${safeName}')"
@@ -1114,8 +1183,9 @@ export function displayPayments() {
             Annuler
           </button>
         </div>
-      </div>`;
-  }).join('');
+
+      </div>
+    </div>`;
 }
 
 // ============================================================
