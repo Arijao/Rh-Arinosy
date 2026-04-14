@@ -263,12 +263,13 @@ export async function openEnrollmentModal(empId) {
   modal.id    = 'enrollmentModal';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;';
   modal.innerHTML = `
-    <div class="modal-content-facial" style="background:white;padding:24px;border-radius:12px;max-width:500px;width:95%;max-height:95vh;overflow-y:auto;">
-      <h2 style="margin:0 0 16px;color:#333;">📸 Enrollment: ${emp.name}</h2>
+    <div class="modal-content-facial" style="background:white;color:#1e293b;padding:24px;border-radius:12px;max-width:500px;width:95%;max-height:95vh;overflow-y:auto;">
+      <h2 style="margin:0 0 16px;color:#1e293b;">📸 Enrollment: ${emp.name}</h2>
       <div style="position:relative;width:100%;max-width:320px;margin:0 auto 16px;aspect-ratio:4/3;background:#000;border-radius:8px;overflow:hidden;">
         <video id="enrollVideo" autoplay playsinline style="width:100%;height:100%;object-fit:cover;transform:scaleX(-1);"></video>
+        <canvas id="enrollCanvas" style="position:absolute;top:0;left:0;width:100%;height:100%;transform:scaleX(-1);"></canvas>
       </div>
-      <div id="enrollStatus" style="padding:10px;background:#f0f0f0;border-radius:8px;text-align:center;margin-bottom:16px;font-size:13px;">
+      <div id="enrollStatus" style="padding:10px;background:#f0f0f0;border-radius:8px;text-align:center;margin-bottom:16px;font-size:13px;color:#1e293b;">
         📹 Positionnez votre visage...
       </div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;">
@@ -288,14 +289,29 @@ export async function openEnrollmentModal(empId) {
     stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 320 }, height: { ideal: 240 } } });
     video.srcObject = stream;
     video.onplay = () => {
-      const canvas = document.createElement('canvas');
-      document.body.appendChild(canvas);
-      canvas.style.display = 'none';
+      const canvas = modal.querySelector('#enrollCanvas');
+      const ctx = canvas.getContext('2d');
       async function draw() {
-        if (video.paused) return;
-        const rect = video.getBoundingClientRect();
-        canvas.width = rect.width; canvas.height = rect.height;
+        if (video.paused || !modal.isConnected) return;
+        canvas.width = video.videoWidth || video.clientWidth;
+        canvas.height = video.videoHeight || video.clientHeight;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         const det = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 })).withFaceLandmarks();
+        if (det) {
+          // Dessine les landmarks (68 points)
+          const landmarks = det.landmarks.positions;
+          ctx.fillStyle = '#D0BCFF';
+          landmarks.forEach(pt => {
+            ctx.beginPath();
+            ctx.arc(pt.x, pt.y, 2, 0, Math.PI * 2);
+            ctx.fill();
+          });
+          // Dessine le rectangle de détection
+          const box = det.detection.box;
+          ctx.strokeStyle = '#818cf8';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(box.x, box.y, box.width, box.height);
+        }
         animId = requestAnimationFrame(draw);
       }
       draw();
@@ -363,14 +379,14 @@ export async function openFacePointageModal() {
   modal.id    = 'facePointageModal';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;';
   modal.innerHTML = `
-    <div class="modal-content-facial" style="background:white;padding:24px;border-radius:12px;max-width:500px;width:95%;max-height:95vh;overflow-y:auto;">
+    <div class="modal-content-facial" style="background:white;color:#1e293b;padding:24px;border-radius:12px;max-width:500px;width:95%;max-height:95vh;overflow-y:auto;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:12px;">
-        <h2 style="margin:0;color:#333;font-size:clamp(1.1rem,4vw,1.5rem);flex:1;">🎯 Pointage Facial</h2>
-        <button id="btnSwitchCam" title="Changer caméra" style="background:#f0f0f0;border:1px solid #ccc;border-radius:50%;width:44px;height:44px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
-          <span class="material-icons" style="font-size:22px;">cameraswitch</span>
+        <h2 style="margin:0;color:#1e293b;font-size:clamp(1.1rem,4vw,1.5rem);flex:1;">🎯 Pointage Facial</h2>
+        <button id="btnSwitchCam" title="Changer caméra" style="background:#f0f0f0;border:1px solid #ccc;border-radius:50%;width:44px;height:44px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#1e293b;">
+          <span class="material-icons" style="font-size:22px;color:#1e293b;">cameraswitch</span>
         </button>
       </div>
-      <div id="camIndicator" style="text-align:center;margin-bottom:8px;font-size:12px;color:#666;">📷 Caméra frontale</div>
+      <div id="camIndicator" style="text-align:center;margin-bottom:8px;font-size:12px;color:#555;">📷 Caméra frontale</div>
       <div style="position:relative;width:100%;max-width:320px;margin:0 auto 16px;aspect-ratio:4/3;background:#000;border-radius:8px;overflow:hidden;">
         <video id="pointageVideo" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover;"></video>
       </div>
