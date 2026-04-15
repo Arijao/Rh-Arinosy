@@ -272,7 +272,7 @@ export async function openEnrollmentModal(empId) {
       <h2 style="margin:0 0 16px;color:#1e293b;">📸 Enrollment: ${emp.name}</h2>
       <div style="position:relative;width:100%;max-width:320px;margin:0 auto 16px;aspect-ratio:4/3;background:#000;border-radius:8px;overflow:hidden;">
         <video id="enrollVideo" autoplay playsinline style="width:100%;height:100%;object-fit:cover;transform:scaleX(-1);"></video>
-        <canvas id="enrollCanvas" style="position:absolute;top:0;left:0;width:100%;height:100%;transform:scaleX(-1);"></canvas>
+        <canvas id="enrollCanvas" style="position:absolute;top:0;left:0;width:100%;height:100%;transform:scaleX(-1);z-index:10;pointer-events:none;"></canvas>
       </div>
       <div id="enrollStatus" style="padding:10px;background:#f0f0f0;border-radius:8px;text-align:center;margin-bottom:16px;font-size:13px;color:#1e293b;">
         📹 Positionnez votre visage...
@@ -301,8 +301,8 @@ export async function openEnrollmentModal(empId) {
         if (video.paused || video.ended || !modal.isConnected) return;
         
         // ✅ Synchronisation dynamique des dimensions
-        const vWidth = video.videoWidth || video.clientWidth;
-        const vHeight = video.videoHeight || video.clientHeight;
+        const vWidth = video.videoWidth || video.videoWidth; // Priorité aux dimensions réelles
+        const vHeight = video.videoHeight || video.videoHeight;
         
         if (vWidth > 0 && vHeight > 0) {
           if (canvas.width !== vWidth || canvas.height !== vHeight) {
@@ -312,29 +312,34 @@ export async function openEnrollmentModal(empId) {
           
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           
-          // ✅ Détection optimisée (TinyFaceDetector est plus léger pour le temps réel)
-          const det = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 })).withFaceLandmarks();
-          
-          if (det) {
-            const landmarks = det.landmarks.positions;
-            const box = det.detection.box;
+          try {
+            // ✅ Détection optimisée (TinyFaceDetector est plus léger pour le temps réel)
+            const det = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 })).withFaceLandmarks();
             
-            // ✅ Correction miroir : Comme le canvas est inversé par CSS (scaleX(-1)), 
-            // nous devons inverser les coordonnées X pour qu'elles correspondent au rendu visuel.
-            const flipX = (x) => canvas.width - x;
+            if (det) {
+              const landmarks = det.landmarks.positions;
+              const box = det.detection.box;
+              
+              // ✅ Correction miroir : Comme le canvas est inversé par CSS (scaleX(-1)), 
+              // nous devons inverser les coordonnées X pour qu'elles correspondent au rendu visuel.
+              const flipX = (x) => canvas.width - x;
 
-            // ✅ Dessin des points (Landmarks)
-            ctx.fillStyle = '#D0BCFF';
-            landmarks.forEach(pt => {
-              ctx.beginPath();
-              ctx.arc(flipX(pt.x), pt.y, 2, 0, Math.PI * 2);
-              ctx.fill();
-            });
-            
-            // ✅ Dessin du rectangle de détection
-            ctx.strokeStyle = '#818cf8';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(flipX(box.x + box.width), box.y, box.width, box.height);
+              // ✅ Dessin des points (Landmarks)
+              ctx.fillStyle = '#D0BCFF';
+              landmarks.forEach(pt => {
+                ctx.beginPath();
+                ctx.arc(flipX(pt.x), pt.y, 2, 0, Math.PI * 2);
+                ctx.fill();
+              });
+              
+              // ✅ Dessin du rectangle de détection
+              ctx.strokeStyle = '#818cf8';
+              ctx.lineWidth = 2;
+              // On inverse le point de départ X du rectangle (box.x + box.width devient le nouveau point de départ)
+              ctx.strokeRect(flipX(box.x + box.width), box.y, box.width, box.height);
+            }
+          } catch (err) {
+            // Échec silencieux pour ne pas bloquer la boucle de rendu
           }
         }
         
