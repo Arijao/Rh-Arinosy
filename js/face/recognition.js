@@ -293,60 +293,69 @@ export async function openEnrollmentModal(empId) {
   try {
     stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 320 }, height: { ideal: 240 } } });
     video.srcObject = stream;
-    video.onplay = () => {
-      const canvas = modal.querySelector('#enrollCanvas');
-      const ctx = canvas.getContext('2d');
-      
-      async function draw() {
-        if (video.paused || video.ended || !modal.isConnected) return;
-        
-        // ✅ Synchronisation dynamique des dimensions
-        const vWidth = video.videoWidth || video.videoWidth; // Priorité aux dimensions réelles
-        const vHeight = video.videoHeight || video.videoHeight;
-        
-        if (vWidth > 0 && vHeight > 0) {
-          if (canvas.width !== vWidth || canvas.height !== vHeight) {
-            canvas.width = vWidth;
-            canvas.height = vHeight;
-          }
-          
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          
-          try {
-            // ✅ Détection optimisée (TinyFaceDetector est plus léger pour le temps réel)
-            const det = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 })).withFaceLandmarks();
-            
-            if (det) {
-              const landmarks = det.landmarks.positions;
-              const box = det.detection.box;
-              
-              // ✅ Correction miroir : Comme le canvas est inversé par CSS (scaleX(-1)), 
-              // nous devons inverser les coordonnées X pour qu'elles correspondent au rendu visuel.
-              const flipX = (x) => canvas.width - x;
 
-              // ✅ Dessin des points (Landmarks)
-              ctx.fillStyle = '#D0BCFF';
-              landmarks.forEach(pt => {
-                ctx.beginPath();
-                ctx.arc(flipX(pt.x), pt.y, 2, 0, Math.PI * 2);
-                ctx.fill();
-              });
-              
-              // ✅ Dessin du rectangle de détection
-              ctx.strokeStyle = '#818cf8';
-              ctx.lineWidth = 2;
-              // On inverse le point de départ X du rectangle (box.x + box.width devient le nouveau point de départ)
-              ctx.strokeRect(flipX(box.x + box.width), box.y, box.width, box.height);
-            }
-          } catch (err) {
-            // Échec silencieux pour ne pas bloquer la boucle de rendu
-          }
+    // ✅ FIX B: Attendre loadedmetadata garantit que videoWidth/videoHeight sont disponibles
+    // avant de démarrer la boucle. onplay seul peut se déclencher trop tôt (width=0).
+    await new Promise(resolve => {
+      video.onloadedmetadata = () => video.play().then(resolve).catch(resolve);
+    });
+
+    const canvas = modal.querySelector('#enrollCanvas');
+    const ctx    = canvas.getContext('2d');
+
+    async function draw() {
+      if (video.paused || video.ended || !modal.isConnected) return;
+
+      const vWidth  = video.videoWidth;
+      const vHeight = video.videoHeight;
+
+      // ✅ FIX C: Guard strict — ne pas tenter de dessiner si dimensions non disponibles
+      if (vWidth > 0 && vHeight > 0) {
+        if (canvas.width !== vWidth || canvas.height !== vHeight) {
+          canvas.width  = vWidth;
+          canvas.height = vHeight;
         }
-        
-        animId = requestAnimationFrame(draw);
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        try {
+          const det = await faceapi
+            .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 }))
+            .withFaceLandmarks();
+
+          if (det) {
+            const landmarks = det.landmarks.positions;
+            const box       = det.detection.box;
+
+            // Le canvas a transform:scaleX(-1) en CSS (même miroir que la vidéo).
+            // Les coordonnées face-api sont dans l'espace NON-miré de la vidéo source.
+            // On doit donc inverser X pour aligner avec le rendu CSS miré.
+            // flipX(x) = canvas.width - x  →  correct pour les points.
+            // Pour le rectangle : le coin haut-gauche miré est flipX(box.x + box.width),
+            // ✅ FIX A: et la largeur doit être NÉGATIVE pour tracer vers la gauche.
+            const flipX = (x) => canvas.width - x;
+
+            // Landmarks
+            ctx.fillStyle = '#D0BCFF';
+            landmarks.forEach(pt => {
+              ctx.beginPath();
+              ctx.arc(flipX(pt.x), pt.y, 2, 0, Math.PI * 2);
+              ctx.fill();
+            });
+
+            // Rectangle de détection
+            ctx.strokeStyle = '#818cf8';
+            ctx.lineWidth   = 2;
+            ctx.strokeRect(flipX(box.x), box.y, -box.width, box.height);
+          }
+        } catch (_) {
+          // Échec silencieux pour ne pas bloquer la boucle de rendu
+        }
       }
-      draw();
-    };
+
+      animId = requestAnimationFrame(draw);
+    }
+    draw();
 
     btnS.onclick = async () => {
       try {
