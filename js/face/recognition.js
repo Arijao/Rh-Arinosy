@@ -153,6 +153,9 @@ const FR = {
       if (modelsLoaded) {
         this.modelsLoaded = true;
         console.log('[FR] ✅ Face-api ready for recognition');
+        console.log('[FR] Model states — tinyFaceDetector:', faceapi.nets.tinyFaceDetector.isLoaded,
+          '| faceLandmark68Net:', faceapi.nets.faceLandmark68Net.isLoaded,
+          '| faceRecognitionNet:', faceapi.nets.faceRecognitionNet.isLoaded);
         return true;
       }
       
@@ -318,6 +321,14 @@ export async function openEnrollmentModal(empId) {
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+        // ✅ FIX LANDMARKS: Guard explicite — withFaceLandmarks() throw si le modèle
+        // n'est pas encore prêt (race condition avec loadAllModels non-bloquant).
+        // On vérifie isLoaded avant chaque frame pour éviter le catch silencieux.
+        if (!faceapi.nets.faceLandmark68Net.isLoaded) {
+          animId = requestAnimationFrame(draw);
+          return;
+        }
+
         try {
           const det = await faceapi
             .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 }))
@@ -348,8 +359,10 @@ export async function openEnrollmentModal(empId) {
             ctx.lineWidth   = 2;
             ctx.strokeRect(flipX(box.x), box.y, -box.width, box.height);
           }
-        } catch (_) {
-          // Échec silencieux pour ne pas bloquer la boucle de rendu
+        } catch (landmarkErr) {
+          // ✅ FIX: Log l'erreur au lieu de l'avaler silencieusement
+          // Permet de diagnostiquer les vrais problèmes (modèle, API, etc.)
+          console.warn('[EnrollDraw] Detection error:', landmarkErr?.message || landmarkErr);
         }
       }
 
