@@ -275,7 +275,7 @@ export async function openEnrollmentModal(empId) {
       <h2 style="margin:0 0 16px;color:#1e293b;">📸 Enrollment: ${emp.name}</h2>
       <div style="position:relative;width:100%;max-width:320px;margin:0 auto 16px;aspect-ratio:4/3;background:#000;border-radius:8px;overflow:hidden;">
         <video id="enrollVideo" autoplay playsinline style="width:100%;height:100%;object-fit:cover;transform:scaleX(-1);"></video>
-        <canvas id="enrollCanvas" style="position:absolute;top:0;left:0;width:100%;height:100%;transform:scaleX(-1);z-index:10;pointer-events:none;"></canvas>
+        <canvas id="enrollCanvas" style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:10;pointer-events:none;"></canvas>
       </div>
       <div id="enrollStatus" style="padding:10px;background:#f0f0f0;border-radius:8px;text-align:center;margin-bottom:16px;font-size:13px;color:#1e293b;">
         📹 Positionnez votre visage...
@@ -338,26 +338,24 @@ export async function openEnrollmentModal(empId) {
             const landmarks = det.landmarks.positions;
             const box       = det.detection.box;
 
-            // Le canvas a transform:scaleX(-1) en CSS (même miroir que la vidéo).
-            // Les coordonnées face-api sont dans l'espace NON-miré de la vidéo source.
-            // On doit donc inverser X pour aligner avec le rendu CSS miré.
-            // flipX(x) = canvas.width - x  →  correct pour les points.
-            // Pour le rectangle : le coin haut-gauche miré est flipX(box.x + box.width),
-            // ✅ FIX A: et la largeur doit être NÉGATIVE pour tracer vers la gauche.
-            const flipX = (x) => canvas.width - x;
+            // ✅ Le canvas n'a PAS transform:scaleX(-1) (supprimé).
+            // La vidéo a le miroir CSS, mais face-api lit les pixels sources (non-mirés).
+            // On dessine aux coordonnées brutes de face-api — le CSS miroir de la vidéo
+            // ne s'applique PAS au canvas, donc les points s'alignent naturellement
+            // avec ce que l'utilisateur voit à l'écran.
 
             // Landmarks
             ctx.fillStyle = '#D0BCFF';
             landmarks.forEach(pt => {
               ctx.beginPath();
-              ctx.arc(flipX(pt.x), pt.y, 2, 0, Math.PI * 2);
+              ctx.arc(pt.x, pt.y, 2, 0, Math.PI * 2);
               ctx.fill();
             });
 
             // Rectangle de détection
             ctx.strokeStyle = '#818cf8';
             ctx.lineWidth   = 2;
-            ctx.strokeRect(flipX(box.x), box.y, -box.width, box.height);
+            ctx.strokeRect(box.x, box.y, box.width, box.height);
           }
         } catch (landmarkErr) {
           // ✅ FIX: Log l'erreur au lieu de l'avaler silencieusement
