@@ -306,14 +306,26 @@ export async function openEnrollmentModal(empId) {
     const canvas = modal.querySelector('#enrollCanvas');
     const ctx    = canvas.getContext('2d');
 
+    // ✅ FIX BOUCLE: Remplace async+rAF (fragile) par setTimeout récursif avec flag.
+    // Problèmes de l'ancienne version :
+    //   1. modal.isConnected peut être false sur certains Chrome sans raison valide
+    //   2. Si video.paused devient true pendant le await de 200ms, la boucle s'arrête
+    //   3. rAF s'accumule en cascade si les détections prennent plus d'un frame
+    let drawRunning = true;
+
     async function draw() {
-      if (video.paused || video.ended || !modal.isConnected) return;
+      if (!drawRunning) return;
+
+      // Vérifier que le modal est encore dans le DOM via getElementById (fiable)
+      if (!document.getElementById('enrollmentModal')) {
+        drawRunning = false;
+        return;
+      }
 
       const vWidth  = video.videoWidth;
       const vHeight = video.videoHeight;
 
-      // ✅ FIX C: Guard strict — ne pas tenter de dessiner si dimensions non disponibles
-      if (vWidth > 0 && vHeight > 0) {
+      if (vWidth > 0 && vHeight > 0 && !video.paused && !video.ended) {
         if (canvas.width !== vWidth || canvas.height !== vHeight) {
           canvas.width  = vWidth;
           canvas.height = vHeight;
@@ -321,51 +333,40 @@ export async function openEnrollmentModal(empId) {
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // ✅ FIX LANDMARKS: Guard explicite — withFaceLandmarks() throw si le modèle
-        // n'est pas encore prêt (race condition avec loadAllModels non-bloquant).
-        // On vérifie isLoaded avant chaque frame pour éviter le catch silencieux.
-        if (!faceapi.nets.faceLandmark68Net.isLoaded) {
-          animId = requestAnimationFrame(draw);
-          return;
-        }
+        if (faceapi.nets.faceLandmark68Net.isLoaded) {
+          try {
+            const det = await faceapi
+              .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 }))
+              .withFaceLandmarks();
 
-        try {
-          const det = await faceapi
-            .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 }))
-            .withFaceLandmarks();
+            if (det) {
+              const landmarks = det.landmarks.positions;
+              const box       = det.detection.box;
 
-          if (det) {
-            const landmarks = det.landmarks.positions;
-            const box       = det.detection.box;
+              // Canvas sans transform:scaleX(-1) → coordonnées face-api directement utilisables.
+              ctx.fillStyle = '#D0BCFF';
+              landmarks.forEach(pt => {
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, 2, 0, Math.PI * 2);
+                ctx.fill();
+              });
 
-            // ✅ Le canvas n'a PAS transform:scaleX(-1) (supprimé).
-            // La vidéo a le miroir CSS, mais face-api lit les pixels sources (non-mirés).
-            // On dessine aux coordonnées brutes de face-api — le CSS miroir de la vidéo
-            // ne s'applique PAS au canvas, donc les points s'alignent naturellement
-            // avec ce que l'utilisateur voit à l'écran.
-
-            // Landmarks
-            ctx.fillStyle = '#D0BCFF';
-            landmarks.forEach(pt => {
-              ctx.beginPath();
-              ctx.arc(pt.x, pt.y, 2, 0, Math.PI * 2);
-              ctx.fill();
-            });
-
-            // Rectangle de détection
-            ctx.strokeStyle = '#818cf8';
-            ctx.lineWidth   = 2;
-            ctx.strokeRect(box.x, box.y, box.width, box.height);
+              ctx.strokeStyle = '#818cf8';
+              ctx.lineWidth   = 2;
+              ctx.strokeRect(box.x, box.y, box.width, box.height);
+            }
+          } catch (landmarkErr) {
+            console.warn('[EnrollDraw] Detection error:', landmarkErr?.message || landmarkErr);
           }
-        } catch (landmarkErr) {
-          // ✅ FIX: Log l'erreur au lieu de l'avaler silencieusement
-          // Permet de diagnostiquer les vrais problèmes (modèle, API, etc.)
-          console.warn('[EnrollDraw] Detection error:', landmarkErr?.message || landmarkErr);
         }
       }
 
-      animId = requestAnimationFrame(draw);
+      // 100ms entre frames (≈10fps) — évite la cascade de détections parallèles
+      if (drawRunning) setTimeout(draw, 100);
     }
+
+    // animId devient un objet avec stop() pour l'arrêter proprement
+    animId = { stop: () => { drawRunning = false; } };
     draw();
 
     btnS.onclick = async () => {
@@ -378,10 +379,10 @@ export async function openEnrollmentModal(empId) {
         if (idx > -1) state.employees[idx] = enrolled;
         await saveData();
         status.innerHTML = '✅ Enrollment terminé!'; status.style.background = '#d4edda';
-        setTimeout(() => { stream.getTracks().forEach(t => t.stop()); cancelAnimationFrame(animId); modal.remove(); displayEnrolledEmployees(); window._displayEmployees?.(); }, 1500);
+        setTimeout(() => { stream.getTracks().forEach(t => t.stop()); animId?.stop(); modal.remove(); displayEnrolledEmployees(); window._displayEmployees?.(); }, 1500);
       } catch (err) { status.innerHTML = `❌ ${err.message}`; status.style.background = '#f8d7da'; }
     };
-    btnC.onclick = () => { stream.getTracks().forEach(t => t.stop()); cancelAnimationFrame(animId); modal.remove(); };
+    btnC.onclick = () => { stream.getTracks().forEach(t => t.stop()); animId?.stop(); modal.remove(); };
   } catch (err) {
     status.innerHTML = '❌ Caméra non accessible.'; status.style.background = '#f8d7da';
     console.error(err);
