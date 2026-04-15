@@ -218,6 +218,11 @@ const FR = {
     return { success: true, employe: emp, confidence: 1 - best.distance, distance: best.distance };
   },
 
+  // ✅ FIX: Exposé comme méthode publique pour import dans facial-mode.js
+  async recognizeFacePublic(videoEl, db) {
+    return this.recognizeFace(videoEl, db);
+  },
+
   checkDuplicate(descriptors, currentId, db) {
     const others = db.filter(e => e.id !== currentId && e.face_descriptors?.length > 0);
     if (!others.length) return { isDuplicate: false };
@@ -722,7 +727,16 @@ export function displayTodayFaceAttendance() {
   });
 }
 
+// ✅ FIX: Export standalone de recognizeFace pour import dans facial-mode.js
+// Évite une dépendance directe sur l'objet FR depuis l'extérieur
+export const recognizeFace = (videoEl, db) => FR.recognizeFace(videoEl, db);
+
 // Init section
 export function initFacePresence() {
   registerSectionCallback('face-presence', () => { displayEnrolledEmployees(); displayTodayFaceAttendance(); });
+  // ✅ FIX: Exposer globalement pour rafraîchissement après enrôlement ou pointage
+  // - window._displayEnrolled était appelé ligne 314 mais jamais assigné → ignoré silencieusement
+  // - window._displayFaceAttendance est appelé depuis facial-mode._registerAttendance()
+  window._displayEnrolled       = displayEnrolledEmployees;
+  window._displayFaceAttendance = displayTodayFaceAttendance;
 }

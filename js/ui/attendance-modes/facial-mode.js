@@ -8,6 +8,8 @@ import { openModal, closeModal } from '../../utils/ui.js';
 import { showToast } from '../../utils/notifications.js';
 import { formatDisplayTime } from '../../utils/format.js';
 import { playSuccessSound, playErrorSound } from '../../utils/audio.js';
+// ✅ FIX: Import de la fonction de reconnaissance par descripteur facial
+import { recognizeFace } from '../../face/recognition.js';
 
 /**
  * Classe gère le mode de présence Facial (reconnaissance faciale)
@@ -20,6 +22,9 @@ export class FacialMode {
     this.container = null;
     this.video = null;
     this.canvas = null;
+    // ✅ FIX: Anti-spam — évite d'enregistrer plusieurs fois en rafale
+    this._lastRegistrationTime = 0;
+    this._REGISTRATION_COOLDOWN_MS = 3000; // 3 secondes entre deux pointages
   }
 
   /**
@@ -192,19 +197,17 @@ export class FacialMode {
     }
 
     try {
-      // Détecte les visages avec landmarks et expressions
-      // Note: withFaceDescriptor() est utilisable si face-recognition model est chargé
+      // ✅ FIX: withFaceDescriptor() est requis pour la reconnaissance d'identité
       const detections = await faceapi
         .detectAllFaces(this.video, new faceapi.TinyFaceDetectorOptions())
-        .withFaceLandmarks();
-      // .withFaceDescriptor() peut être ajouté si nécessaire pour la reconnaissance
+        .withFaceLandmarks()
+        .withFaceDescriptors();
 
       // Affiche les résultats sur le canvas
       this._displayDetections(detections);
 
-      // Si un visage est détecté
+      // Si un visage est détecté, tenter la reconnaissance
       if (detections.length > 0) {
-        // Ici, tu peux ajouter la logique de matching avec des visages connus
         await this._matchFaceWithEmployee(detections[0]);
       }
 
@@ -249,36 +252,59 @@ export class FacialMode {
   }
 
   /**
-   * Essaie de matcher un visage détecté avec un employé
+   * ✅ FIX COMPLET: Identifie l'employé via FR.recognizeFace() et enregistre
+   * le pointage. Ancienne version: détectait un visage (score caméra) mais
+   * n'identifiait personne et n'appelait jamais _registerAttendance().
    * @private
    */
   async _matchFaceWithEmployee(detection) {
     try {
-      const confidence = Math.round(detection.detection.score * 100);
-      
-      // Seuil minimum de confiance (60%)
-      const CONFIDENCE_THRESHOLD = 60;
-      
-      if (confidence >= CONFIDENCE_THRESHOLD) {
-        // Enregistre automatiquement une présence pour le visage détecté
-        // Note: Dans une vraie application, tu comparerais avec des embeddings stockés
-        // Pour l'instant, c'est une détection passive
-        
-        const today = new Date().toISOString().split('T')[0];
-        
-        // Message de confirmation
+      // Anti-spam: ignorer si un pointage a été enregistré il y a moins de 3s
+      const now = Date.now();
+      if (now - this._lastRegistrationTime < this._REGISTRATION_COOLDOWN_MS) {
+        return;
+      }
+
+      // Récupérer les employés ayant des descripteurs faciaux enrôlés
+      const enrolled = state.employees.filter(
+        (e) => e.face_enrolled && e.face_descriptors?.length > 0
+      );
+
+      if (!enrolled.length) {
         const status = this.container.querySelector('[data-facial-status]');
         if (status) {
-          status.textContent = `✓ Présence enregistrée (${confidence}% confiance)`;
+          status.textContent = '⚠ Aucun employé enrôlé pour la reconnaissance';
+          status.style.color = '#FF9800';
+        }
+        return;
+      }
+
+      // ✅ Appel à la vraie reconnaissance par descripteur (128D embedding)
+      // recognizeFace() compare le descripteur du visage détecté avec tous
+      // les descripteurs enrôlés via FaceMatcher (distance euclidienne ≤ 0.4)
+      const result = await recognizeFace(this.video, enrolled);
+      const status = this.container.querySelector('[data-facial-status]');
+
+      if (result.success) {
+        const conf = Math.round(result.confidence * 100);
+        const dateInput = this.container.querySelector('[data-attendance-date]');
+        const date = dateInput?.value || new Date().toISOString().split('T')[0];
+
+        // ✅ Enregistrement réel dans state.attendance + persistance IndexedDB
+        await this._registerAttendance(result.employe, date);
+
+        // Mettre à jour le cooldown après enregistrement réussi
+        this._lastRegistrationTime = Date.now();
+
+        if (status) {
+          status.textContent = `✓ ${result.employe.name} — ${conf}% confiance`;
           status.style.color = '#4CAF50';
         }
-        
-        console.log(`[FacialMode] Face detected with ${confidence}% confidence - Attendance registered`);
+
+        console.log(`[FacialMode] ✅ Pointage enregistré: ${result.employe.name} (${conf}%)`);
       } else {
-        // Confiance insuffisante
-        const status = this.container.querySelector('[data-facial-status]');
         if (status) {
-          status.textContent = `⚠ Confiance faible: ${confidence}% (minimum: 60%)`;
+          status.textContent = `⚠ ${result.message || 'Visage non reconnu'}`;
           status.style.color = '#FF9800';
         }
       }
@@ -303,6 +329,7 @@ export class FacialMode {
     if (!dayAtt[employee.id]) {
       dayAtt[employee.id] = {
         arrivee: time,
+        depart: null,
         method: 'FACIAL',
       };
       playSuccessSound();
@@ -312,6 +339,8 @@ export class FacialMode {
     }
 
     await saveAttendanceData();
+    // ✅ Rafraîchir la liste "Pointages Faciaux du Jour"
+    window._displayFaceAttendance?.();
     this._refreshDisplay();
   }
 
