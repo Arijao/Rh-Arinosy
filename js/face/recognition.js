@@ -296,27 +296,48 @@ export async function openEnrollmentModal(empId) {
     video.onplay = () => {
       const canvas = modal.querySelector('#enrollCanvas');
       const ctx = canvas.getContext('2d');
+      
       async function draw() {
-        if (video.paused || !modal.isConnected) return;
-        canvas.width = video.videoWidth || video.clientWidth;
-        canvas.height = video.videoHeight || video.clientHeight;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        const det = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 })).withFaceLandmarks();
-        if (det) {
-          // Dessine les landmarks (68 points)
-          const landmarks = det.landmarks.positions;
-          ctx.fillStyle = '#D0BCFF';
-          landmarks.forEach(pt => {
-            ctx.beginPath();
-            ctx.arc(pt.x, pt.y, 2, 0, Math.PI * 2);
-            ctx.fill();
-          });
-          // Dessine le rectangle de détection
-          const box = det.detection.box;
-          ctx.strokeStyle = '#818cf8';
-          ctx.lineWidth = 2;
-          ctx.strokeRect(box.x, box.y, box.width, box.height);
+        if (video.paused || video.ended || !modal.isConnected) return;
+        
+        // ✅ Synchronisation dynamique des dimensions
+        const vWidth = video.videoWidth || video.clientWidth;
+        const vHeight = video.videoHeight || video.clientHeight;
+        
+        if (vWidth > 0 && vHeight > 0) {
+          if (canvas.width !== vWidth || canvas.height !== vHeight) {
+            canvas.width = vWidth;
+            canvas.height = vHeight;
+          }
+          
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          
+          // ✅ Détection optimisée (TinyFaceDetector est plus léger pour le temps réel)
+          const det = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 })).withFaceLandmarks();
+          
+          if (det) {
+            const landmarks = det.landmarks.positions;
+            const box = det.detection.box;
+            
+            // ✅ Correction miroir : Comme le canvas est inversé par CSS (scaleX(-1)), 
+            // nous devons inverser les coordonnées X pour qu'elles correspondent au rendu visuel.
+            const flipX = (x) => canvas.width - x;
+
+            // ✅ Dessin des points (Landmarks)
+            ctx.fillStyle = '#D0BCFF';
+            landmarks.forEach(pt => {
+              ctx.beginPath();
+              ctx.arc(flipX(pt.x), pt.y, 2, 0, Math.PI * 2);
+              ctx.fill();
+            });
+            
+            // ✅ Dessin du rectangle de détection
+            ctx.strokeStyle = '#818cf8';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(flipX(box.x + box.width), box.y, box.width, box.height);
+          }
         }
+        
         animId = requestAnimationFrame(draw);
       }
       draw();
