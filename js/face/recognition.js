@@ -195,9 +195,9 @@ const FR = {
       if (!eyeOpen) { i--; if (statusEl) statusEl.innerHTML = '⚠️ Ouvrez bien les yeux.'; await new Promise(r => setTimeout(r, 2000)); continue; }
 
       descriptors.push(Array.from(det.descriptor));
-      if (statusEl) { statusEl.innerHTML = `✅ Photo ${i + 1} enregistrée!`; statusEl.style.background = '#d4edda'; statusEl.style.color = '#000'; }
+      if (statusEl) { statusEl.innerHTML = `✅ Photo ${i + 1} enregistrée!`; statusEl.style.background = '#d4edda'; }
       await new Promise(r => setTimeout(r, 1000));
-      if (statusEl) statusEl.style.background = '#f0f0f0'; statusEl.style.color = '#000';
+      if (statusEl) statusEl.style.background = '#f0f0f0';
     }
 
     if (descriptors.length < instructions.length) throw new Error('Enrollment incomplet.');
@@ -277,7 +277,7 @@ export async function openEnrollmentModal(empId) {
         <video id="enrollVideo" autoplay playsinline style="width:100%;height:100%;object-fit:cover;transform:scaleX(-1);"></video>
         <canvas id="enrollCanvas" style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:10;pointer-events:none;"></canvas>
       </div>
-      <div id="enrollStatus" style="padding:10px;background:#f0f0f0;border-radius:8px;text-align:center;margin-bottom:16px;font-size:13px;color:#000;">
+      <div id="enrollStatus" style="padding:10px;background:#f0f0f0;border-radius:8px;text-align:center;margin-bottom:16px;font-size:13px;color:#1e293b;">
         📹 Positionnez votre visage...
       </div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;">
@@ -465,13 +465,13 @@ export async function openEnrollmentModal(empId) {
         const idx = state.employees.findIndex(e => e.id === empId);
         if (idx > -1) state.employees[idx] = enrolled;
         await saveData();
-        status.innerHTML = '✅ Enrollment terminé!'; status.style.background = '#d4edda'; status.style.color = '#000';
+        status.innerHTML = '✅ Enrollment terminé!'; status.style.background = '#d4edda';
         setTimeout(() => { stream.getTracks().forEach(t => t.stop()); animId?.stop(); modal.remove(); displayEnrolledEmployees(); window._displayEmployees?.(); }, 1500);
-      } catch (err) { status.innerHTML = `❌ ${err.message}`; status.style.background = '#f8d7da'; status.style.color = '#000'; btnS.disabled = false; }
+      } catch (err) { status.innerHTML = `❌ ${err.message}`; status.style.background = '#f8d7da'; btnS.disabled = false; }
     };
     btnC.onclick = () => { stream.getTracks().forEach(t => t.stop()); animId?.stop(); modal.remove(); };
   } catch (err) {
-    status.innerHTML = '❌ Caméra non accessible.'; status.style.background = '#f8d7da'; status.style.color = '#000';
+    status.innerHTML = '❌ Caméra non accessible.'; status.style.background = '#f8d7da';
     console.error(err);
     setTimeout(() => modal.remove(), 2000);
   }
@@ -525,16 +525,16 @@ export async function openFacePointageModal() {
           <span class="material-icons" style="font-size:22px;color:#1e293b;">cameraswitch</span>
         </button>
       </div>
-      <div id="camIndicator" style="text-align:center;margin-bottom:8px;font-size:12px;color:#000;">📷 Caméra frontale</div>
+      <div id="camIndicator" style="text-align:center;margin-bottom:8px;font-size:12px;color:#555;">📷 Caméra frontale</div>
       <div style="position:relative;width:100%;max-width:320px;margin:0 auto 16px;aspect-ratio:4/3;background:#000;border-radius:8px;overflow:hidden;">
         <video id="pointageVideo" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover;"></video>
       </div>
-      <div id="pointageStatus" style="padding:10px;background:#f0f0f0;border-radius:8px;text-align:center;margin-bottom:16px;font-size:13px;color:#000;">📹 Prêt pour le pointage...</div>
+      <div id="pointageStatus" style="padding:10px;background:#f0f0f0;border-radius:8px;text-align:center;margin-bottom:16px;font-size:13px;">📹 Prêt pour le pointage...</div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;">
         <button id="btnCapture" style="flex:1;min-width:120px;padding:12px;background:#6750A4;color:white;border:none;border-radius:8px;cursor:pointer;font-size:15px;font-weight:500;">📸 Pointage</button>
         <button id="btnClosePointage" style="flex:1;min-width:120px;padding:12px;background:#ccc;color:#333;border:none;border-radius:8px;cursor:pointer;font-size:15px;">✕ Fermer</button>
       </div>
-      <div style="margin-top:12px;font-size:12px;color:#000;text-align:center;">${enrolled.length} employé(s) enrolled</div>
+      <div style="margin-top:12px;font-size:12px;color:#666;text-align:center;">${enrolled.length} employé(s) enrolled</div>
     </div>`;
   document.body.appendChild(modal);
 
@@ -560,7 +560,7 @@ export async function openFacePointageModal() {
       for (let i = 0; i < 2; i++) { try { await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.4 })); } catch {} await new Promise(r => setTimeout(r, 300)); }
       facing = facingMode;
       indicator.innerHTML = facingMode === 'environment' ? '📷 Caméra arrière' : '🤳 Caméra frontale';
-      status.innerHTML = '📹 Prêt pour le pointage...'; status.style.background = '#f0f0f0'; status.style.color = '#000';
+      status.innerHTML = '📹 Prêt pour le pointage...'; status.style.background = '#f0f0f0'; status.style.color = '#333';
       return true;
     } catch (err) {
       status.innerHTML = `❌ Caméra inaccessible: ${err.message}`; status.style.background = '#f8d7da'; status.style.color = '#721c24';
@@ -592,10 +592,10 @@ export async function openFacePointageModal() {
         status.innerHTML = `❌ ${result.message}`; status.style.background = '#f8d7da'; status.style.color = '#721c24';
       }
     } catch (err) {
-      status.innerHTML = `❌ Erreur: ${err.message}`; status.style.background = '#f8d7da'; status.style.color = '#000';
+      status.innerHTML = `❌ Erreur: ${err.message}`; status.style.background = '#f8d7da';
     }
     await new Promise(r => setTimeout(r, 2000));
-    status.innerHTML = '📹 Prêt pour le suivant...'; status.style.background = '#f0f0f0'; status.style.color = '#000';
+    status.innerHTML = '📹 Prêt pour le suivant...'; status.style.background = '#f0f0f0'; status.style.color = '#333';
     btnCap.disabled = false; btnSwitch.disabled = false; capturing = false;
   };
 
@@ -655,14 +655,14 @@ export async function openFaceRecognitionForStatusSearch() {
     status.innerHTML = '<span class="material-icons" style="font-size:48px;color:#10b981;">face</span><p style="color:#1e293b;font-weight:600;">Recherche en cours... Regardez la caméra</p>';
 
     intervalId = setInterval(async () => {
-      if (++attempts > 30) { clearInterval(intervalId); status.innerHTML = '<p style="color:#000;">⏱️ Temps écoulé</p>'; setTimeout(close, 2000); return; }
+      if (++attempts > 30) { clearInterval(intervalId); status.innerHTML = '<p style="color:#f59e0b;">⏱️ Temps écoulé</p>'; setTimeout(close, 2000); return; }
       try {
         const result = await FR.recognizeFace(video, enrolled);
         if (result.success) {
           clearInterval(intervalId);
           const emp  = result.employe;
           const conf = (result.confidence * 100).toFixed(1);
-          status.innerHTML = `<span class="material-icons" style="font-size:64px;color:#10b981;">check_circle</span><h3 style="margin:12px 0 4px;color:#000;">${emp.name}</h3><p style="color:#000;">${emp.position}</p><p style="font-size:.9em;color:#000;">Confiance: <strong style="color:#10b981;">${conf}%</strong></p>`;
+          status.innerHTML = `<span class="material-icons" style="font-size:64px;color:#10b981;">check_circle</span><h3 style="margin:12px 0 4px;color:#064e3b;">${emp.name}</h3><p style="color:#059669;">${emp.position}</p><p style="font-size:.9em;color:#64748b;">Confiance: <strong style="color:#10b981;">${conf}%</strong></p>`;
           playSuccessSound();
           setTimeout(() => {
             const si = document.getElementById('smartSearchInput');
