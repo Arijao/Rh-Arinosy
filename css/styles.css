@@ -2002,20 +2002,35 @@ textarea[disabled] {
   box-shadow: 0 12px 40px 0 rgba(15, 23, 42, 0.4) !important;
 }
 
-/* 3. Ajustement de la lisibilité interne (si nécessaire) */
+/* 3. Ajustement de la lisibilité interne */
 #face-presence .card:has(h3 #enrolledCount) h3 {
   color: #f1f5f9 !important;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-/* 4. Style des items dans la liste pour matcher le glassmorphism */
+/* 4. Style des items (cartes individuelles) dans la liste "Employés Enrolled" */
+/* Suppression du fond noir/opaque existant sur les items de cette liste spécifique */
 #enrolledEmployeesList .employee-item {
-  background: rgba(255, 255, 255, 0.03) !important;
-  border: 1px solid rgba(148, 163, 184, 0.1) !important;
-  backdrop-filter: blur(4px);
+  background: rgba(255, 255, 255, 0.03) !important; /* Fond translucide léger */
+  border: 1px solid rgba(255, 255, 255, 0.08) !important; /* Bordure subtile */
+  backdrop-filter: blur(4px) !important; /* Effet de flou interne */
+  box-shadow: none !important; /* Suppression des ombres opaques */
+  transition: all 0.3s ease !important;
 }
 
+/* État au survol des cartes individuelles */
 #enrolledEmployeesList .employee-item:hover {
   background: rgba(255, 255, 255, 0.07) !important;
   border-color: rgba(129, 140, 248, 0.2) !important;
+  transform: translateX(4px) !important; /* Animation de glissement conservée mais allégée */
+}
+
+/* Ajustement des textes dans les cartes individuelles pour la lisibilité sur fond glass */
+#enrolledEmployeesList .employee-info h4 {
+  color: #93c5fd !important; /* Bleu clair pour le nom */
+  font-weight: 600 !important;
+}
+
+#enrolledEmployeesList .employee-info p {
+  color: rgba(203, 213, 225, 0.8) !important; /* Texte secondaire adouci */
 }
