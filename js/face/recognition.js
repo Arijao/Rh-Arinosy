@@ -306,26 +306,19 @@ export async function openEnrollmentModal(empId) {
     const canvas = modal.querySelector('#enrollCanvas');
     const ctx    = canvas.getContext('2d');
 
-    // ✅ FIX BOUCLE: Remplace async+rAF (fragile) par setTimeout récursif avec flag.
-    // Problèmes de l'ancienne version :
-    //   1. modal.isConnected peut être false sur certains Chrome sans raison valide
-    //   2. Si video.paused devient true pendant le await de 200ms, la boucle s'arrête
-    //   3. rAF s'accumule en cascade si les détections prennent plus d'un frame
+    // Architecture double-boucle : rendu (rAF 60fps) + détection (setTimeout 200ms)
+    // Élimine le clignotement en séparant affichage et calcul ML.
     let drawRunning = true;
+    let lastDet     = null; // Cache du dernier résultat — réaffiché pendant l'await
 
-    async function draw() {
+    // BOUCLE 1 — Rendu pur à 60fps via rAF, jamais bloqué par un await
+    function renderLoop() {
       if (!drawRunning) return;
-
-      // Vérifier que le modal est encore dans le DOM via getElementById (fiable)
-      if (!document.getElementById('enrollmentModal')) {
-        drawRunning = false;
-        return;
-      }
 
       const vWidth  = video.videoWidth;
       const vHeight = video.videoHeight;
 
-      if (vWidth > 0 && vHeight > 0 && !video.paused && !video.ended) {
+      if (vWidth > 0 && vHeight > 0) {
         if (canvas.width !== vWidth || canvas.height !== vHeight) {
           canvas.width  = vWidth;
           canvas.height = vHeight;
@@ -333,41 +326,58 @@ export async function openEnrollmentModal(empId) {
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        if (faceapi.nets.faceLandmark68Net.isLoaded) {
-          try {
-            const det = await faceapi
-              .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 }))
-              .withFaceLandmarks();
+        if (lastDet) {
+          const landmarks = lastDet.landmarks.positions;
+          const box       = lastDet.detection.box;
 
-            if (det) {
-              const landmarks = det.landmarks.positions;
-              const box       = det.detection.box;
+          // MIROIR: La vidéo a transform:scaleX(-1) CSS.
+          // Face-api lit les pixels source (espace non-miré).
+          // On applique le même flip dans le CTM canvas pour aligner
+          // les points avec la vidéo affichée en miroir.
+          ctx.save();
+          ctx.translate(canvas.width, 0);
+          ctx.scale(-1, 1);
 
-              // Canvas sans transform:scaleX(-1) → coordonnées face-api directement utilisables.
-              ctx.fillStyle = '#D0BCFF';
-              landmarks.forEach(pt => {
-                ctx.beginPath();
-                ctx.arc(pt.x, pt.y, 2, 0, Math.PI * 2);
-                ctx.fill();
-              });
+          ctx.fillStyle = '#D0BCFF';
+          landmarks.forEach(pt => {
+            ctx.beginPath();
+            ctx.arc(pt.x, pt.y, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+          });
 
-              ctx.strokeStyle = '#818cf8';
-              ctx.lineWidth   = 2;
-              ctx.strokeRect(box.x, box.y, box.width, box.height);
-            }
-          } catch (landmarkErr) {
-            console.warn('[EnrollDraw] Detection error:', landmarkErr?.message || landmarkErr);
-          }
+          ctx.strokeStyle = '#818cf8';
+          ctx.lineWidth   = 2;
+          ctx.strokeRect(box.x, box.y, box.width, box.height);
+
+          ctx.restore();
         }
       }
 
-      // 100ms entre frames (≈10fps) — évite la cascade de détections parallèles
-      if (drawRunning) setTimeout(draw, 100);
+      requestAnimationFrame(renderLoop);
     }
 
-    // animId devient un objet avec stop() pour l'arrêter proprement
+    // BOUCLE 2 — Détection ML toutes les 200ms, indépendante du rendu
+    async function detectLoop() {
+      if (!drawRunning) return;
+      if (!document.getElementById('enrollmentModal')) { drawRunning = false; return; }
+
+      if (faceapi.nets.faceLandmark68Net.isLoaded && !video.paused && !video.ended) {
+        try {
+          const det = await faceapi
+            .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 }))
+            .withFaceLandmarks();
+          lastDet = det || null;
+        } catch (landmarkErr) {
+          console.warn('[EnrollDraw] Detection error:', landmarkErr?.message || landmarkErr);
+        }
+      }
+
+      if (drawRunning) setTimeout(detectLoop, 200);
+    }
+
     animId = { stop: () => { drawRunning = false; } };
-    draw();
+    renderLoop();
+    detectLoop();
 
     btnS.onclick = async () => {
       try {
