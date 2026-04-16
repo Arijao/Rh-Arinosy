@@ -239,13 +239,14 @@ select.form-control {
 /* --- Employee List --- */
 .employee-list { display: grid; gap: 12px; }
 .employee-item {
-  background: rgba(51,65,85,.6);
+  background: transparent;
   padding: 16px; border-radius: 12px;
   display: flex; justify-content: space-between; align-items: center;
   transition: all 0.3s ease;
-  border: 1px solid rgba(148,163,184,.25);
+  border: 1px solid rgba(129,140,248,.22);
+  box-shadow: 0 2px 8px rgba(15,23,42,.12);
 }
-.employee-item:hover { transform: translateX(4px); box-shadow: 0 2px 8px rgba(0,0,0,.1); }
+.employee-item:hover { transform: translateX(4px); box-shadow: 0 4px 14px rgba(15,23,42,.22); border-color: rgba(129,140,248,.42); }
 .employee-info h4 { color: #93c5fd; margin-bottom: 4px; font-weight: 700; }
 .employee-info p  { color: #cbd5e1; font-size: 14px; font-weight: 500; }
 .employee-actions { display: flex; gap: 8px; }
@@ -333,8 +334,7 @@ select.form-control {
   color: #6b7280 !important;
 }
 .qr-group-badge { display: inline-flex; align-items: center; gap: 4px; background: linear-gradient(135deg, var(--md-sys-color-primary), #4F378B); color: white !important; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
-.employee-qr-item { background: transparent; border: 1px solid rgba(148,163,184,.28); border-radius: 12px; padding: 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; transition: all 0.3s ease; box-shadow: 0 1px 4px rgba(15,23,42,.18); }
-.employee-qr-item:hover { border-color: rgba(129,140,248,.4); box-shadow: 0 2px 10px rgba(15,23,42,.25); }
+.employee-qr-item { background: var(--md-sys-color-surface); border: 1px solid var(--md-sys-color-outline-variant); border-radius: 12px; padding: 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; transition: all 0.3s ease; }
 .employee-qr-info h4 { color: var(--md-sys-color-primary); margin-bottom: 4px; }
 .employee-qr-info p  { color: var(--md-sys-color-on-surface-variant); font-size: 14px; }
 .qr-status { display: flex; align-items: center; gap: 8px; font-weight: 700; }
