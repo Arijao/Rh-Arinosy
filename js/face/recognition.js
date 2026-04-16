@@ -379,18 +379,95 @@ export async function openEnrollmentModal(empId) {
     renderLoop();
     detectLoop();
 
+    // ─── Helper : affiche le modal doublon et retourne une Promise
+    //     résolue quand l'utilisateur ferme (bouton OU clic extérieur).
+    function showDuplicateAlert(matchName) {
+      return new Promise(resolve => {
+        // Overlay semi-transparent par-dessus le modal d'enrollment
+        const overlay = document.createElement('div');
+        overlay.id = 'dupOverlay';
+        overlay.style.cssText = [
+          'position:fixed;inset:0;z-index:10100',
+          'background:rgba(0,0,0,.55)',
+          'display:flex;align-items:center;justify-content:center;padding:20px',
+        ].join(';');
+
+        overlay.innerHTML = `
+          <div id="dupBox" style="
+            background:#fff;border-radius:14px;padding:28px 24px;
+            max-width:360px;width:95%;text-align:center;
+            border-top:5px solid #ef4444;box-shadow:0 8px 32px rgba(0,0,0,.35);">
+            <span style="font-size:48px;display:block;margin-bottom:8px;">🚫</span>
+            <h3 style="margin:0 0 10px;color:#b91c1c;font-size:1.1rem;">Visage déjà enrôlé</h3>
+            <p style="margin:0 0 20px;color:#374151;font-size:.95rem;">
+              Ce visage appartient déjà à<br>
+              <strong style="color:#111;font-size:1.05rem;">${matchName}</strong>
+            </p>
+            <button id="dupOkBtn" style="
+              background:#ef4444;color:#fff;border:none;border-radius:8px;
+              padding:10px 28px;font-size:.95rem;font-weight:600;cursor:pointer;">
+              Compris
+            </button>
+          </div>`;
+
+        document.body.appendChild(overlay);
+        playErrorSound();
+
+        const close = () => { overlay.remove(); resolve(); };
+
+        document.getElementById('dupOkBtn').addEventListener('click', close);
+        // Clic à l'extérieur de la boîte = fermeture
+        overlay.addEventListener('click', e => {
+          if (!document.getElementById('dupBox')?.contains(e.target)) close();
+        });
+      });
+    }
+
     btnS.onclick = async () => {
       try {
+        // ── ÉTAPE 1 : Vérification doublon AVANT toute capture ──────────────
+        // On utilise recognizeFace() sur le flux live (plus rapide que
+        // d'attendre les 5 photos d'enrollFace pour checkDuplicate).
+        const alreadyEnrolled = state.employees.filter(
+          e => e.face_enrolled && e.face_descriptors?.length > 0 && e.id !== empId
+        );
+
+        if (alreadyEnrolled.length > 0) {
+          status.innerHTML = '🔍 Vérification doublon...';
+          btnS.disabled = true;
+
+          const dupCheck = await FR.recognizeFace(video, alreadyEnrolled);
+
+          btnS.disabled = false;
+
+          if (dupCheck.success) {
+            // Doublon détecté → bloquer et informer
+            status.innerHTML = '📹 Positionnez votre visage...';
+            status.style.background = '#f0f0f0';
+            await showDuplicateAlert(dupCheck.employe.name);
+            return; // Sortir sans lancer enrollFace
+          }
+        }
+
+        // ── ÉTAPE 2 : Pas de doublon → procéder à l'enrôlement ──────────────
         status.innerHTML = '⏳ Capture en cours...';
-        const enrolled  = await FR.enrollFace(video, emp);
-        const dup       = FR.checkDuplicate(enrolled.face_descriptors, empId, state.employees);
-        if (dup.isDuplicate) { status.innerHTML = `❌ Doublon: ${dup.matchedEmploye.name}`; status.style.background = '#f8d7da'; return; }
+        const enrolled = await FR.enrollFace(video, emp);
+
+        // Garde-fou post-enrollment (filet de sécurité, rare en pratique)
+        const dup = FR.checkDuplicate(enrolled.face_descriptors, empId, state.employees);
+        if (dup.isDuplicate) {
+          await showDuplicateAlert(dup.matchedEmploye.name);
+          status.innerHTML = '📹 Positionnez votre visage...';
+          status.style.background = '#f0f0f0';
+          return;
+        }
+
         const idx = state.employees.findIndex(e => e.id === empId);
         if (idx > -1) state.employees[idx] = enrolled;
         await saveData();
         status.innerHTML = '✅ Enrollment terminé!'; status.style.background = '#d4edda';
         setTimeout(() => { stream.getTracks().forEach(t => t.stop()); animId?.stop(); modal.remove(); displayEnrolledEmployees(); window._displayEmployees?.(); }, 1500);
-      } catch (err) { status.innerHTML = `❌ ${err.message}`; status.style.background = '#f8d7da'; }
+      } catch (err) { status.innerHTML = `❌ ${err.message}`; status.style.background = '#f8d7da'; btnS.disabled = false; }
     };
     btnC.onclick = () => { stream.getTracks().forEach(t => t.stop()); animId?.stop(); modal.remove(); };
   } catch (err) {
