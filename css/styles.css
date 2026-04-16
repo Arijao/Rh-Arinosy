@@ -620,70 +620,35 @@ table th { background: rgba(51,65,85,.9) !important; color: #f1f5f9 !important; 
 table td { color: #e2e8f0 !important; font-weight: 500 !important; }
 .btn    { color: white !important; font-weight: 700 !important; }
 
-/* --- Glass Attendance Summary Cards (Facial & QR) --- */
-.glass-att-summary {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 20px;
-}
-.glass-att-card {
-  flex: 1;
-  min-width: 120px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px;
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-.glass-att-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
-}
-.glass-att-card .material-icons {
-  font-size: 32px;
-  flex-shrink: 0;
-}
-.glass-att-card h3 {
-  font-size: 1.8rem !important;
-  font-weight: 700 !important;
-  margin: 0 0 2px !important;
-  line-height: 1 !important;
-}
-.glass-att-card p {
-  font-size: 0.8rem !important;
-  font-weight: 500 !important;
-  margin: 0 !important;
-  opacity: 0.85;
-}
-/* Color variants */
-.glass-att-card.present .material-icons,
-.glass-att-card.present h3 { color: #22c55e !important; }
-.glass-att-card.present { border-color: rgba(34, 197, 94, 0.25); }
-.glass-att-card.present p { color: #86efac !important; }
+/* --- Modal Facial : correction couleurs textes (fond blanc) --- */
+/* Les règles globales h1-h6, p, strong, label forcent #f1f5f9 via !important.
+   Ces surcharges rétablissent des couleurs lisibles UNIQUEMENT dans les modals
+   à fond blanc (modal-content-facial, dupBox, enrollmentModal, facePointageModal,
+   faceSearchModal). Seules les valeurs color sont modifiées. */
+.modal-content-facial h1,
+.modal-content-facial h2,
+.modal-content-facial h3,
+.modal-content-facial h4,
+.modal-content-facial h5,
+.modal-content-facial h6 { color: #1e293b !important; }
+.modal-content-facial p   { color: #1e293b !important; }
+.modal-content-facial strong { color: #111 !important; }
+.modal-content-facial label,
+.modal-content-facial .form-group label { color: #1e293b !important; }
 
-.glass-att-card.half .material-icons,
-.glass-att-card.half h3 { color: #f59e0b !important; }
-.glass-att-card.half { border-color: rgba(245, 158, 11, 0.25); }
-.glass-att-card.half p { color: #fcd34d !important; }
+/* dupBox = modal doublon (fond blanc, z-index 10100) */
+#dupBox h3,
+#dupBox h4,
+#dupBox h5,
+#dupBox h6 { color: #b91c1c !important; }
+#dupBox p   { color: #374151 !important; }
+#dupBox strong { color: #111 !important; }
 
-.glass-att-card.absent .material-icons,
-.glass-att-card.absent h3 { color: #ef4444 !important; }
-.glass-att-card.absent { border-color: rgba(239, 68, 68, 0.25); }
-.glass-att-card.absent p { color: #fca5a5 !important; }
+/* enrollStatus, pointageStatus, faceSearchStatus inline dans modals blancs */
+#enrollStatus,
+#pointageStatus { color: #1e293b !important; }
 
-.glass-att-card.total .material-icons,
-.glass-att-card.total h3 { color: #8b5cf6 !important; }
-.glass-att-card.total { border-color: rgba(139, 92, 246, 0.25); }
-.glass-att-card.total p { color: #c4b5fd !important; }
-
-
+/* --- Video / Face --- */
 #enrollVideo, #pointageVideo, #selectionVideo { transform: scaleX(-1); }
 
 /* --- Method Badge --- */
