@@ -620,6 +620,34 @@ table th { background: rgba(51,65,85,.9) !important; color: #f1f5f9 !important; 
 table td { color: #e2e8f0 !important; font-weight: 500 !important; }
 .btn    { color: white !important; font-weight: 700 !important; }
 
+/* --- Modal Facial : correction couleurs textes (fond blanc) --- */
+/* Les règles globales h1-h6, p, strong, label forcent #f1f5f9 via !important.
+   Ces surcharges rétablissent des couleurs lisibles UNIQUEMENT dans les modals
+   à fond blanc (modal-content-facial, dupBox, enrollmentModal, facePointageModal,
+   faceSearchModal). Seules les valeurs color sont modifiées. */
+.modal-content-facial h1,
+.modal-content-facial h2,
+.modal-content-facial h3,
+.modal-content-facial h4,
+.modal-content-facial h5,
+.modal-content-facial h6 { color: #1e293b !important; }
+.modal-content-facial p   { color: #1e293b !important; }
+.modal-content-facial strong { color: #111 !important; }
+.modal-content-facial label,
+.modal-content-facial .form-group label { color: #1e293b !important; }
+
+/* dupBox = modal doublon (fond blanc, z-index 10100) */
+#dupBox h3,
+#dupBox h4,
+#dupBox h5,
+#dupBox h6 { color: #b91c1c !important; }
+#dupBox p   { color: #374151 !important; }
+#dupBox strong { color: #111 !important; }
+
+/* enrollStatus, pointageStatus, faceSearchStatus inline dans modals blancs */
+#enrollStatus,
+#pointageStatus { color: #1e293b !important; }
+
 /* --- Video / Face --- */
 #enrollVideo, #pointageVideo, #selectionVideo { transform: scaleX(-1); }
 
