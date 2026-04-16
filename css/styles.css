@@ -1969,3 +1969,53 @@ textarea[disabled] {
     font-size: 14px;
   }
 }
+
+/* ============================================================
+   HARMONISATION UI — GLASSMORPHISM POUR "EMPLOYÉS ENROLLED"
+   Cible uniquement la section spécifique dans #face-presence
+   ============================================================ */
+
+/* 1. Ciblage chirurgical du conteneur "Employés Enrolled" */
+#face-presence .card:has(h3 #enrolledCount) {
+  /* Suppression du fond noir/opaque hérité de .card */
+  background: rgba(255, 255, 255, 0.05) !important;
+  
+  /* Effet Glassmorphism */
+  backdrop-filter: blur(12px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(160%) !important;
+  
+  /* Contour léger et subtil (translucide) */
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  
+  /* Ombre douce pour le relief sans opacité forte */
+  box-shadow: 0 8px 32px 0 rgba(15, 23, 42, 0.3) !important;
+  
+  /* Transition fluide */
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* 2. État au survol pour la différenciation élégante */
+#face-presence .card:has(h3 #enrolledCount):hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(129, 140, 248, 0.3) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px 0 rgba(15, 23, 42, 0.4) !important;
+}
+
+/* 3. Ajustement de la lisibilité interne (si nécessaire) */
+#face-presence .card:has(h3 #enrolledCount) h3 {
+  color: #f1f5f9 !important;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* 4. Style des items dans la liste pour matcher le glassmorphism */
+#enrolledEmployeesList .employee-item {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(148, 163, 184, 0.1) !important;
+  backdrop-filter: blur(4px);
+}
+
+#enrolledEmployeesList .employee-item:hover {
+  background: rgba(255, 255, 255, 0.07) !important;
+  border-color: rgba(129, 140, 248, 0.2) !important;
+}
