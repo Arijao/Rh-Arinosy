@@ -157,7 +157,7 @@ body::before {
 .card {
   background: rgba(51,65,85,.4);
   backdrop-filter: blur(20px) saturate(140%);
-  border: 1px solid rgba(148,163,184,.15);
+  border: 1px solid rgba(148,163,184,.35);
   border-radius: 16px; padding: 24px; margin-bottom: 16px;
   box-shadow: 0 4px 16px rgba(15,23,42,.3), inset 0 1px 0 rgba(255,255,255,.05);
   transition: all 0.3s ease;
@@ -333,8 +333,8 @@ select.form-control {
   color: #6b7280 !important;
 }
 .qr-group-badge { display: inline-flex; align-items: center; gap: 4px; background: linear-gradient(135deg, var(--md-sys-color-primary), #4F378B); color: white !important; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
-.employee-qr-item { background: transparent; border: 1px solid rgba(148,163,184,.28); border-radius: 12px; padding: 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; transition: all 0.3s ease; box-shadow: 0 1px 4px rgba(15,23,42,.18); }
-.employee-qr-item:hover { border-color: rgba(129,140,248,.4); box-shadow: 0 2px 10px rgba(15,23,42,.25); }
+.employee-qr-item { background: transparent; border: 1px solid rgba(148,163,184,.45); border-radius: 12px; padding: 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; transition: all 0.3s ease; box-shadow: 0 1px 6px rgba(15,23,42,.2); }
+.employee-qr-item:hover { border-color: rgba(129,140,248,.65); box-shadow: 0 3px 12px rgba(15,23,42,.3); }
 .employee-qr-info h4 { color: var(--md-sys-color-primary); margin-bottom: 4px; }
 .employee-qr-info p  { color: var(--md-sys-color-on-surface-variant); font-size: 14px; }
 .qr-status { display: flex; align-items: center; gap: 8px; font-weight: 700; }
@@ -1971,68 +1971,111 @@ textarea[disabled] {
 }
 
 /* ============================================================
-   HARMONISATION UI — GLASSMORPHISM POUR "EMPLOYÉS ENROLLED"
-   Cible uniquement la section spécifique dans #face-presence
+   ENROLLED — FIX INLINE STYLE OVERRIDE + BORDURES VISIBLES
+   ROOT CAUSE : items générés par JS en <div style="background:
+   var(--md-sys-color-surface)"> — inline style, pas de classe.
+   SOLUTION : #enrolledEmployeesList > div avec !important.
    ============================================================ */
 
-/* 1. Ciblage du conteneur principal "Employés Enrolled" */
-#face-presence .card:has(h3 #enrolledCount) {
-  background: rgba(255, 255, 255, 0.05) !important;
-  backdrop-filter: blur(12px) saturate(160%) !important;
-  -webkit-backdrop-filter: blur(12px) saturate(160%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  box-shadow: 0 8px 32px 0 rgba(15, 23, 42, 0.3) !important;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+#enrolledEmployeesList > div {
+  background: transparent !important;
+  backdrop-filter: blur(10px) saturate(150%);
+  -webkit-backdrop-filter: blur(10px) saturate(150%);
+  border-color: rgba(129, 140, 248, 0.45) !important;
+  box-shadow: 0 1px 6px rgba(15, 23, 42, 0.2);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-/* 2. Suppression du fond noir des cartes individuelles (Estele, Liva, etc.) */
-#enrolledEmployeesList .employee-item {
-  /* Suppression radicale du fond noir opaque */
-  background: rgba(255, 255, 255, 0.04) !important;
-  
-  /* Application du Glassmorphism sur les cartes individuelles */
-  backdrop-filter: blur(8px) saturate(140%) !important;
-  -webkit-backdrop-filter: blur(8px) saturate(140%) !important;
-  
-  /* Contour subtil pour la définition */
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  
-  /* Ombre très légère pour le relief */
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
-  
-  /* Transition fluide */
-  transition: all 0.3s ease !important;
+#enrolledEmployeesList > div:hover {
+  border-color: rgba(129, 140, 248, 0.7) !important;
+  box-shadow: 0 3px 14px rgba(15, 23, 42, 0.28) !important;
 }
 
-/* 3. État au survol des cartes individuelles */
-#enrolledEmployeesList .employee-item:hover {
-  background: rgba(255, 255, 255, 0.08) !important;
-  border-color: rgba(129, 140, 248, 0.3) !important;
-  transform: translateX(6px) !important;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15) !important;
+/* ============================================================
+   HARMONISATION CARTES RÉSUMÉ — QR & FACIAL
+   ROOT CAUSE (confirmé par DevTools) :
+   JS injecte un div de résumé comme PREMIER ENFANT direct de
+   #qrAttendanceList et #todayFaceAttendance, avec inline style :
+     display:flex; gap:16px; margin-bottom:16px; padding:12px;
+     background:var(--md-sys-color-surface-variant); border-radius:8px;
+   Ses enfants directs sont les chips individuelles (Présents,
+   Absents, Total / Facial, Total).
+
+   SOLUTION : on cible ces divs précisément et on override le
+   background monochrome + border-radius pour coller au rendu
+   de Saisie Manuelle. Les chips enfants reçoivent backgrounds
+   colorés selon leur position ordinale (1er=vert, 2e=rouge/orange,
+   3e=violet) — pattern identique à #attendanceSummary.
+   ============================================================ */
+
+/* ── Wrapper de résumé : harmonisation du conteneur ── */
+#qrAttendanceList > div:first-child,
+#todayFaceAttendance > div:first-child {
+  display: flex !important;
+  gap: 12px !important;
+  flex-wrap: wrap !important;
+  margin: 0 0 16px !important;
+  padding: 0 !important;               /* retire le padding monobloc */
+  background: transparent !important;  /* neutralise surface-variant uniforme */
+  border-radius: 0 !important;
 }
 
-/* 4. Ajustement des textes pour la lisibilité sur fond translucide */
-#enrolledEmployeesList .employee-info h4 {
-  color: #f1f5f9 !important; /* Blanc cassé pour le nom */
-  font-weight: 700 !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+/* ── Chips individuelles : base commune ── */
+#qrAttendanceList > div:first-child > div,
+#todayFaceAttendance > div:first-child > div {
+  flex: 1 !important;
+  min-width: 120px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 12px 16px !important;
+  border-radius: 12px !important;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.2) !important;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease !important;
 }
 
-#enrolledEmployeesList .employee-info p {
-  color: rgba(226, 232, 240, 0.9) !important; /* Texte secondaire clair */
+#qrAttendanceList > div:first-child > div:hover,
+#todayFaceAttendance > div:first-child > div:hover {
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.32) !important;
 }
 
-/* Style des dates d'enrôlement (Enrolled le...) */
-#enrolledEmployeesList .employee-status,
-#enrolledEmployeesList .employee-info + div {
-  color: rgba(226, 232, 240, 0.7) !important;
-  font-size: 0.85rem !important;
+/* ── Chip 1 — Présents / Facial (vert) ── */
+#qrAttendanceList > div:first-child > div:nth-child(1),
+#todayFaceAttendance > div:first-child > div:nth-child(1) {
+  background: rgba(34, 197, 94, 0.12) !important;
+  border: 1px solid rgba(34, 197, 94, 0.3) !important;
+  color: #22c55e !important;
 }
 
-/* 5. Ajustement du sélecteur "Éléments par page" pour cohérence */
-#enrolledItemsPerPageSelect {
-  background: rgba(255, 255, 255, 0.05) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  backdrop-filter: blur(4px) !important;
+/* ── Chip 2 — Absents (rouge) ── */
+#qrAttendanceList > div:first-child > div:nth-child(2),
+#todayFaceAttendance > div:first-child > div:nth-child(2) {
+  background: rgba(239, 68, 68, 0.12) !important;
+  border: 1px solid rgba(239, 68, 68, 0.3) !important;
+  color: #ef4444 !important;
 }
+
+/* ── Chip 3 — Total (violet) ── */
+#qrAttendanceList > div:first-child > div:nth-child(3),
+#todayFaceAttendance > div:first-child > div:nth-child(3) {
+  background: rgba(103, 80, 164, 0.12) !important;
+  border: 1px solid rgba(103, 80, 164, 0.3) !important;
+  color: var(--md-sys-color-primary) !important;
+}
+
+/* ── Chip 4+ (fallback, si JS en ajoute d'autres) ── */
+#qrAttendanceList > div:first-child > div:nth-child(n+4),
+#todayFaceAttendance > div:first-child > div:nth-child(n+4) {
+  background: rgba(51, 65, 85, 0.5) !important;
+  border: 1px solid rgba(148, 163, 184, 0.25) !important;
+}
+
+/* ── Couleur des icônes Material Icons dans les chips ── */
+#qrAttendanceList > div:first-child > div:nth-child(1) .material-icons,
+#todayFaceAttendance > div:first-child > div:nth-child(1) .material-icons { color: #22c55e !important; }
+
+#qrAttendanceList > div:first-child > div:nth-child(2) .material-icons,
+#todayFaceAttendance > div:first-child > div:nth-child(2) .material-icons { color: #ef4444 !important; }
+
+#qrAttendanceList > div:first-child > div:nth-child(3) .material-icons,
+#todayFaceAttendance > div:first-child > div:nth-child(3) .material-icons { color: var(--md-sys-color-primary) !important; }
