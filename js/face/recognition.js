@@ -833,10 +833,21 @@ export function displayTodayFaceAttendance() {
   const dayAtt = state.attendance[today] || {};
   const facials = Object.values(dayAtt).filter(a => a?.method === 'FACIAL').length;
 
+  const absent = state.employees.length - facials;
   const summary = `
-    <div style="display:flex;gap:16px;margin-bottom:16px;padding:12px;background:var(--md-sys-color-surface-variant);border-radius:8px;">
-      <div style="color:var(--md-sys-color-success);font-weight:500;"><span class="material-icons" style="vertical-align:middle;">check_circle</span> Facial: ${facials}</div>
-      <div style="color:var(--md-sys-color-on-surface-variant);font-weight:500;"><span class="material-icons" style="vertical-align:middle;">people</span> Total: ${state.employees.length}</div>
+    <div class="glass-att-summary">
+      <div class="glass-att-card present">
+        <span class="material-icons">check_circle</span>
+        <div><h3>${facials}</h3><p>Présents</p></div>
+      </div>
+      <div class="glass-att-card absent">
+        <span class="material-icons">cancel</span>
+        <div><h3>${absent}</h3><p>Absents</p></div>
+      </div>
+      <div class="glass-att-card total">
+        <span class="material-icons">people</span>
+        <div><h3>${state.employees.length}</h3><p>Total</p></div>
+      </div>
     </div>`;
 
   const sorted = [...state.employees].sort((a, b) => {
