@@ -1975,62 +1975,64 @@ textarea[disabled] {
    Cible uniquement la section spécifique dans #face-presence
    ============================================================ */
 
-/* 1. Ciblage chirurgical du conteneur "Employés Enrolled" */
+/* 1. Ciblage du conteneur principal "Employés Enrolled" */
 #face-presence .card:has(h3 #enrolledCount) {
-  /* Suppression du fond noir/opaque hérité de .card */
   background: rgba(255, 255, 255, 0.05) !important;
-  
-  /* Effet Glassmorphism */
   backdrop-filter: blur(12px) saturate(160%) !important;
   -webkit-backdrop-filter: blur(12px) saturate(160%) !important;
-  
-  /* Contour léger et subtil (translucide) */
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  
-  /* Ombre douce pour le relief sans opacité forte */
   box-shadow: 0 8px 32px 0 rgba(15, 23, 42, 0.3) !important;
-  
-  /* Transition fluide */
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
-/* 2. État au survol pour la différenciation élégante */
-#face-presence .card:has(h3 #enrolledCount):hover {
-  background: rgba(255, 255, 255, 0.08) !important;
-  border-color: rgba(129, 140, 248, 0.3) !important;
-  transform: translateY(-2px);
-  box-shadow: 0 12px 40px 0 rgba(15, 23, 42, 0.4) !important;
-}
-
-/* 3. Ajustement de la lisibilité interne */
-#face-presence .card:has(h3 #enrolledCount) h3 {
-  color: #f1f5f9 !important;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-/* 4. Style des items (cartes individuelles) dans la liste "Employés Enrolled" */
-/* Suppression du fond noir/opaque existant sur les items de cette liste spécifique */
+/* 2. Suppression du fond noir des cartes individuelles (Estele, Liva, etc.) */
 #enrolledEmployeesList .employee-item {
-  background: rgba(255, 255, 255, 0.03) !important; /* Fond translucide léger */
-  border: 1px solid rgba(255, 255, 255, 0.08) !important; /* Bordure subtile */
-  backdrop-filter: blur(4px) !important; /* Effet de flou interne */
-  box-shadow: none !important; /* Suppression des ombres opaques */
+  /* Suppression radicale du fond noir opaque */
+  background: rgba(255, 255, 255, 0.04) !important;
+  
+  /* Application du Glassmorphism sur les cartes individuelles */
+  backdrop-filter: blur(8px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(140%) !important;
+  
+  /* Contour subtil pour la définition */
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  
+  /* Ombre très légère pour le relief */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+  
+  /* Transition fluide */
   transition: all 0.3s ease !important;
 }
 
-/* État au survol des cartes individuelles */
+/* 3. État au survol des cartes individuelles */
 #enrolledEmployeesList .employee-item:hover {
-  background: rgba(255, 255, 255, 0.07) !important;
-  border-color: rgba(129, 140, 248, 0.2) !important;
-  transform: translateX(4px) !important; /* Animation de glissement conservée mais allégée */
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(129, 140, 248, 0.3) !important;
+  transform: translateX(6px) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15) !important;
 }
 
-/* Ajustement des textes dans les cartes individuelles pour la lisibilité sur fond glass */
+/* 4. Ajustement des textes pour la lisibilité sur fond translucide */
 #enrolledEmployeesList .employee-info h4 {
-  color: #93c5fd !important; /* Bleu clair pour le nom */
-  font-weight: 600 !important;
+  color: #f1f5f9 !important; /* Blanc cassé pour le nom */
+  font-weight: 700 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 #enrolledEmployeesList .employee-info p {
-  color: rgba(203, 213, 225, 0.8) !important; /* Texte secondaire adouci */
+  color: rgba(226, 232, 240, 0.9) !important; /* Texte secondaire clair */
+}
+
+/* Style des dates d'enrôlement (Enrolled le...) */
+#enrolledEmployeesList .employee-status,
+#enrolledEmployeesList .employee-info + div {
+  color: rgba(226, 232, 240, 0.7) !important;
+  font-size: 0.85rem !important;
+}
+
+/* 5. Ajustement du sélecteur "Éléments par page" pour cohérence */
+#enrolledItemsPerPageSelect {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: blur(4px) !important;
 }
