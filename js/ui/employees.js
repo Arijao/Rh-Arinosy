@@ -246,6 +246,14 @@ async function handleEditEmployee(e) {
     const idx = state.employees.findIndex(e => e.id === id);
     if (idx === -1) { showToast("Employé non trouvé.", 'error'); return; }
 
+    const selectedGroup = state.groups.find(g => g.id === groupId);
+    const isStaff = selectedGroup?.name?.toLowerCase() === 'staff';
+    if (!isStaff && salary <= 0) {
+      showToast("Veuillez renseigner le salaire.", 'error');
+      setFormLoading(form, false);
+      return;
+    }
+
     const oldStatus = state.employees[idx].status;
     
     // VÉRIFICATION DES ALERTES LORS DU CHANGEMENT DE STATUT
