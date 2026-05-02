@@ -174,7 +174,9 @@ async function handleAddEmployee(e) {
   const salary   = getCurrencyValue('employeeSalary_add');
   const groupId  = document.getElementById('employeeGroup_add').value;
 
-  if (!name || !position || !gender || salary <= 0) {
+  const selectedGroup = state.groups.find(g => g.id === groupId);
+  const isStaff = selectedGroup?.name?.toLowerCase() === 'staff';
+  if (!name || !position || !gender || (!isStaff && salary <= 0)) {
     showToast("Veuillez remplir tous les champs correctement.", 'error'); return;
   }
   if (state.employees.some(e => e.name.toLowerCase() === name.toLowerCase())) {
