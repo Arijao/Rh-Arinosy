@@ -12,12 +12,16 @@
 //   <link rel="manifest" href="/manifest.json">  ← à supprimer
 // ============================================================
 
+// Les URLs doivent être absolues dans un Blob URL
+// (le navigateur ne peut pas résoudre les chemins relatifs depuis blob://)
+const _base = window.location.origin;
+
 const MANIFEST = {
   name: "RH RiseVanilla - Gestion RH",
   short_name: "RH System",
   description: "Système de Gestion des Ressources Humaines - Mode Sombre Offline-First",
-  start_url: "/",
-  scope: "/",
+  start_url: `${_base}/`,
+  scope: `${_base}/`,
   display: "standalone",
   orientation: "portrait-primary",
   background_color: "#0f172a",
@@ -25,13 +29,13 @@ const MANIFEST = {
   categories: ["business", "productivity"],
   screenshots: [
     {
-      src: "icon.svg",
+      src: `${_base}/icon.svg`,
       sizes: "192x192",
       type: "image/svg+xml",
       form_factor: "narrow"
     },
     {
-      src: "icon.svg",
+      src: `${_base}/icon.svg`,
       sizes: "512x512",
       type: "image/svg+xml",
       form_factor: "wide"
@@ -39,13 +43,13 @@ const MANIFEST = {
   ],
   icons: [
     {
-      src: "icon.svg",
+      src: `${_base}/icon.svg`,
       sizes: "192x192",
       type: "image/svg+xml",
       purpose: "any"
     },
     {
-      src: "icon.svg",
+      src: `${_base}/icon.svg`,
       sizes: "512x512",
       type: "image/svg+xml",
       purpose: "any"
@@ -56,15 +60,15 @@ const MANIFEST = {
       name: "Tableau de Bord",
       short_name: "Dashboard",
       description: "Accès rapide au tableau de bord",
-      url: "/?section=dashboard",
-      icons: [{ src: "icon.svg", sizes: "192x192" }]
+      url: `${_base}/?section=dashboard`,
+      icons: [{ src: `${_base}/icon.svg`, sizes: "192x192" }]
     },
     {
       name: "Présence QR",
       short_name: "QR",
       description: "Scanner QR pour les présences",
-      url: "/?section=qr-presence",
-      icons: [{ src: "icon.svg", sizes: "192x192" }]
+      url: `${_base}/?section=qr-presence`,
+      icons: [{ src: `${_base}/icon.svg`, sizes: "192x192" }]
     }
   ]
 };
