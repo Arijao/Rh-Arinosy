@@ -28,6 +28,7 @@ import { initAuth, checkSession, logout } from './ui/auth.js';
 import { showToast } from './utils/notifications.js';
 import { showNotification } from './utils/dialog-manager.js';
 import { initScanMenu, toggleScanMethodMenu, filterScanMethod, refreshScanCard, navigateToScanSection } from './ui/scan-menu.js';
+import { initExternalScanner } from './utils/external-scanner.js';
 import { initRemarks } from './ui/remarks.js';
 
 // Exposer importData IMMÉDIATEMENT (avant que l'HTML ne l'appelle)
@@ -184,7 +185,7 @@ export async function _bootApp() {
 
   // Exposer les fonctions globales utilisées par les onclick HTML
   _exposeGlobals();
-
+  initExternalScanner();
   console.log('✅ Application prête!');
 }
 
