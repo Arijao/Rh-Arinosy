@@ -3,7 +3,7 @@
   "outputDirectory": ".",
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/((?!manifest\\.json|service-worker\\.js|icon.*\\.png|icon\\.svg|jsQR\\.min\\.js|roboto\\.css|icons\\.css|efateo\\.mp3|suivant\\.mp3|MaterialIcons-Regular\\.woff2|model/|css/|js/).*)",
       "destination": "/index.html"
     }
   ],
@@ -62,6 +62,10 @@
         {
           "key": "Content-Type",
           "value": "application/manifest+json"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600"
         }
       ]
     }
