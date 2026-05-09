@@ -3,7 +3,7 @@
   "outputDirectory": ".",
   "rewrites": [
     {
-      "source": "/((?!manifest\\.webmanifest|service-worker\\.js|icon.*\\.png|icon\\.svg|jsQR\\.min\\.js|roboto\\.css|icons\\.css|efateo\\.mp3|suivant\\.mp3|MaterialIcons-Regular\\.woff2|model/|css/|js/).*)",
+      "source": "/((?!service-worker\\.js|icon.*\\.png|icon\\.svg|jsQR\\.min\\.js|roboto\\.css|icons\\.css|efateo\\.mp3|suivant\\.mp3|MaterialIcons-Regular\\.woff2|model/|css/|js/).*)",
       "destination": "/index.html"
     }
   ],
@@ -53,19 +53,6 @@
         {
           "key": "Cache-Control",
           "value": "public, max-age=31536000, immutable"
-        }
-      ]
-    },
-    {
-      "source": "/manifest.webmanifest",
-      "headers": [
-        {
-          "key": "Content-Type",
-          "value": "application/manifest+json"
-        },
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=3600"
         }
       ]
     }

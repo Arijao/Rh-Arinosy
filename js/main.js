@@ -30,6 +30,7 @@ import { showNotification } from './utils/dialog-manager.js';
 import { initScanMenu, toggleScanMethodMenu, filterScanMethod, refreshScanCard, navigateToScanSection } from './ui/scan-menu.js';
 import { initExternalScanner } from './utils/external-scanner.js';
 import { initRemarks } from './ui/remarks.js';
+import { injectPWAManifest } from './utils/pwa-manifest.js';
 
 // Exposer importData IMMÉDIATEMENT (avant que l'HTML ne l'appelle)
 window.importData = importData;
@@ -184,6 +185,7 @@ export async function _bootApp() {
   }
 
   // Exposer les fonctions globales utilisées par les onclick HTML
+  injectPWAManifest();
   _exposeGlobals();
   initExternalScanner();
   console.log('✅ Application prête!');
