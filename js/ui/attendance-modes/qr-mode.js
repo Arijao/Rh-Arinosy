@@ -273,6 +273,21 @@ export class QRMode {
         'success'
       );
     } else {
+      // Cas 3 — Arrivée ET départ déjà présents : vérifier règle des 30 minutes
+      const depMin  = this._timeToMinutes(dayAtt[employee.id].depart);
+      const nowMin  = now.getHours() * 60 + now.getMinutes();
+      const elapsed = nowMin - depMin;
+
+      if (elapsed < 30) {
+        const remaining = 30 - elapsed;
+        playGenericErrorSound();
+        showToast(
+          `⏱ Nouveau cycle bloqué — encore ${remaining} min avant de rescanner`,
+          'warning'
+        );
+        return;
+      }
+
       dayAtt[employee.id] = {
         arrivee: time,
         method: method,
@@ -338,6 +353,17 @@ export class QRMode {
     if (this.onRefresh) {
       this.onRefresh();
     }
+  }
+
+  /**
+   * Convertit HH:MM en minutes depuis minuit
+   * Utilisé pour la règle des 30 minutes entre deux cycles
+   * @private
+   */
+  _timeToMinutes(hhmm) {
+    if (!hhmm) return 0;
+    const [h, m] = hhmm.split(':').map(Number);
+    return h * 60 + m;
   }
 
   /**
