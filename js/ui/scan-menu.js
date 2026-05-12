@@ -13,6 +13,8 @@ const SCAN_SECTIONS = {
   qr:     'qr-presence',
   manual: 'attendance',
   facial: 'face-presence',
+  // ── [AJOUT REMOTE] ligne 1/2 ──────────────────────────────
+  remote: 'attendance',
 };
 
 export function navigateToScanSection() {
@@ -36,6 +38,9 @@ export function updateScanCounts() {
     qr:     values.filter(p => p?.method === 'QR').length,
     manual: values.filter(p => !p?.method || p?.method === 'MANUAL').length,
     facial: values.filter(p => p?.method === 'FACIAL').length,
+    // ── [AJOUT REMOTE] comptage des pointages caméra distante ──
+    // Agrège QR-REMOTE et FACIAL-REMOTE dans un seul compteur "remote"
+    remote: values.filter(p => p?.method === 'QR-REMOTE' || p?.method === 'FACIAL-REMOTE').length,
   };
 
   // Rendre disponible globalement pour compatibilité
@@ -52,6 +57,8 @@ const SCAN_CONFIG = {
   qr:     { icon: 'qr_code_scanner',         color: '#6750A4', label: 'Scans QR'                },
   manual: { icon: 'edit',                    color: '#f59e0b', label: 'Entrées Manuel'           },
   facial: { icon: 'face_retouching_natural', color: '#0ea5e9', label: 'Reconnaissance Faciale'  },
+  // ── [AJOUT REMOTE] ligne 2/2 ──────────────────────────────
+  remote: { icon: 'smartphone',              color: '#22c55e', label: 'Caméra Distante'         },
 };
 
 function _updateCard(method) {
@@ -60,6 +67,8 @@ function _updateCard(method) {
   const val    = method === 'qr'     ? counts.qr
                : method === 'manual' ? counts.manual
                : method === 'facial' ? counts.facial
+               // ── [AJOUT REMOTE] valeur pour la carte ──
+               : method === 'remote' ? counts.remote
                : counts.total;
 
   const el      = document.getElementById('qrScansToday');
@@ -85,6 +94,8 @@ function _updateMenuCounts() {
   _set('qrCount',     `${c.qr} scan${c.qr !== 1 ? 's' : ''}`);
   _set('manualCount', `${c.manual} entrée${c.manual !== 1 ? 's' : ''}`);
   _set('facialCount', `${c.facial} reconnaissance${c.facial !== 1 ? 's' : ''}`);
+  // ── [AJOUT REMOTE] compteur menu caméra distante ──
+  _set('remoteCount', `${c.remote} scan${c.remote !== 1 ? 's' : ''}`);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -179,7 +190,8 @@ document.addEventListener('click', (e) => {
 export function initScanMenu() {
   // Ajouter data-method sur chaque item pour le surlignage
   const menu    = document.getElementById('scanMethodMenu');
-  const methods = ['all', 'qr', 'manual', 'facial'];
+  // ── [AJOUT REMOTE] 'remote' ajouté en fin de liste ────────
+  const methods = ['all', 'qr', 'manual', 'facial', 'remote'];
   if (menu) {
     menu.querySelectorAll('.menu-item').forEach((item, i) => {
       if (methods[i]) item.setAttribute('data-method', methods[i]);

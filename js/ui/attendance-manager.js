@@ -8,6 +8,8 @@ import { initTabs, createTabButton, createTabPanel } from '../utils/tabs.js';
 import QRMode from './attendance-modes/qr-mode.js';
 import FacialMode from './attendance-modes/facial-mode.js';
 import ManualMode from './attendance-modes/manual-mode.js';
+// ── [AJOUT REMOTE] ligne 1/3 — import du nouveau mode ────────
+import RemoteMode from './attendance-modes/remote-mode.js';
 
 /**
  * Classe gère l'interface unifiée de présence
@@ -18,6 +20,8 @@ export class AttendanceManager {
       qr: new QRMode(),
       facial: new FacialMode(),
       manual: new ManualMode(),
+      // ── [AJOUT REMOTE] ligne 2/3 — instanciation du nouveau mode ──
+      remote: new RemoteMode(),
     };
     this.tabsAPI = null;
     this.activeMode = null;
@@ -34,6 +38,8 @@ export class AttendanceManager {
     await this.modes.facial.init('tab-facial');
     this.modes.qr.init('tab-qr');
     this.modes.manual.init('tab-manual');
+    // ── [AJOUT REMOTE] ligne 3/3 — initialisation du nouveau mode ──
+    this.modes.remote.init('tab-remote');
 
     // Initialise les onglets
     this.tabsAPI = initTabs('attendance-tabs-container', {
@@ -128,6 +134,12 @@ export class AttendanceManager {
         this.activeMode = 'manual';
         this.modes.manual.display();
         break;
+
+      // ── [AJOUT REMOTE] case supplémentaire — aucun impact sur les autres cases ──
+      case 'tab-remote':
+        this.activeMode = 'remote';
+        this.modes.remote.display();
+        break;
     }
   }
 
@@ -139,6 +151,8 @@ export class AttendanceManager {
     window._qrMode = this.modes.qr;
     window._facialMode = this.modes.facial;
     window._attendanceManager = this;
+    // ── [AJOUT REMOTE] exposition globale optionnelle ──
+    window._remoteMode = this.modes.remote;
   }
 
   /**
@@ -148,6 +162,8 @@ export class AttendanceManager {
     this.modes.qr.destroy();
     this.modes.facial.destroy();
     this.modes.manual.destroy();
+    // ── [AJOUT REMOTE] destroy du nouveau mode ──
+    this.modes.remote.destroy();
   }
 }
 
