@@ -253,6 +253,7 @@
     background: var(--bg);
     padding: 32px 24px;
     gap: 24px;
+    pointer-events: all;
   }
   #connect-screen.hidden { display: none; }
 
@@ -370,7 +371,7 @@
     <button id="connect-btn" onclick="connectWS()">Se connecter</button>
     <p id="connect-hint">
       L'adresse IP du Chromebook s'affiche dans le terminal<br>
-      quand vous lancez <strong>python3 server.py</strong>
+      quand vous lancez <strong>node server.js</strong>
     </p>
   </div>
 
@@ -488,7 +489,7 @@ const holeRect     = $('hole-rect');
   if (saved) { wsUrlInput.value = saved; return; }
   // Sur hotspot Android, le téléphone est 192.168.43.1
   // Le Chromebook reçoit une IP dans 192.168.43.x
-  wsUrlInput.value = 'ws://192.168.43.100:8765';
+  wsUrlInput.value = 'wss://192.168.101.14:8766';
 })();
 
 // ── Connexion WebSocket ───────────────────────────────────────
