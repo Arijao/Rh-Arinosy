@@ -1,92 +1,44 @@
 // ============================================================
-// server.js — Serveur local LAN offline (HTTPS + WSS)
-// HTTPS requis pour getUserMedia (caméra) sur Chrome Android
-//
-// Prérequis — certificat généré avec :
-//   openssl req -x509 -newkey rsa:2048 -keyout key.pem -out cert.pem \
-//     -days 365 -nodes -subj "/CN=192.168.101.14"
+// server.js — Serveur WebSocket HTTP local (port 8765)
+// smartphone.html est servi par Vercel (HTTPS)
+// Ce serveur gère uniquement le WebSocket LAN local
 //
 // Usage: node server.js
 // ============================================================
 
-const https  = require('https');
-const fs     = require('fs');
-const path   = require('path');
+const http = require('http');
 const { WebSocketServer } = require('ws');
 
-const PORT = 8766;   // HTTPS + WSS sur le même port
-const DIR  = __dirname;
-
-// ── Certificat SSL ────────────────────────────────────────────
-let sslOptions;
-try {
-  sslOptions = {
-    key:  fs.readFileSync(path.join(DIR, 'key.pem')),
-    cert: fs.readFileSync(path.join(DIR, 'cert.pem')),
-  };
-  console.log('🔒 Certificat SSL chargé');
-} catch (e) {
-  console.error('❌ Certificat SSL introuvable.');
-  console.error('   Lancez : openssl req -x509 -newkey rsa:2048 -keyout key.pem -out cert.pem -days 365 -nodes -subj "/CN=192.168.101.14"');
-  process.exit(1);
-}
+const WS_PORT = 8765;
 
 // ── État global ───────────────────────────────────────────────
 let smartphoneClient = null;
 let pcClient         = null;
 
-// ── MIME types ────────────────────────────────────────────────
-const MIME = {
-  '.html': 'text/html; charset=utf-8',
-  '.js':   'application/javascript',
-  '.css':  'text/css',
-  '.json': 'application/json',
-  '.png':  'image/png',
-  '.svg':  'image/svg+xml',
-  '.mp3':  'audio/mpeg',
-  '.woff2':'font/woff2',
-  '.bin':  'application/octet-stream',
-};
-
-// ── Serveur HTTPS ─────────────────────────────────────────────
-const server = https.createServer(sslOptions, (req, res) => {
+// ── Serveur HTTP minimal (health check) ──────────────────────
+const httpServer = http.createServer((req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Cache-Control', 'no-cache');
-
-  if (req.method === 'OPTIONS') { res.writeHead(200); res.end(); return; }
-
-  let urlPath = req.url.split('?')[0];
-  if (urlPath === '/') urlPath = '/smartphone.html';
-
-  const filePath = path.join(DIR, urlPath);
-  if (!filePath.startsWith(DIR)) { res.writeHead(403); res.end('Forbidden'); return; }
-
-  fs.readFile(filePath, (err, data) => {
-    if (err) { res.writeHead(404); res.end(`Non trouvé: ${urlPath}`); return; }
-    const mime = MIME[path.extname(filePath).toLowerCase()] || 'application/octet-stream';
-    res.writeHead(200, { 'Content-Type': mime });
-    res.end(data);
-  });
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('RemoteCamera WebSocket Server — OK\n');
 });
 
-// ── WebSocket sur le même serveur HTTPS (wss://) ─────────────
-const wss = new WebSocketServer({ server });
+// ── Serveur WebSocket ─────────────────────────────────────────
+const wss = new WebSocketServer({ server: httpServer });
 
-server.listen(PORT, '0.0.0.0', () => {
+httpServer.listen(WS_PORT, '0.0.0.0', () => {
   console.log('='.repeat(60));
   console.log('  Serveur RemoteCamera — Système Présence LAN Offline');
   console.log('='.repeat(60));
-  console.log(`  HTTPS : https://192.168.101.14:${PORT}/smartphone.html`);
-  console.log(`  WSS   : wss://192.168.101.14:${PORT}`);
+  console.log(`  WebSocket : ws://192.168.101.14:${WS_PORT}`);
   console.log('');
-  console.log('  ⚠ Sur Chrome Android :');
-  console.log('    1. Ouvrez l\'URL HTTPS ci-dessus');
-  console.log('    2. Appuyez sur "Paramètres avancés" → "Continuer"');
-  console.log('    3. La caméra fonctionnera après acceptation du certificat');
+  console.log('  Sur le smartphone, ouvrez Vercel :');
+  console.log('  → https://rh-arinosy.vercel.app/smartphone.html');
+  console.log('');
+  console.log('  Puis saisissez : ws://192.168.101.14:8765');
   console.log('='.repeat(60));
 });
 
-// ── Gestion des connexions WebSocket ─────────────────────────
+// ── Gestion des connexions ────────────────────────────────────
 wss.on('connection', (ws, req) => {
   const clientIp = req.socket.remoteAddress;
   console.log(`🔗 Nouvelle connexion : ${clientIp}`);
@@ -121,13 +73,18 @@ function handleMessage(ws, msg, clientIp) {
       if (msg.role === 'smartphone') {
         smartphoneClient = ws;
         console.log(`📱 Smartphone identifié : ${clientIp}`);
-        safeSend(ws, { type: 'identified', role: 'smartphone', server_time: new Date().toISOString() });
+        safeSend(ws, {
+          type: 'identified',
+          role: 'smartphone',
+          server_time: new Date().toISOString()
+        });
         safeSend(pcClient, { type: 'smartphone_connected', client_id: clientIp });
       } else if (msg.role === 'pc') {
         pcClient = ws;
         console.log(`💻 PC identifié : ${clientIp}`);
         safeSend(ws, {
-          type: 'identified', role: 'pc',
+          type: 'identified',
+          role: 'pc',
           server_time: new Date().toISOString(),
           smartphone_connected: isAlive(smartphoneClient),
         });
@@ -162,7 +119,6 @@ function handleMessage(ws, msg, clientIp) {
 function safeSend(ws, obj) {
   if (ws && ws.readyState === ws.OPEN) ws.send(JSON.stringify(obj));
 }
-
 function isAlive(ws) {
   return ws && ws.readyState === ws.OPEN;
 }
@@ -170,6 +126,6 @@ function isAlive(ws) {
 // ── Arrêt propre ──────────────────────────────────────────────
 process.on('SIGINT', () => {
   console.log('\n🛑 Arrêt du serveur...');
-  wss.close(); server.close();
+  wss.close(); httpServer.close();
   process.exit(0);
 });
