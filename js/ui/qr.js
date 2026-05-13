@@ -276,7 +276,7 @@ export async function processAttendanceScan(emp, method = 'QR', skipSound = fals
     state.qrAttendance.push({ id: `${emp.id}_${now.getTime()}`, employeeId: emp.id, employeeName: emp.name, date: today, timestamp: now.toISOString(), type: 'arrival', time });
     await saveAttendanceData();
     if (!skipSound) playSuccessSound();
-    showScanResult(`<strong>✅ ARRIVÉE</strong><br><span style="font-size:1.2em;">${emp.name}</span><br>Heure: <strong>${time}</strong>`, 'success');
+    showScanResult(`<strong>✅ ARRIVÉE</strong><br>${emp.name}<br>Heure: <strong>${time}</strong>`, 'success');
     _refreshAfterScan();
     setTimeout(() => stopQRScan(), 2000);
     return true;
@@ -290,7 +290,7 @@ export async function processAttendanceScan(emp, method = 'QR', skipSound = fals
     state.qrAttendance.push({ id: `${emp.id}_${now.getTime()}`, employeeId: emp.id, employeeName: emp.name, date: today, timestamp: now.toISOString(), type: 'departure', time });
     await saveAttendanceData();
     if (!skipSound) playSuccessSound();
-    showScanResult(`<strong>✅ DÉPART</strong><br><span style="font-size:1.2em;">${emp.name}</span><br>Heure: <strong>${time}</strong>`, 'success');
+    showScanResult(`<strong>✅ DÉPART</strong><br>${emp.name}<br>Heure: <strong>${time}</strong>`, 'success');
     _refreshAfterScan();
     setTimeout(() => stopQRScan(), 2000);
     return true;
@@ -367,9 +367,9 @@ export function showScanResult(message, type) {
   const icon = type === 'success' ? 'check_circle' : type === 'error' ? 'error' : 'warning';
   const color = type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#f59e0b';
   el.innerHTML = `
-    <div style="background:${bg};padding:20px;border-radius:12px;text-align:center;">
-      <span class="material-icons" style="font-size:48px;color:${color};">${icon}</span>
-      <div style="margin-top:12px;font-size:15px;line-height:1.6;color:#1e293b;">${message}</div>
+    <div style="background:${bg};padding:10px 14px;border-radius:10px;text-align:center;">
+      <span class="material-icons" style="font-size:28px;color:${color};">${icon}</span>
+      <div style="margin-top:4px;font-size:13px;line-height:1.5;color:#1e293b;">${message}</div>
     </div>`;
   el.style.display = 'block';
 }
