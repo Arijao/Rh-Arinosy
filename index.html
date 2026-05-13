@@ -87,8 +87,6 @@
         <div class="nav-menu-item"         onclick="navigateToSection('attendance',this)"><span class="material-icons">schedule</span><span class="nav-menu-label">Présence</span></div>
         <div class="nav-menu-item"         onclick="navigateToSection('qr-presence',this)"><span class="material-icons">qr_code</span><span class="nav-menu-label">Présence QR</span></div>
         <div class="nav-menu-item"         onclick="navigateToSection('face-presence',this)"><span class="material-icons">face</span><span class="nav-menu-label">Pointage Facial</span></div>
-        <!-- [AJOUT REMOTE] -->
-        <div class="nav-menu-item"         onclick="navigateToSection('remote-presence',this)"><span class="material-icons">smartphone</span><span class="nav-menu-label">Caméra Distante</span></div>
         <div class="nav-menu-item"         onclick="navigateToSection('qr-codes',this)"><span class="material-icons">qr_code_2</span><span class="nav-menu-label">Codes QR</span></div>
         <div class="nav-menu-item"         onclick="navigateToSection('advances',this)"><span class="material-icons">credit_score</span><span class="nav-menu-label">Avances</span></div>
         <div class="nav-menu-item"         onclick="navigateToSection('payroll',this)"><span class="material-icons">price_check</span><span class="nav-menu-label">Paie</span></div>
@@ -364,12 +362,6 @@
           <div id="faceResult" style="margin-top:16px;padding:12px;background:rgba(76,175,80,0.1);border-radius:8px;display:none;color:var(--md-sys-color-success);"></div>
           <div id="faceStatus" style="margin-top:16px;padding:12px;background:rgba(33,150,243,0.1);border-radius:8px;color:var(--md-sys-color-primary);"></div>
         </div>
-      </div>
-
-      <!-- Remote Presence -->
-      <!-- [AJOUT REMOTE] même pattern que qr-presence et face-presence -->
-      <div id="remote-presence" class="section">
-        <div id="tab-remote"></div>
       </div>
 
       <!-- Advances -->
@@ -742,9 +734,7 @@
       <div data-method="all"    onclick="window.filterScanMethod?.('all')"    class="menu-item" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;border-bottom:1px solid #f3f4f6;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'"><span class="material-icons" style="color:#6b7280;">apps</span><div><div style="font-weight:600;font-size:14px;color:#1f2937;">Tous</div><div style="font-size:12px;color:#6b7280;" id="allCount">0 pointages</div></div></div>
       <div data-method="qr"     onclick="window.filterScanMethod?.('qr')"     class="menu-item" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;border-bottom:1px solid #f3f4f6;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'"><span class="material-icons" style="color:#6750A4;">qr_code_scanner</span><div><div style="font-weight:600;font-size:14px;color:#1f2937;">QR Code</div><div style="font-size:12px;color:#6b7280;" id="qrCount">0 scans</div></div></div>
       <div data-method="manual" onclick="window.filterScanMethod?.('manual')" class="menu-item" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;border-bottom:1px solid #f3f4f6;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'"><span class="material-icons" style="color:#f59e0b;">edit</span><div><div style="font-weight:600;font-size:14px;color:#1f2937;">Manuel</div><div style="font-size:12px;color:#6b7280;" id="manualCount">0 entrées</div></div></div>
-      <div data-method="facial" onclick="window.filterScanMethod?.('facial')" class="menu-item" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;border-bottom:1px solid #f3f4f6;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'"><span class="material-icons" style="color:#0ea5e9;">face_retouching_natural</span><div><div style="font-weight:600;font-size:14px;color:#1f2937;">Facial</div><div style="font-size:12px;color:#6b7280;" id="facialCount">0 reconnaissances</div></div></div>
-      <!-- [AJOUT REMOTE] -->
-      <div data-method="remote" onclick="window.filterScanMethod?.('remote')" class="menu-item" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'"><span class="material-icons" style="color:#22c55e;">smartphone</span><div><div style="font-weight:600;font-size:14px;color:#1f2937;">Caméra Distante</div><div style="font-size:12px;color:#6b7280;" id="remoteCount">0 scans</div></div></div>
+      <div data-method="facial" onclick="window.filterScanMethod?.('facial')" class="menu-item" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'"><span class="material-icons" style="color:#0ea5e9;">face_retouching_natural</span><div><div style="font-weight:600;font-size:14px;color:#1f2937;">Facial</div><div style="font-size:12px;color:#6b7280;" id="facialCount">0 reconnaissances</div></div></div>
     </div>
 
   </div><!-- /appContent -->
