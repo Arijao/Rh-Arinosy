@@ -47,7 +47,7 @@ const CACHE_URLS = [
   '/js/utils/model-cache.js',
   '/roboto.css',
   '/icons.css',
-  '/manifest.json',
+  '/manifest.webmanifest',
   '/jsQR.min.js',
   '/efateo.mp3',
   '/suivant.mp3',
@@ -215,6 +215,8 @@ self.addEventListener('fetch', event => {
 // Message handler
 self.addEventListener('message', event => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
+    // Répondre au canal AVANT skipWaiting pour éviter "message channel closed"
+    event.ports?.[0]?.postMessage({ type: 'SKIP_WAITING_ACK' });
     self.skipWaiting();
   }
   if (event.data && event.data.type === 'CLEAR_CACHE') {

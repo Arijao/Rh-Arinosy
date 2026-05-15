@@ -814,9 +814,17 @@
           if (!newWorker) return;
           newWorker.addEventListener('statechange', () => {
             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              // Nouveau SW installé et en attente — forcer l'activation immédiate
+              // Nouveau SW installé et en attente — forcer l'activation via MessageChannel
+              // L'utilisation d'un MessageChannel permet d'attendre l'ACK du SW
+              // avant que la page se recharge, évitant l'erreur "message channel closed"
               console.log('🔄 Nouveau SW en attente, activation forcée...');
-              newWorker.postMessage({ type: 'SKIP_WAITING' });
+              const channel = new MessageChannel();
+              channel.port1.onmessage = (event) => {
+                if (event.data?.type === 'SKIP_WAITING_ACK') {
+                  console.log('✅ SW ACK reçu, rechargement imminent');
+                }
+              };
+              newWorker.postMessage({ type: 'SKIP_WAITING' }, [channel.port2]);
             }
           });
         });

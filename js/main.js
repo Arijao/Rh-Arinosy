@@ -16,6 +16,7 @@ import { initEmployees, displayEmployees, openAddEmployeeModal } from './ui/empl
 import { initGroups, displayGroups, populateGroupSelects,
          populateEmployeeSelects, showMasseSalairePreview, applyMasseSalaire, cancelGroupEdit } from './ui/groups.js';
 import { initAttendance, displayAttendance } from './ui/attendance.js';
+import './ui/attendance-manager.js';
 import { initQR, startQRScan, stopQRScan, displayQRAttendance,
          generateAllQRCodes, downloadQRFromDB, printAllQRCodes, filterQRCodes,
          handleQRImageUpload } from './ui/qr.js';
@@ -215,9 +216,6 @@ function _exposeGlobals() {
   window.showMasseSalairePreview = showMasseSalairePreview;
   window.applyMasseSalaire     = applyMasseSalaire;
 
-  // Attendance (NEW MANAGER)
-  // Handled by attendance-manager.js - no longer direct calls needed
-  
   // QR
   window.startQRScan        = startQRScan;
   window.stopQRScan         = stopQRScan;
