@@ -4,7 +4,7 @@
 // Offline-first: Tout le contenu statique est mis en cache
 // ============================================================
 
-const CACHE_VERSION = 'rh-v4'; // Bumped: ajout fichiers manquants + fix Google Fonts
+const CACHE_VERSION = 'rh-v5'; // Ajout module biométrique
 
 // Tous les fichiers essentiels à mettre en cache
 const CACHE_URLS = [
@@ -36,6 +36,12 @@ const CACHE_URLS = [
   '/js/ui/stc.js',
   '/js/ui/scan-menu.js',
   '/js/face/recognition.js',
+  // Biometric module
+  '/js/biometric/biometric-service.js',
+  '/js/biometric/biometric-api.js',
+  '/js/biometric/biometric-sync.js',
+  '/js/ui/biometric-attendance.js',
+  '/css/biometric.css',
   '/js/utils/format.js',
   '/js/utils/ui.js',
   '/js/utils/audio.js',

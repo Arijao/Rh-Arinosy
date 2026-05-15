@@ -16,7 +16,6 @@ import { initEmployees, displayEmployees, openAddEmployeeModal } from './ui/empl
 import { initGroups, displayGroups, populateGroupSelects,
          populateEmployeeSelects, showMasseSalairePreview, applyMasseSalaire, cancelGroupEdit } from './ui/groups.js';
 import { initAttendance, displayAttendance } from './ui/attendance.js';
-import './ui/attendance-manager.js';
 import { initQR, startQRScan, stopQRScan, displayQRAttendance,
          generateAllQRCodes, downloadQRFromDB, printAllQRCodes, filterQRCodes,
          handleQRImageUpload } from './ui/qr.js';
@@ -29,6 +28,7 @@ import { initAuth, checkSession, logout } from './ui/auth.js';
 import { showToast } from './utils/notifications.js';
 import { showNotification } from './utils/dialog-manager.js';
 import { initScanMenu, toggleScanMethodMenu, filterScanMethod, refreshScanCard, navigateToScanSection } from './ui/scan-menu.js';
+import { initBiometricAttendance } from './ui/biometric-attendance.js';
 import { initExternalScanner } from './utils/external-scanner.js';
 import { initRemarks } from './ui/remarks.js';
 import { injectPWAManifest } from './utils/pwa-manifest.js';
@@ -160,6 +160,7 @@ export async function _bootApp() {
   displayDashboardCharts();
   runSmartChecks();
   initScanMenu(); // initialise le menu scan après que les stats sont calculées
+  initBiometricAttendance(); // module biométrique — empreintes digitales
 
   // ✅ OFFLINE-FIRST: Pré-charger les modèles face-api en arrière-plan
   // Cela va améliorer les performances pour la reconnaissance faciale même offline
@@ -216,6 +217,9 @@ function _exposeGlobals() {
   window.showMasseSalairePreview = showMasseSalairePreview;
   window.applyMasseSalaire     = applyMasseSalaire;
 
+  // Attendance (NEW MANAGER)
+  // Handled by attendance-manager.js - no longer direct calls needed
+  
   // QR
   window.startQRScan        = startQRScan;
   window.stopQRScan         = stopQRScan;
@@ -259,6 +263,12 @@ function _exposeGlobals() {
   window.openFaceRecognitionForAdvanceSearch = () => { window.startFaceScanForSelection?.('advances-search'); };
   window.openFaceRecognitionForPaymentSearch = () => { window.startFaceScanForSelection?.('payments-search'); };
   window._openEnrollmentModal    = (id) => import('./face/recognition.js').then(m => m.openEnrollmentModal(id));
+
+  // Biometric
+  window.connectBiometricUSB       = () => import('./biometric/biometric-service.js').then(m => m.biometricService.connectUSB());
+  window.connectBiometricBluetooth = () => import('./biometric/biometric-service.js').then(m => m.biometricService.connectBluetooth());
+  window.disconnectBiometric       = () => import('./biometric/biometric-service.js').then(m => m.biometricService.disconnect());
+  window.renderBiometricSection    = () => import('./ui/biometric-attendance.js').then(m => m.renderBiometricSection());
 
   // Data management
   window.exportData    = exportData;

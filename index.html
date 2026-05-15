@@ -36,6 +36,7 @@
   <link rel="stylesheet" href="css/styles.css">
   <link rel="stylesheet" href="css/design-system.css">
   <link rel="stylesheet" href="css/notifications.css">
+  <link rel="stylesheet" href="css/biometric.css">
 </head>
 <body>
 
@@ -87,6 +88,7 @@
         <div class="nav-menu-item"         onclick="navigateToSection('attendance',this)"><span class="material-icons">schedule</span><span class="nav-menu-label">Présence</span></div>
         <div class="nav-menu-item"         onclick="navigateToSection('qr-presence',this)"><span class="material-icons">qr_code</span><span class="nav-menu-label">Présence QR</span></div>
         <div class="nav-menu-item"         onclick="navigateToSection('face-presence',this)"><span class="material-icons">face</span><span class="nav-menu-label">Pointage Facial</span></div>
+        <div class="nav-menu-item"         onclick="navigateToSection('biometric',this)"><span class="material-icons">fingerprint</span><span class="nav-menu-label">Biométrique</span></div>
         <div class="nav-menu-item"         onclick="navigateToSection('qr-codes',this)"><span class="material-icons">qr_code_2</span><span class="nav-menu-label">Codes QR</span></div>
         <div class="nav-menu-item"         onclick="navigateToSection('advances',this)"><span class="material-icons">credit_score</span><span class="nav-menu-label">Avances</span></div>
         <div class="nav-menu-item"         onclick="navigateToSection('payroll',this)"><span class="material-icons">price_check</span><span class="nav-menu-label">Paie</span></div>
@@ -229,6 +231,17 @@
           <div class="form-group" style="max-width:200px;margin-bottom:16px;"><label for="faceAttendanceItemsPerPageSelect">Éléments par page</label><select id="faceAttendanceItemsPerPageSelect" class="form-control" onchange="changeItemsPerPage('faceAttendance',this.value)"><option value="10">10</option><option value="20" selected>20</option><option value="50">50</option></select></div>
           <div id="todayFaceAttendance"></div>
           <div class="pagination-controls" id="faceAttendancePagination"></div>
+        </div>
+      </div>
+
+      <!-- Biometric Attendance -->
+      <div id="biometric" class="section">
+        <div id="biometricSection">
+          <!-- Rendu dynamique par biometric-attendance.js -->
+          <div style="display:flex;align-items:center;gap:0.75rem;padding:2rem;color:var(--text-secondary,#666);">
+            <span class="material-icons" style="font-size:32px;opacity:0.4;">fingerprint</span>
+            <span>Chargement du module biométrique...</span>
+          </div>
         </div>
       </div>
 
