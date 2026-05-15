@@ -1,7 +1,7 @@
 /* ============================================================
    css/biometric.css
    Styles du module de pointage biométrique
-   Utilise les variables CSS du design-system existant
+   Aligné sur le design-system dark de RH RiseVanilla v3.0
    ============================================================ */
 
 /* ── Layout section ──────────────────────────────────────── */
@@ -9,8 +9,8 @@
 #biometricSection {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-md, 1rem);
-  padding: var(--spacing-md, 1rem);
+  gap: 16px;
+  padding: 0;
   max-width: 900px;
 }
 
@@ -21,42 +21,46 @@
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: var(--spacing-sm, 0.5rem);
-  padding: var(--spacing-md, 1rem);
-  background: var(--surface, #fff);
-  border-radius: var(--radius-md, 8px);
-  box-shadow: var(--shadow-sm, 0 1px 4px rgba(0,0,0,0.08));
+  gap: 12px;
+  padding: 16px 20px;
+  /* Glassmorphism cohérent avec .card de l'app */
+  background: rgba(51, 65, 85, 0.4);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .bio-device-status {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 8px;
 }
 
 .bio-status-dot {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: var(--color-danger, #e53e3e);
+  background: var(--md-sys-color-error, #B3261E);
   transition: background 0.3s;
   flex-shrink: 0;
 }
 
 .bio-status-dot.connected {
-  background: var(--color-success, #38a169);
-  box-shadow: 0 0 0 3px rgba(56, 161, 105, 0.2);
+  background: var(--md-sys-color-success, #4CAF50);
+  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.2);
   animation: bioPulse 2s ease-in-out infinite;
 }
 
 @keyframes bioPulse {
-  0%, 100% { box-shadow: 0 0 0 3px rgba(56, 161, 105, 0.2); }
-  50%       { box-shadow: 0 0 0 6px rgba(56, 161, 105, 0.05); }
+  0%, 100% { box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.2); }
+  50%       { box-shadow: 0 0 0 6px rgba(76, 175, 80, 0.05); }
 }
 
 .bio-status-label {
-  font-size: 0.9rem;
-  color: var(--text-secondary, #666);
+  font-size: 0.875rem;
+  color: var(--md-sys-color-on-surface-variant, #E0E0E0);
   font-weight: 500;
 }
 
@@ -64,25 +68,28 @@
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.05em;
-  padding: 2px 8px;
+  padding: 2px 10px;
   border-radius: 9999px;
-  background: var(--color-primary, #3182ce);
-  color: #fff;
+  background: var(--md-sys-color-primary-container, #4F378B);
+  color: var(--md-sys-color-on-primary-container, #EADDFF);
 }
 
 .bio-header-actions {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 8px;
 }
 
 /* ── Configuration réseau ────────────────────────────────── */
 
 .bio-config-panel {
-  background: var(--surface, #fff);
-  border: 1px solid var(--border, #e2e8f0);
-  border-radius: var(--radius-md, 8px);
-  padding: var(--spacing-md, 1rem);
+  background: rgba(51, 65, 85, 0.4);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.3);
   animation: bioSlideDown 0.2s ease-out;
 }
 
@@ -94,14 +101,14 @@
 .bio-config-title {
   font-size: 0.95rem;
   font-weight: 600;
-  margin: 0 0 var(--spacing-sm, 0.5rem);
-  color: var(--text-primary, #1a202c);
+  margin: 0 0 16px;
+  color: var(--md-sys-color-on-surface, #E6E1E5);
 }
 
 .bio-config-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--spacing-sm, 0.5rem);
+  gap: 12px;
 }
 
 @media (max-width: 600px) {
@@ -111,8 +118,8 @@
 .bio-config-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 0.5rem;
-  margin-top: var(--spacing-sm, 0.5rem);
+  gap: 8px;
+  margin-top: 16px;
 }
 
 /* ── Statistiques du jour ────────────────────────────────── */
@@ -120,7 +127,7 @@
 .bio-stats-row {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: var(--spacing-sm, 0.5rem);
+  gap: 12px;
 }
 
 @media (max-width: 640px) {
@@ -131,24 +138,36 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: var(--spacing-sm, 0.75rem);
-  background: var(--surface, #fff);
-  border-radius: var(--radius-md, 8px);
-  box-shadow: var(--shadow-sm, 0 1px 4px rgba(0,0,0,0.08));
+  padding: 16px 12px;
+  background: rgba(51, 65, 85, 0.5);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 16px;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.15);
   text-align: center;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.bio-stat-card:hover {
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25);
+  border-color: rgba(129, 140, 248, 0.25);
 }
 
 .bio-stat-value {
   font-size: 1.75rem;
   font-weight: 700;
-  color: var(--color-primary, #3182ce);
+  /* Utilise la même couleur accent que .stat-content h3 dans styles.css */
+  color: #818cf8;
   line-height: 1;
 }
 
 .bio-stat-label {
   font-size: 0.72rem;
-  color: var(--text-secondary, #666);
-  margin-top: 4px;
+  color: var(--md-sys-color-on-surface-variant, #E0E0E0);
+  opacity: 0.85;
+  margin-top: 6px;
+  font-weight: 500;
 }
 
 /* ── Zone de scan ────────────────────────────────────────── */
@@ -158,29 +177,32 @@
   align-items: center;
   justify-content: center;
   min-height: 160px;
-  background: var(--surface, #fff);
-  border-radius: var(--radius-lg, 12px);
-  border: 2px dashed var(--border, #e2e8f0);
+  background: rgba(51, 65, 85, 0.4);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border: 2px dashed rgba(148, 163, 184, 0.25);
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.3);
   transition: background 0.4s, border-color 0.4s;
   overflow: hidden;
 }
 
 .bio-scan-zone.scan-success {
-  background: rgba(56, 161, 105, 0.08);
-  border-color: var(--color-success, #38a169);
+  background: rgba(76, 175, 80, 0.08);
+  border-color: var(--md-sys-color-success, #4CAF50);
   border-style: solid;
   animation: bioFlash 0.3s ease-out;
 }
 
 .bio-scan-zone.scan-error {
-  background: rgba(229, 62, 62, 0.08);
-  border-color: var(--color-danger, #e53e3e);
+  background: rgba(179, 38, 30, 0.08);
+  border-color: var(--md-sys-color-error, #B3261E);
   border-style: solid;
 }
 
 .bio-scan-zone.scan-warning {
-  background: rgba(214, 158, 46, 0.08);
-  border-color: var(--color-warning, #d69e2e);
+  background: rgba(255, 152, 0, 0.08);
+  border-color: var(--md-sys-color-warning, #FF9800);
   border-style: solid;
 }
 
@@ -194,15 +216,17 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.75rem;
-  padding: var(--spacing-md, 1rem);
+  gap: 12px;
+  padding: 24px;
 }
 
 .bio-fingerprint-icon {
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: var(--surface-alt, #f7fafc);
+  /* Surface légèrement surélevée, cohérente avec stat-icon de styles.css */
+  background: rgba(129, 140, 248, 0.1);
+  border: 1px solid rgba(129, 140, 248, 0.2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -210,30 +234,38 @@
 
 .bio-fingerprint-icon .material-icons {
   font-size: 36px;
-  color: var(--color-primary, #3182ce);
+  color: #818cf8;
 }
 
-.bio-scan-zone.scan-success .bio-fingerprint-icon .material-icons { color: var(--color-success, #38a169); }
-.bio-scan-zone.scan-error   .bio-fingerprint-icon .material-icons { color: var(--color-danger, #e53e3e); }
-.bio-scan-zone.scan-warning .bio-fingerprint-icon .material-icons { color: var(--color-warning, #d69e2e); }
+.bio-scan-zone.scan-success .bio-fingerprint-icon .material-icons { color: var(--md-sys-color-success, #4CAF50); }
+.bio-scan-zone.scan-error   .bio-fingerprint-icon .material-icons { color: var(--md-sys-color-error, #B3261E); }
+.bio-scan-zone.scan-warning .bio-fingerprint-icon .material-icons { color: var(--md-sys-color-warning, #FF9800); }
 
 .bio-scan-message {
-  font-size: 0.95rem;
-  color: var(--text-secondary, #4a5568);
+  font-size: 0.9rem;
+  color: var(--md-sys-color-on-surface-variant, #E0E0E0);
   text-align: center;
   margin: 0;
   max-width: 320px;
-  line-height: 1.4;
+  line-height: 1.5;
+  opacity: 0.85;
 }
 
-/* ── Onglets ─────────────────────────────────────────────── */
+/* ── Onglets biométrique ─────────────────────────────────── */
+/*
+   Remplacement du style pill-tabs light par le pattern
+   tabs-container/tab défini dans design-system.css
+*/
 
 .bio-tabs {
   display: flex;
   gap: 2px;
-  background: var(--surface-alt, #f7fafc);
-  border-radius: var(--radius-md, 8px);
-  padding: 3px;
+  background: rgba(51, 65, 85, 0.4);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 12px;
+  padding: 4px;
 }
 
 .bio-tab {
@@ -242,27 +274,28 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 0.5rem;
+  padding: 10px 12px;
   border: none;
-  border-radius: calc(var(--radius-md, 8px) - 2px);
+  border-radius: 10px;
   background: transparent;
-  color: var(--text-secondary, #666);
+  color: var(--md-sys-color-on-surface-variant, #E0E0E0);
   font-size: 0.8rem;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.2s, color 0.2s;
+  transition: background 0.2s ease, color 0.2s ease;
+  white-space: nowrap;
 }
 
 .bio-tab:hover {
-  background: var(--surface, #fff);
-  color: var(--text-primary, #1a202c);
+  background: rgba(208, 188, 255, 0.08);
+  color: var(--md-sys-color-on-surface, #E6E1E5);
 }
 
 .bio-tab.active {
-  background: var(--surface, #fff);
-  color: var(--color-primary, #3182ce);
-  box-shadow: var(--shadow-sm, 0 1px 4px rgba(0,0,0,0.08));
+  background: rgba(129, 140, 248, 0.15);
+  color: #818cf8;
   font-weight: 600;
+  box-shadow: inset 0 0 0 1px rgba(129, 140, 248, 0.3);
 }
 
 .bio-tab .material-icons { font-size: 18px; }
@@ -274,18 +307,22 @@
 /* ── Contenu onglets ─────────────────────────────────────── */
 
 .bio-tab-content {
-  background: var(--surface, #fff);
-  border-radius: var(--radius-md, 8px);
-  padding: var(--spacing-md, 1rem);
-  box-shadow: var(--shadow-sm, 0 1px 4px rgba(0,0,0,0.08));
+  background: rgba(51, 65, 85, 0.4);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.3);
   min-height: 120px;
 }
 
 .bio-empty-state {
   text-align: center;
-  color: var(--text-muted, #a0aec0);
+  color: var(--md-sys-color-on-surface-variant, #E0E0E0);
+  opacity: 0.6;
   font-size: 0.85rem;
-  padding: var(--spacing-md, 1rem);
+  padding: 24px 16px;
   margin: 0;
 }
 
@@ -297,71 +334,96 @@
   gap: 6px;
   max-height: 380px;
   overflow-y: auto;
+  /* Scrollbar discrète cohérente avec le thème dark */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.3) transparent;
 }
+
+.bio-scans-list::-webkit-scrollbar { width: 4px; }
+.bio-scans-list::-webkit-scrollbar-track { background: transparent; }
+.bio-scans-list::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.3); border-radius: 2px; }
 
 .bio-scan-item {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.6rem 0.75rem;
-  border-radius: var(--radius-sm, 6px);
-  background: var(--surface-alt, #f7fafc);
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(51, 65, 85, 0.5);
+  border: 1px solid rgba(148, 163, 184, 0.12);
   border-left: 3px solid transparent;
-  transition: background 0.15s;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.bio-scan-item.success { border-left-color: var(--color-success, #38a169); }
-.bio-scan-item.failed  { border-left-color: var(--color-danger, #e53e3e); }
+.bio-scan-item:hover {
+  background: rgba(51, 65, 85, 0.7);
+  border-color: rgba(148, 163, 184, 0.2);
+}
+
+.bio-scan-item.success { border-left-color: var(--md-sys-color-success, #4CAF50); }
+.bio-scan-item.failed  { border-left-color: var(--md-sys-color-error, #B3261E); }
 
 .bio-scan-item-icon {
   font-size: 20px;
   flex-shrink: 0;
 }
 
-.bio-scan-item.success .bio-scan-item-icon { color: var(--color-success, #38a169); }
-.bio-scan-item.failed  .bio-scan-item-icon { color: var(--color-danger, #e53e3e); }
+.bio-scan-item.success .bio-scan-item-icon { color: var(--md-sys-color-success, #4CAF50); }
+.bio-scan-item.failed  .bio-scan-item-icon { color: var(--md-sys-color-error, #B3261E); }
 
 .bio-scan-item-info {
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
-.bio-scan-item-info strong { font-size: 0.9rem; color: var(--text-primary, #1a202c); }
-.bio-scan-item-info span   { font-size: 0.78rem; color: var(--text-secondary, #666); }
+.bio-scan-item-info strong {
+  font-size: 0.9rem;
+  color: var(--md-sys-color-on-surface, #E6E1E5);
+}
+
+.bio-scan-item-info span {
+  font-size: 0.78rem;
+  color: var(--md-sys-color-on-surface-variant, #E0E0E0);
+  opacity: 0.75;
+}
 
 .bio-scan-item-detail {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   font-size: 0.75rem;
-  color: var(--text-secondary, #666);
+  color: var(--md-sys-color-on-surface-variant, #E0E0E0);
+  opacity: 0.75;
 }
 
 .bio-fail-reason {
-  color: var(--color-danger, #e53e3e);
+  color: var(--md-sys-color-error, #B3261E);
   font-size: 0.72rem;
+  opacity: 1;
 }
 
 .bio-exit-badge,
 .bio-sim-badge {
   font-size: 0.65rem;
   font-weight: 700;
-  padding: 1px 6px;
+  padding: 2px 8px;
   border-radius: 9999px;
   letter-spacing: 0.04em;
 }
 
 .bio-exit-badge {
-  background: rgba(49, 130, 206, 0.12);
-  color: var(--color-primary, #3182ce);
+  background: rgba(129, 140, 248, 0.15);
+  color: #818cf8;
+  border: 1px solid rgba(129, 140, 248, 0.3);
 }
 
 .bio-sim-badge {
-  background: rgba(214, 158, 46, 0.15);
-  color: var(--color-warning, #b7791f);
+  background: rgba(255, 152, 0, 0.12);
+  color: var(--md-sys-color-warning, #FF9800);
+  border: 1px solid rgba(255, 152, 0, 0.25);
 }
 
 /* ── Enrôlement ──────────────────────────────────────────── */
@@ -369,30 +431,31 @@
 .bio-enroll-intro {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem;
-  background: var(--surface-alt, #f7fafc);
-  border-radius: var(--radius-sm, 6px);
-  margin-bottom: var(--spacing-sm, 0.5rem);
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(129, 140, 248, 0.08);
+  border: 1px solid rgba(129, 140, 248, 0.2);
+  border-radius: 10px;
+  margin-bottom: 16px;
   font-size: 0.88rem;
-  color: var(--text-secondary, #4a5568);
+  color: var(--md-sys-color-on-surface-variant, #E0E0E0);
 }
 
 .bio-enroll-icon {
   font-size: 28px;
-  color: var(--color-primary, #3182ce);
+  color: #818cf8;
   flex-shrink: 0;
 }
 
-.bio-enroll-intro p { margin: 0; }
+.bio-enroll-intro p { margin: 0; line-height: 1.5; }
 
 .bio-enroll-progress {
-  margin: var(--spacing-sm, 0.5rem) 0;
+  margin: 12px 0;
 }
 
 .bio-progress-bar {
   height: 6px;
-  background: var(--surface-alt, #f0f4f8);
+  background: rgba(51, 65, 85, 0.8);
   border-radius: 3px;
   overflow: hidden;
   margin-bottom: 6px;
@@ -400,15 +463,17 @@
 
 .bio-progress-fill {
   height: 100%;
-  background: var(--color-primary, #3182ce);
+  background: linear-gradient(90deg, #818cf8 0%, #6366f1 100%);
   border-radius: 3px;
   transition: width 0.4s ease;
   width: 0%;
+  box-shadow: 0 0 8px rgba(129, 140, 248, 0.4);
 }
 
 .bio-progress-message {
   font-size: 0.82rem;
-  color: var(--text-secondary, #666);
+  color: var(--md-sys-color-on-surface-variant, #E0E0E0);
+  opacity: 0.8;
   margin: 0;
 }
 
@@ -417,23 +482,29 @@
 .bio-sync-info {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  margin-bottom: var(--spacing-md, 1rem);
+  gap: 8px;
+  margin-bottom: 16px;
 }
 
 .bio-sync-row {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.6rem 0.75rem;
-  background: var(--surface-alt, #f7fafc);
-  border-radius: var(--radius-sm, 6px);
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(51, 65, 85, 0.5);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 10px;
   font-size: 0.85rem;
+  transition: background 0.15s ease;
+}
+
+.bio-sync-row:hover {
+  background: rgba(51, 65, 85, 0.7);
 }
 
 .bio-sync-row .material-icons {
   font-size: 20px;
-  color: var(--color-primary, #3182ce);
+  color: #818cf8;
   flex-shrink: 0;
 }
 
@@ -443,22 +514,23 @@
 }
 
 .bio-sync-row strong {
-  font-size: 0.78rem;
-  color: var(--text-secondary, #666);
+  font-size: 0.75rem;
+  color: var(--md-sys-color-on-surface-variant, #E0E0E0);
+  opacity: 0.7;
   font-weight: 500;
 }
 
 .bio-sync-row span {
   font-size: 0.9rem;
   font-weight: 600;
-  color: var(--text-primary, #1a202c);
+  color: var(--md-sys-color-on-surface, #E6E1E5);
 }
 
 .bio-sync-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: var(--spacing-sm, 0.5rem);
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
 .bio-sync-actions .btn {
@@ -470,21 +542,45 @@
 
 .bio-sync-actions .btn .material-icons { font-size: 16px; }
 
+/* Journal de synchronisation */
 .bio-sync-log {
   max-height: 180px;
   overflow-y: auto;
-  background: var(--surface-alt, #f7fafc);
-  border-radius: var(--radius-sm, 6px);
-  padding: 0.5rem;
-  font-family: monospace;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-family: 'Roboto Mono', monospace;
   font-size: 0.75rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.3) transparent;
 }
+
+.bio-sync-log::-webkit-scrollbar { width: 4px; }
+.bio-sync-log::-webkit-scrollbar-track { background: transparent; }
+.bio-sync-log::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.3); border-radius: 2px; }
 
 .bio-sync-entry {
   margin: 0;
-  padding: 2px 0;
-  color: var(--text-secondary, #555);
-  border-bottom: 1px solid var(--border, #edf2f7);
+  padding: 3px 0;
+  color: var(--md-sys-color-on-surface-variant, #E0E0E0);
+  opacity: 0.7;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.08);
 }
 
-.bio-sync-entry:first-child { color: var(--text-primary, #1a202c); font-weight: 500; }
+.bio-sync-entry:last-child { border-bottom: none; }
+
+.bio-sync-entry:first-child {
+  color: var(--md-sys-color-on-surface, #E6E1E5);
+  opacity: 1;
+  font-weight: 500;
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  #biometricSection { gap: 12px; }
+  .bio-header { padding: 14px 16px; }
+  .bio-tab-content { padding: 16px; }
+  .bio-stat-value { font-size: 1.5rem; }
+}
