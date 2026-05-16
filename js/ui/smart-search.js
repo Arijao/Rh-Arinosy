@@ -5,6 +5,7 @@
 // ============================================================
 
 import { state } from '../state.js';
+import { showToast } from '../utils/notifications.js';
 
 // ─────────────────────────────────────────────────────────────
 // Utilitaire interne : mise en évidence des correspondances
@@ -396,11 +397,7 @@ export function startBiometricScanFor(context) {
   // Vérifier que le lecteur est connecté
   const isConnected = window._biometricConnected?.() ?? false;
   if (!isConnected) {
-    import('./notifications.js').then(({ showToast }) => {
-      showToast('Connectez d\'abord le lecteur biométrique (section Biométrique)', 'warning', 5000);
-    }).catch(() => {
-      alert('Lecteur biométrique non connecté. Accédez à la section Biométrique pour connecter le lecteur.');
-    });
+    showToast('Connectez d\'abord le lecteur biométrique (section Biométrique)', 'warning', 5000);
     return;
   }
 
@@ -476,9 +473,7 @@ export function startBiometricScanFor(context) {
   setTimeout(() => {
     if (document.getElementById(overlayId)) {
       cleanup();
-      import('./notifications.js').then(({ showToast }) => {
-        showToast('Délai d\'attente dépassé. Réessayez.', 'warning');
-      }).catch(() => {});
+      showToast('Délai d\'attente dépassé. Réessayez.', 'warning');
     }
   }, 60_000);
 }
@@ -491,9 +486,7 @@ export function startBiometricScanFor(context) {
 function _injectBiometricEmployee(empId, context) {
   const emp = state.employees?.find(e => e.id === empId);
   if (!emp) {
-    import('./notifications.js').then(({ showToast }) => {
-      showToast('Employé non trouvé dans la base de données.', 'error');
-    }).catch(() => {});
+    showToast('Employé non trouvé dans la base de données.', 'error');
     return;
   }
 
@@ -515,9 +508,7 @@ function _injectBiometricEmployee(empId, context) {
     }
   }
 
-  import('./notifications.js').then(({ showToast }) => {
-    showToast(`✅ ${emp.name} identifié(e) par empreinte.`, 'success');
-  }).catch(() => {});
+  showToast(`✅ ${emp.name} identifié(e) par empreinte.`, 'success');
 }
 
 // ─────────────────────────────────────────────────────────────
