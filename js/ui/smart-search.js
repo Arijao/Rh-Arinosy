@@ -287,6 +287,21 @@ export function initScanBridge() {
     });
     payObserver.observe(payHidden, { childList: true, subtree: false });
   }
+
+  // ── BRIDGE BIOMÉTRIQUE ───────────────────────────────────────
+  // Quand biometric-sync.js identifie une empreinte en mode
+  // "sélection" (vs mode "pointage"), il émet l'événement
+  // 'biometric-fingerprint-selection' sur window avec { employeeId }.
+  // Ce bridge relaie vers startBiometricScanFor() qui gère l'injection.
+  //
+  // Note : en mode pointage normal (section Biométrique), l'événement
+  // 'biometric-attendance' est émis à la place — non intercepté ici.
+  window.addEventListener('biometric-fingerprint-selection', (e) => {
+    const empId  = e.detail?.employeeId;
+    const ctx    = e.detail?.context; // 'advance' | 'payroll' | 'status' | null
+    if (!empId || !ctx) return;
+    _injectBiometricEmployee(empId, ctx);
+  });
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -367,6 +382,145 @@ export function initEmployeeSearchDropdown() {
 }
 
 // ─────────────────────────────────────────────────────────────
+// BIOMÉTRIE — Sélection d'employé via empreinte digitale
+//
+// Principe : affiche un overlay d'attente, écoute l'événement
+// 'biometric-fingerprint-selection' émis par biometric-sync.js
+// quand une empreinte est reconnue, puis injecte l'employé dans
+// le champ de recherche cible — exactement comme QR/Face.
+//
+// Contextes supportés : 'advance' | 'payroll' | 'status'
+// ─────────────────────────────────────────────────────────────
+
+export function startBiometricScanFor(context) {
+  // Vérifier que le lecteur est connecté
+  const isConnected = window._biometricConnected?.() ?? false;
+  if (!isConnected) {
+    import('./notifications.js').then(({ showToast }) => {
+      showToast('Connectez d\'abord le lecteur biométrique (section Biométrique)', 'warning', 5000);
+    }).catch(() => {
+      alert('Lecteur biométrique non connecté. Accédez à la section Biométrique pour connecter le lecteur.');
+    });
+    return;
+  }
+
+  // Overlay d'attente — même style que les modales QR/Facial
+  const overlayId = 'biometricScanOverlay';
+  let overlay = document.getElementById(overlayId);
+  if (overlay) overlay.remove(); // éviter les doublons
+
+  overlay = document.createElement('div');
+  overlay.id = overlayId;
+  overlay.style.cssText = `
+    position:fixed;inset:0;z-index:9999;
+    background:rgba(15,23,42,.85);backdrop-filter:blur(8px);
+    display:flex;align-items:center;justify-content:center;
+  `;
+  overlay.innerHTML = `
+    <div style="
+      background:rgba(30,41,59,.98);border:1px solid rgba(103,80,164,.4);
+      border-radius:20px;padding:40px 48px;text-align:center;
+      box-shadow:0 24px 64px rgba(15,23,42,.6);max-width:360px;width:90%;
+    ">
+      <div style="
+        width:80px;height:80px;border-radius:50%;margin:0 auto 24px;
+        background:rgba(129,140,248,.12);border:2px solid rgba(129,140,248,.3);
+        display:flex;align-items:center;justify-content:center;
+        animation:bioPulseOverlay 2s ease-in-out infinite;
+      ">
+        <span class="material-icons" style="font-size:40px;color:#818cf8;">fingerprint</span>
+      </div>
+      <h3 style="margin:0 0 8px;color:#e2e8f0;font-size:1.1rem;font-weight:600;">
+        Posez votre doigt
+      </h3>
+      <p style="margin:0 0 24px;color:#94a3b8;font-size:.9rem;line-height:1.5;">
+        En attente de l'empreinte digitale sur le lecteur…
+      </p>
+      <button id="biometricScanCancelBtn"
+        style="
+          padding:10px 28px;border-radius:100px;border:1.5px solid rgba(148,163,184,.3);
+          background:transparent;color:#94a3b8;font-size:.875rem;font-weight:500;
+          cursor:pointer;transition:all 0.2s ease;
+        "
+        onmouseover="this.style.borderColor='rgba(148,163,184,.6)';this.style.color='#e2e8f0';"
+        onmouseout="this.style.borderColor='rgba(148,163,184,.3)';this.style.color='#94a3b8';"
+      >Annuler</button>
+    </div>
+    <style>
+      @keyframes bioPulseOverlay {
+        0%,100%{box-shadow:0 0 0 0 rgba(129,140,248,.3);}
+        50%{box-shadow:0 0 0 12px rgba(129,140,248,.05);}
+      }
+    </style>
+  `;
+  document.body.appendChild(overlay);
+
+  // Handler de réception d'empreinte
+  function onFingerprintSelection(e) {
+    const empId = e.detail?.employeeId;
+    if (!empId) return;
+    cleanup();
+    _injectBiometricEmployee(empId, context);
+  }
+
+  function cleanup() {
+    window.removeEventListener('biometric-fingerprint-selection', onFingerprintSelection);
+    const el = document.getElementById(overlayId);
+    if (el) el.remove();
+  }
+
+  window.addEventListener('biometric-fingerprint-selection', onFingerprintSelection);
+  document.getElementById('biometricScanCancelBtn')?.addEventListener('click', cleanup);
+
+  // Timeout de sécurité — 60 secondes
+  setTimeout(() => {
+    if (document.getElementById(overlayId)) {
+      cleanup();
+      import('./notifications.js').then(({ showToast }) => {
+        showToast('Délai d\'attente dépassé. Réessayez.', 'warning');
+      }).catch(() => {});
+    }
+  }, 60_000);
+}
+
+/**
+ * Injecte l'employé identifié par empreinte dans le champ cible
+ * selon le contexte (advance | payroll | status).
+ * @private
+ */
+function _injectBiometricEmployee(empId, context) {
+  const emp = state.employees?.find(e => e.id === empId);
+  if (!emp) {
+    import('./notifications.js').then(({ showToast }) => {
+      showToast('Employé non trouvé dans la base de données.', 'error');
+    }).catch(() => {});
+    return;
+  }
+
+  switch (context) {
+    case 'advance':
+      selectAdvanceEmployee(empId);
+      break;
+    case 'payroll':
+      selectPayrollEmployee(empId);
+      break;
+    case 'status': {
+      // Statut Employé — injecte dans smartSearchInput (même pattern que QR/Face)
+      const input = document.getElementById('smartSearchInput');
+      if (input) {
+        input.value = emp.name;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      break;
+    }
+  }
+
+  import('./notifications.js').then(({ showToast }) => {
+    showToast(`✅ ${emp.name} identifié(e) par empreinte.`, 'success');
+  }).catch(() => {});
+}
+
+// ─────────────────────────────────────────────────────────────
 // SAISIE MANUELLE DES PRÉSENCES — Recherche intelligente
 // Pattern : dropdown + highlight + scroll vers l'employé
 // (identique à la Liste des Employés)
@@ -436,3 +590,5 @@ window._handlePayrollEmployeeSearch     = handlePayrollEmployeeSearch;
 window._scrollToEmployee                = scrollToEmployee;
 window._selectAttendanceEmployee        = selectAttendanceEmployee;
 window._handleAttendanceEmployeeSearch  = handleAttendanceEmployeeSearch;
+// Biométrie — sélection d'employé via empreinte dans les formulaires
+window._startBiometricScanFor           = startBiometricScanFor;

@@ -82,6 +82,8 @@ export function displayAttendance() {
         methodBadge = `<span class="material-icons" style="font-size:14px;color:#0ea5e9;vertical-align:middle;margin-left:8px;">face</span><span style="font-size:12px;color:#0ea5e9;font-weight:600;">FACIAL</span>`;
       else if (m === 'QR')
         methodBadge = `<span class="material-icons" style="font-size:14px;color:#6750A4;vertical-align:middle;margin-left:8px;">qr_code_scanner</span><span style="font-size:12px;color:#6750A4;font-weight:600;">QR</span>`;
+      else if (m === 'BIOMETRIC')
+        methodBadge = `<span class="material-icons" style="font-size:14px;color:#818cf8;vertical-align:middle;margin-left:8px;">fingerprint</span><span style="font-size:12px;color:#818cf8;font-weight:600;">BIOMÉTRIQUE</span>`;
       else
         methodBadge = `<span class="material-icons" style="font-size:14px;color:#f59e0b;vertical-align:middle;margin-left:8px;">edit</span><span style="font-size:12px;color:#f59e0b;font-weight:600;">Manuel</span>`;
     }
