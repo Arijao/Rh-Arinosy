@@ -659,3 +659,8 @@ function _logSync(message) {
 function _todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
+
+// ── Exposition globale ────────────────────────────────────
+// Requis par smart-search.js pour vérifier l'état du lecteur
+// avant de lancer une sélection par empreinte digitale.
+window._biometricConnected = () => localState.connected;

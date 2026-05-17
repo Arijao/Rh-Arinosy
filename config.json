@@ -1,0 +1,75 @@
+{
+  "_comment": "Configuration du pont biométrique local — RH RiseVanilla",
+  "_doc": "Voir README.md pour la documentation complète de chaque option.",
+
+  "server": {
+    "port": 8765,
+    "host": "127.0.0.1",
+    "_comment_host": "Utilisez '0.0.0.0' pour autoriser des connexions depuis d'autres machines du réseau local"
+  },
+
+  "adapter": {
+    "type": "auto",
+    "_comment_type": "Valeurs possibles : 'auto' | 'hid' | 'zkteco' | 'hikvision'",
+    "_comment_auto": "En mode 'auto', le pont teste les adaptateurs dans l'ordre : hikvision → zkteco → hid",
+
+    "hid": {
+      "_comment": "Adaptateur HID générique — fonctionne avec la plupart des lecteurs plug & play",
+      "inputMode": "auto",
+      "_comment_inputMode": "'ascii' | 'bcd' | 'auto'",
+      "vendorId": null,
+      "productId": null,
+      "_comment_ids": "Laisser null pour la détection automatique, ou spécifier ex: 8580 (0x2188)"
+    },
+
+    "zkteco": {
+      "_comment": "Lecteurs ZKTeco (ZK4500, ZK9500, iClock, K40...)",
+      "mode": "tcp",
+      "_comment_mode": "'usb' (nécessite node-zkfp + SDK ZKFinger) | 'tcp' (Wi-Fi/LAN)",
+
+      "usb": {
+        "deviceIndex": 0
+      },
+
+      "tcp": {
+        "host": "192.168.1.201",
+        "_comment_host": "Adresse IP du terminal ZKTeco sur votre réseau",
+        "port": 4370,
+        "_comment_port": "Port par défaut ZKTeco PUSH : 4370",
+        "fingerprintOnly": false,
+        "_comment_fingerprintOnly": "true = ignore les pointages par carte/mot de passe"
+      }
+    },
+
+    "hikvision": {
+      "_comment": "Lecteurs Hikvision (DS-K1F820-F, DS-K1T671...)",
+      "mode": "usb",
+      "_comment_mode": "'usb' (HID via node-hid) | 'isapi' (réseau HTTP)",
+
+      "usb": {
+        "vendorId": null,
+        "productId": null,
+        "_comment": "null = auto-détection parmi les VID/PID Hikvision connus"
+      },
+
+      "isapi": {
+        "host": "192.168.1.64",
+        "port": 80,
+        "user": "admin",
+        "password": "",
+        "https": false
+      }
+    }
+  },
+
+  "reconnect": {
+    "enabled": true,
+    "maxAttempts": 10,
+    "_comment_maxAttempts": "0 = tentatives illimitées"
+  },
+
+  "logging": {
+    "level": "info",
+    "_comment_level": "'debug' | 'info' | 'warn' | 'error'"
+  }
+}

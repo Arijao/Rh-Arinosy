@@ -5,6 +5,11 @@
 //        événements de pointage distants, configuration device
 // ============================================================
 
+// HikvisionAdapter est défini dans biometric-adapter.js (source unique).
+// HikvisionISAPI est conservée ici pour la rétrocompatibilité avec
+// tout code externe qui l'importerait directement.
+import { HikvisionAdapter } from './biometric-adapter.js';
+
 /**
  * Client ISAPI pour les dispositifs Hikvision en réseau local.
  * Référence : Hikvision ISAPI v2.0 — Access Control & Video Intercom
@@ -283,7 +288,9 @@ export class HikvisionISAPI {
 
 /**
  * Couche d'abstraction haut niveau utilisée par l'UI.
- * Délègue soit au service USB (biometric-service) soit à l'ISAPI réseau.
+ * Délègue à HikvisionAdapter (biometric-adapter.js) pour le
+ * mode réseau, afin d'éviter la duplication de code ISAPI.
+ * HikvisionISAPI reste disponible pour rétrocompatibilité.
  */
 export class BiometricAPI {
   constructor() {
@@ -292,11 +299,13 @@ export class BiometricAPI {
   }
 
   /**
-   * Configure le mode réseau avec les paramètres Hikvision
+   * Configure le mode réseau avec les paramètres du périphérique.
+   * Utilise HikvisionAdapter (source unique dans biometric-adapter.js).
    * @param {{ host: string, port?: number, user?: string, password?: string }} config
    */
   configureNetwork(config) {
-    this._isapi = new HikvisionISAPI(config);
+    // Délègue à HikvisionAdapter — implémentation unique, pas de doublon
+    this._isapi = new HikvisionAdapter(config);
     this._mode  = 'network';
     console.log('[BiometricAPI] Mode réseau configuré:', config.host);
   }

@@ -2,8 +2,10 @@
 // biometric/biometric-service.js
 // Couche transport — abstraction USB / Bluetooth / Wi-Fi
 // Supporte : WebUSB, Web Bluetooth, WebSocket (réseau local)
-// Testé avec : Hikvision DS-K1F820-F et génériques HID
+// Décodage multi-lecteurs via FrameDecoderRegistry (biometric-adapter.js)
 // ============================================================
+
+import { FrameDecoderRegistry } from './biometric-adapter.js';
 
 const TRANSPORT = Object.freeze({
   USB:       'usb',
@@ -13,8 +15,24 @@ const TRANSPORT = Object.freeze({
 });
 
 // Vendor/Product IDs connus pour les lecteurs d'empreintes USB
+// Extensible via FrameDecoderRegistry (biometric-adapter.js)
 const KNOWN_USB_DEVICES = [
+  // Hikvision
   { vendorId: 0x2188, productId: 0x0058, name: 'Hikvision DS-K1F820-F' },
+  { vendorId: 0x2188, productId: 0x0060, name: 'Hikvision DS-K1F810-F' },
+  { vendorId: 0x2188, productId: 0x0070, name: 'Hikvision DS-K1F181-F' },
+  // ZKTeco
+  { vendorId: 0x1B55, productId: 0x0840, name: 'ZKTeco ZK4500'         },
+  { vendorId: 0x1B55, productId: 0x0070, name: 'ZKTeco ZK9500'         },
+  { vendorId: 0x1B55, productId: 0x0120, name: 'ZKTeco SLK20R'         },
+  { vendorId: 0x1B55, productId: 0x0200, name: 'ZKTeco ZK6000'         },
+  // Suprema
+  { vendorId: 0x16D1, productId: 0x0100, name: 'Suprema BioMini'       },
+  { vendorId: 0x16D1, productId: 0x0401, name: 'Suprema BioMini Plus'  },
+  // DigitalPersona / HID
+  { vendorId: 0x05BA, productId: 0x000A, name: 'DigitalPersona U.are.U 4000' },
+  { vendorId: 0x05BA, productId: 0x000C, name: 'DigitalPersona U.are.U 4500' },
+  // Upek / AuthenTec (générique)
   { vendorId: 0x147e, productId: 0x2016, name: 'Upek TouchStrip'       },
   { vendorId: 0x08ff, productId: 0x2810, name: 'AuthenTec AES2810'     },
   { vendorId: 0x04e8, productId: 0x730a, name: 'Samsung Fingerprint'   },
@@ -288,42 +306,39 @@ export class BiometricService extends EventTarget {
   // ── Décodage données brutes ───────────────────────────────
 
   /**
-   * Décode les trames binaires Hikvision / HID générique
-   * Trame Hikvision : [0x55, 0xAA, cmd(1), len(2), payload(n), crc(1)]
+   * Décode les trames binaires reçues via USB ou Bluetooth.
+   * Délègue au FrameDecoderRegistry (biometric-adapter.js) qui
+   * essaie chaque décodeur enregistré dans l'ordre :
+   *   1. Hikvision-USB  (trame SOF 0x55 0xAA)
+   *   2. ZKTeco-USB     (trame binaire ZKLib)
+   *   3. Generic-ASCII-HID (fallback ASCII)
+   *
+   * Pour ajouter un nouveau lecteur : enregistrer un décodeur
+   * dans FrameDecoderRegistry sans toucher ce fichier.
    */
   _handleRawData(bytes) {
-    // Hikvision ISAPI sur USB : trame SOF 0x55 0xAA
-    if (bytes[0] === 0x55 && bytes[1] === 0xAA) {
-      const cmd     = bytes[2];
-      const len     = (bytes[3] << 8) | bytes[4];
-      const payload = bytes.slice(5, 5 + len);
-
-      if (cmd === 0x03) { // commande : identification OK
-        const employeeId = this._decodeHikvisionId(payload);
-        const quality    = payload[8] || 85;
-        this._handleParsedEvent({
-          type: 'fingerprint', employeeId, quality,
-          timestamp: new Date().toISOString(), simulated: false,
-        });
-      } else if (cmd === 0x04) {
-        this._emit('biometric-error', { code: 'NO_MATCH', message: 'Empreinte non reconnue' });
-      }
+    // Cas particulier : NO_MATCH Hikvision (cmd 0x04) — pas une empreinte valide
+    if (bytes[0] === 0x55 && bytes[1] === 0xAA && bytes[2] === 0x04) {
+      this._emit('biometric-error', { code: 'NO_MATCH', message: 'Empreinte non reconnue' });
       return;
     }
 
-    // Fallback HID générique : essaie d'extraire un identifiant ASCII
-    const text = new TextDecoder().decode(bytes).replace(/\0/g, '').trim();
-    if (text.length > 0) {
-      this._handleParsedEvent({
-        type: 'fingerprint', employeeId: text, quality: 80,
-        timestamp: new Date().toISOString(), simulated: false,
-      });
-    }
-  }
+    // Délégation au registre de décodeurs
+    const result = FrameDecoderRegistry.decode(bytes);
 
-  _decodeHikvisionId(payload) {
-    // Les bytes 0-7 contiennent l'ID employé en ASCII dans la trame Hikvision
-    return new TextDecoder().decode(payload.slice(0, 8)).replace(/\0/g, '').trim();
+    if (result) {
+      this._handleParsedEvent({
+        type:       'fingerprint',
+        employeeId: result.employeeId,
+        quality:    result.quality    ?? 80,
+        timestamp:  result.timestamp  ?? new Date().toISOString(),
+        simulated:  result.simulated  ?? false,
+      });
+      return;
+    }
+
+    // Aucun décodeur n'a reconnu la trame — log silencieux
+    this._log('Trame USB non reconnue par aucun décodeur :', Array.from(bytes.slice(0, 8)).map(b => b.toString(16).padStart(2, '0')).join(' '));
   }
 
   // ── Dispatch événements ───────────────────────────────────

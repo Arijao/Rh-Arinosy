@@ -1,0 +1,25 @@
+{
+  "_comment": "Dépendances du pont biométrique à fusionner dans votre package.json existant",
+  "_instruction": "Copiez les blocs 'dependencies' et 'scripts' ci-dessous dans votre package.json",
+
+  "scripts": {
+    "bridge":          "node index.js",
+    "bridge:hid":      "node index.js --adapter hid",
+    "bridge:zkteco":   "node index.js --adapter zkteco",
+    "bridge:hikvision":"node index.js --adapter hikvision",
+    "bridge:auto":     "node index.js --adapter auto"
+  },
+
+  "dependencies": {
+    "ws":       "^8.17.0",
+    "node-hid": "^3.1.0"
+  },
+
+  "optionalDependencies": {
+    "node-zkfp": "^1.0.0"
+  },
+
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
