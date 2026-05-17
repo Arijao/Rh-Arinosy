@@ -64,7 +64,7 @@ function buildAdapter(config) {
       return new HIDAdapter(ac.hid || {});
 
     case 'zkteco': {
-      const mode    = ac.zkteco?.mode || 'tcp';
+      const mode    = ac.zkteco?.mode || 'usb';
       const zkConf  = { mode, ...(mode === 'usb' ? ac.zkteco?.usb : ac.zkteco?.tcp) };
       log('info', `Adaptateur sélectionné : ZKTeco (${mode})`);
       return new ZKTecoAdapter(zkConf);
@@ -85,17 +85,45 @@ function buildAdapter(config) {
 }
 
 // ── Auto-détection ────────────────────────────────────────
+//
+// Ordre de priorité :
+//   1. Hikvision USB  — détection instantanée par VID/PID
+//   2. ZKTeco USB     — détection instantanée via node-zkfp
+//   3. HID générique  — couvre la majorité des lecteurs plug & play
+//   4. ZKTeco TCP     — SEULEMENT si host est configuré (non null)
+//   5. Hikvision ISAPI— SEULEMENT si host est configuré (non null)
+//
+// Les modes réseau (TCP/ISAPI) sont placés en dernier et ignorés
+// si leur host est null, évitant tout timeout au démarrage.
 
 async function autoDetect(config) {
-  const ac       = config.adapter;
+  const ac = config.adapter;
+
+  // ── Candidats USB (détection instantanée, pas de timeout) ──
   const candidates = [
-    // Ordre de priorité : Hikvision → ZKTeco réseau → ZKTeco USB → HID
     new HikvisionAdapter({ mode: 'usb', ...ac.hikvision?.usb }),
-    new ZKTecoAdapter({ mode: 'tcp',   ...ac.zkteco?.tcp     }),
     new ZKTecoAdapter({ mode: 'usb',   ...ac.zkteco?.usb     }),
     new HIDAdapter(ac.hid || {}),
   ];
 
+  // ── Candidats réseau (seulement si host configuré) ─────────
+  // Un host null signifie que le mode réseau est désactivé.
+  // On évite ainsi tout timeout inutile au démarrage.
+  if (ac.zkteco?.tcp?.host) {
+    candidates.push(new ZKTecoAdapter({ mode: 'tcp', ...ac.zkteco.tcp }));
+    log('debug', `Auto-détection : ZKTeco TCP inclus (${ac.zkteco.tcp.host}:${ac.zkteco.tcp.port || 4370})`);
+  } else {
+    log('debug', 'Auto-détection : ZKTeco TCP ignoré (host non configuré)');
+  }
+
+  if (ac.hikvision?.isapi?.host) {
+    candidates.push(new HikvisionAdapter({ mode: 'isapi', ...ac.hikvision.isapi }));
+    log('debug', `Auto-détection : Hikvision ISAPI inclus (${ac.hikvision.isapi.host})`);
+  } else {
+    log('debug', 'Auto-détection : Hikvision ISAPI ignoré (host non configuré)');
+  }
+
+  // ── Test de chaque candidat ────────────────────────────────
   for (const adapter of candidates) {
     try {
       const found = await adapter.detect();
@@ -108,8 +136,10 @@ async function autoDetect(config) {
     }
   }
 
-  // Aucun lecteur physique → HID en dernier recours (peut échouer à connect())
-  log('warn', 'Aucun lecteur détecté automatiquement. Tentative HID par défaut.');
+  // Aucun lecteur détecté → HID en dernier recours
+  // (peut échouer à connect() si aucun périphérique HID compatible)
+  log('warn', 'Aucun lecteur détecté automatiquement. Tentative HID générique par défaut.');
+  log('warn', 'Branchez votre lecteur et relancez le bridge, ou précisez --adapter hid|zkteco|hikvision');
   return new HIDAdapter(ac.hid || {});
 }
 
@@ -217,8 +247,6 @@ function startWebSocketServer(config, adapter) {
 // ── Messages entrants depuis le navigateur ────────────────
 
 function handleClientMessage(ws, msg, adapter) {
-  // Si la commande inclut un cmdId, on le renvoie dans la réponse
-  // pour que ZKTecoAdapter._send() puisse résoudre la promesse correspondante.
   const cmdId = msg.cmdId ?? null;
 
   const reply = (data, error = null) => {
@@ -241,7 +269,6 @@ function handleClientMessage(ws, msg, adapter) {
       break;
 
     case 'enroll':
-      // Délègue l'enrôlement à l'adaptateur si supporté
       if (typeof adapter.startEnrollment === 'function') {
         adapter.startEnrollment?.({ employeeId: msg.employeeId, fingerIndex: msg.fingerIndex ?? 1 })
           .then((result) => reply(result))

@@ -11,7 +11,6 @@
 // Dépendance : node-hid  (npm install node-hid)
 // ============================================================
 
-import HID from 'node-hid';
 import { BaseAdapter } from './base.js';
 
 // Longueur minimale de payload utile (filtre le bruit USB)
@@ -19,6 +18,24 @@ const MIN_PAYLOAD_BYTES = 2;
 
 // Délai entre deux tentatives de reconnexion (ms)
 const RECONNECT_DELAY_MS = 3000;
+
+// Import dynamique de node-hid — évite un crash au démarrage
+// si la bibliothèque n'est pas encore installée.
+let HID = null;
+async function loadHID() {
+  if (HID) return HID;
+  try {
+    const mod = await import('node-hid');
+    HID = mod.default ?? mod;
+    return HID;
+  } catch (err) {
+    throw new Error(
+      `node-hid introuvable. Installez-le avec :\n` +
+      `  npm install node-hid\n` +
+      `Détail : ${err.message}`
+    );
+  }
+}
 
 export class HIDAdapter extends BaseAdapter {
   /**
@@ -38,8 +55,9 @@ export class HIDAdapter extends BaseAdapter {
 
   async detect() {
     try {
-      const devices = HID.devices();
-      return this._findCompatibleDevice(devices) !== null;
+      const hid     = await loadHID();
+      const devices = hid.devices();
+      return this._findCompatibleDevice(devices, hid) !== null;
     } catch {
       return false;
     }
@@ -48,8 +66,9 @@ export class HIDAdapter extends BaseAdapter {
   // ── Connexion ────────────────────────────────────────────
 
   async connect() {
-    const devices = HID.devices();
-    const target  = this._findCompatibleDevice(devices);
+    const hid     = await loadHID();
+    const devices = hid.devices();
+    const target  = this._findCompatibleDevice(devices, hid);
 
     if (!target) {
       throw new Error('Aucun lecteur HID compatible détecté.');
@@ -59,7 +78,7 @@ export class HIDAdapter extends BaseAdapter {
            + `(${target.vendorId.toString(16)}:${target.productId.toString(16)})`);
 
     try {
-      this._device = new HID.HID(target.vendorId, target.productId);
+      this._device = new hid.HID(target.vendorId, target.productId);
     } catch (err) {
       throw new Error(`Impossible d'ouvrir le périphérique HID : ${err.message}`);
     }

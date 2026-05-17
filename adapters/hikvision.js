@@ -16,7 +16,6 @@
 //   ISAPI→ natif (fetch Node 18+)
 // ============================================================
 
-import HID  from 'node-hid';
 import { BaseAdapter } from './base.js';
 
 // Octets de début de trame Hikvision USB
@@ -34,6 +33,24 @@ const HIKVISION_DEVICES = [
 
 // Intervalle de polling ISAPI (ms)
 const ISAPI_POLL_INTERVAL_MS = 5000;
+
+// Import dynamique de node-hid — évite un crash au démarrage
+// si la bibliothèque n'est pas encore installée.
+let HID = null;
+async function loadHID() {
+  if (HID) return HID;
+  try {
+    const mod = await import('node-hid');
+    HID = mod.default ?? mod;
+    return HID;
+  } catch (err) {
+    throw new Error(
+      `node-hid introuvable. Installez-le avec :\n` +
+      `  npm install node-hid\n` +
+      `Détail : ${err.message}`
+    );
+  }
+}
 
 export class HikvisionAdapter extends BaseAdapter {
   /**
@@ -66,7 +83,8 @@ export class HikvisionAdapter extends BaseAdapter {
     if (this._mode === 'isapi') return !!(this.config.host);
 
     try {
-      const devices = HID.devices();
+      const hid     = await loadHID();
+      const devices = hid.devices();
       return this._findHikDevice(devices) !== null;
     } catch {
       return false;
@@ -96,7 +114,8 @@ export class HikvisionAdapter extends BaseAdapter {
   // ── Mode USB ──────────────────────────────────────────────
 
   async _connectUSB() {
-    const devices = HID.devices();
+    const hid     = await loadHID();
+    const devices = hid.devices();
     const target  = this._findHikDevice(devices);
 
     if (!target) {
@@ -107,7 +126,7 @@ export class HikvisionAdapter extends BaseAdapter {
            + `(${target.vendorId.toString(16)}:${target.productId.toString(16)})`);
 
     try {
-      this._device = new HID.HID(target.vendorId, target.productId);
+      this._device = new hid.HID(target.vendorId, target.productId);
     } catch (err) {
       throw new Error(`Impossible d'ouvrir le lecteur Hikvision USB : ${err.message}`);
     }

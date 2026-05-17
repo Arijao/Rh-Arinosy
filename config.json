@@ -11,49 +11,82 @@
   "adapter": {
     "type": "auto",
     "_comment_type": "Valeurs possibles : 'auto' | 'hid' | 'zkteco' | 'hikvision'",
-    "_comment_auto": "En mode 'auto', le pont teste les adaptateurs dans l'ordre : hikvision → zkteco → hid",
+    "_comment_auto": [
+      "En mode 'auto', le pont teste les adaptateurs dans l'ordre suivant :",
+      "  1. hikvision USB  — VID/PID Hikvision connus, détection immédiate",
+      "  2. zkteco USB     — via node-zkfp si installé, détection immédiate",
+      "  3. hid            — détection générique plug & play, couvre 90% des lecteurs USB",
+      "  4. zkteco TCP     — UNIQUEMENT si un host réseau est configuré (désactivé par défaut)",
+      "  5. hikvision ISAPI— UNIQUEMENT si un host réseau est configuré (désactivé par défaut)",
+      "Les modes réseau (TCP/ISAPI) sont ignorés si 'host' est null, évitant tout timeout."
+    ],
 
     "hid": {
-      "_comment": "Adaptateur HID générique — fonctionne avec la plupart des lecteurs plug & play",
+      "_comment": "Adaptateur HID générique — couvre la majorité des lecteurs USB plug & play",
+      "_comment_marques": "Compatible : Digital Persona, Suprema, Anviz, Nitgen, SecuGen, et tout lecteur HID standard",
       "inputMode": "auto",
-      "_comment_inputMode": "'ascii' | 'bcd' | 'auto'",
+      "_comment_inputMode": "'ascii' (ID en texte) | 'bcd' (binaire) | 'auto' (détecte automatiquement)",
       "vendorId": null,
       "productId": null,
-      "_comment_ids": "Laisser null pour la détection automatique, ou spécifier ex: 8580 (0x2188)"
+      "_comment_ids": [
+        "Laisser null pour la détection automatique (recommandé).",
+        "Si votre lecteur n'est pas détecté, branchez-le et exécutez :",
+        "  node -e \"import('node-hid').then(m => console.log(JSON.stringify(m.default.devices(), null, 2)))\"",
+        "Puis renseignez le vendorId et productId affichés (en décimal)."
+      ]
     },
 
     "zkteco": {
-      "_comment": "Lecteurs ZKTeco (ZK4500, ZK9500, iClock, K40...)",
-      "mode": "tcp",
-      "_comment_mode": "'usb' (nécessite node-zkfp + SDK ZKFinger) | 'tcp' (Wi-Fi/LAN)",
+      "_comment": "Lecteurs ZKTeco (ZK4500, ZK9500, SLK20R...)",
+      "mode": "usb",
+      "_comment_mode": [
+        "'usb' → lecteur USB branché directement sur le PC (recommandé pour votre cas)",
+        "'tcp' → terminal réseau ZKTeco (pointeuse murale Wi-Fi/LAN), nécessite host ci-dessous"
+      ],
 
       "usb": {
-        "deviceIndex": 0
+        "deviceIndex": 0,
+        "_comment": "0 = premier lecteur ZKTeco détecté. Augmenter si plusieurs lecteurs branchés."
       },
 
       "tcp": {
-        "host": "192.168.1.201",
-        "_comment_host": "Adresse IP du terminal ZKTeco sur votre réseau",
+        "host": null,
+        "_comment_host": [
+          "null = mode TCP désactivé (aucun timeout au démarrage).",
+          "Remplacer null par l'IP de votre terminal réseau ZKTeco, ex: '192.168.1.201'",
+          "uniquement si vous utilisez une pointeuse murale ZKTeco en Wi-Fi/LAN."
+        ],
         "port": 4370,
         "_comment_port": "Port par défaut ZKTeco PUSH : 4370",
         "fingerprintOnly": false,
-        "_comment_fingerprintOnly": "true = ignore les pointages par carte/mot de passe"
+        "_comment_fingerprintOnly": "true = ignore les pointages par carte/code PIN, garde uniquement les empreintes"
       }
     },
 
     "hikvision": {
-      "_comment": "Lecteurs Hikvision (DS-K1F820-F, DS-K1T671...)",
+      "_comment": "Lecteurs Hikvision (DS-K1F820-F, DS-K1F810-F, DS-K1F181-F...)",
       "mode": "usb",
-      "_comment_mode": "'usb' (HID via node-hid) | 'isapi' (réseau HTTP)",
+      "_comment_mode": [
+        "'usb' → lecteur USB Hikvision branché directement (détection par VID/PID)",
+        "'isapi' → terminal réseau Hikvision (DS-K1T671...), nécessite host ci-dessous"
+      ],
 
       "usb": {
         "vendorId": null,
         "productId": null,
-        "_comment": "null = auto-détection parmi les VID/PID Hikvision connus"
+        "_comment": [
+          "null = auto-détection parmi les VID/PID Hikvision connus (0x2188:0x0058, 0x0060, 0x0070).",
+          "Si votre modèle Hikvision n'est pas reconnu, renseignez son VID/PID ici."
+        ]
       },
 
       "isapi": {
-        "host": "192.168.1.64",
+        "host": null,
+        "_comment_host": [
+          "null = mode ISAPI désactivé (aucune tentative réseau au démarrage).",
+          "Remplacer null par l'IP de votre terminal Hikvision réseau, ex: '192.168.1.64'",
+          "uniquement si vous utilisez un terminal mural Hikvision en réseau."
+        ],
         "port": 80,
         "user": "admin",
         "password": "",
@@ -64,12 +97,12 @@
 
   "reconnect": {
     "enabled": true,
-    "maxAttempts": 10,
-    "_comment_maxAttempts": "0 = tentatives illimitées"
+    "maxAttempts": 0,
+    "_comment_maxAttempts": "0 = tentatives illimitées (recommandé en production)"
   },
 
   "logging": {
     "level": "info",
-    "_comment_level": "'debug' | 'info' | 'warn' | 'error'"
+    "_comment_level": "'debug' (très verbeux, utile pour diagnostiquer un nouveau lecteur) | 'info' | 'warn' | 'error'"
   }
 }
