@@ -625,6 +625,45 @@ function _buildPaymentNote(month, year, advDays = 0, isRedo = false) {
   if (isRedo) note += ' (refait)';
   return note;
 }
+// ── Synchronisation RiseVanilla ────────────────────────────
+async function _pushSalaireToRiseVanilla(payment) {
+    const RISEVANILLA_URL = 'http://localhost:4000/api/sync/salaires';
+    const SYNC_TOKEN      = 'rv-sync-2026-secret';
+    try {
+        const res = await fetch(RISEVANILLA_URL, {
+            method:  'POST',
+            headers: {
+                'Content-Type':  'application/json',
+                'X-Sync-Token': SYNC_TOKEN,
+            },
+            body: JSON.stringify({
+                externalId:   payment.id,
+                employe:      payment.employeeName,
+                montant:      payment.amount,
+                date:         payment.date,
+                note:         payment.note || '',
+                campaignYear: payment.year,
+            }),
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            console.warn('[SYNC-RV] Erreur:', err.error || res.status);
+            showToast('⚠️ Salaire non synchronisé avec RiseVanilla.', 'warning', 4000);
+            return;
+        }
+        const data = await res.json();
+        if (data.skipped) {
+            console.log('[SYNC-RV] Déjà synchronisé — ignoré.');
+        } else {
+            console.log('[SYNC-RV] Salaire synchronisé → RiseVanilla id:', data.id);
+            showToast('✅ Salaire synchronisé avec RiseVanilla.', 'success', 3000);
+        }
+    } catch (err) {
+        console.warn('[SYNC-RV] RiseVanilla inaccessible:', err.message);
+        showToast('⚠️ RiseVanilla inaccessible — salaire non synchronisé.', 'warning', 4000);
+    }
+}
+
 
 export async function markEmployeePaid(employeeId, amount, name) {
   const monthVal = document.getElementById('payrollMonth')?.value;
@@ -662,6 +701,7 @@ export async function markEmployeePaid(employeeId, amount, name) {
 
   state.payrolls.push(payment);
   await saveData();
+  await _pushSalaireToRiseVanilla(payment);
 
   showToast(`✅ ${name} marqué(e) comme payé(e).`, 'success');
 
