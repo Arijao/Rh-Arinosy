@@ -149,9 +149,10 @@ async function _api(method, url, body) {
 
 // ── Sync différentielle d'une entité tableau ──────────────────
 async function _syncArray(endpoint, currentItems, snapMap) {
-    const currentMap = new Map(currentItems.map(i => [i.id, i]));
+    if (!snapMap) return;
+    const items = currentItems || [];
+    const currentMap = new Map(items.map(i => [i.id, i]));
 
-    // Ajouts et mises à jour
     for (const [id, item] of currentMap) {
         const json = _snapItem(item);
         if (!snapMap.has(id)) {
@@ -163,7 +164,6 @@ async function _syncArray(endpoint, currentItems, snapMap) {
         }
     }
 
-    // Suppressions
     for (const [id] of snapMap) {
         if (!currentMap.has(id)) {
             await _api('DELETE', `${API_BASE}/${endpoint}/${id}`).catch(e =>
@@ -171,7 +171,8 @@ async function _syncArray(endpoint, currentItems, snapMap) {
         }
     }
 
-    _updateSnap(endpoint.replace('/',''), currentItems);
+    const snapKey = endpoint === 'qr/attendance' ? 'qrAttendance' : endpoint;
+    if (_snap[snapKey] !== undefined) _updateSnap(snapKey, items);
 }
 
 // ── Sync présences ────────────────────────────────────────────
@@ -244,7 +245,7 @@ export async function saveData() {
         await _syncArray('advances',     state.advances,     _snap.advances);
         await _syncArray('payroll',      state.payrolls,     _snap.payrolls);
         await _syncArray('remarks',      state.remarks,      _snap.remarks);
-        await _syncArray('qr/attendance',state.qrAttendance, _snap.qrAttendance);
+        await _syncArray('qr/attendance',state.qrAttendance, _snap['qrAttendance']);
         await _syncAttendance();
 
         // Settings
