@@ -1,157 +1,358 @@
 // ============================================================
-// state.js — État global partagé (ES Module)
-// Importer depuis tous les autres modules via:
-//   import { state } from './state.js';
+// state.js — État global (ES Module) — v2 API Express
+// Compatible drop-in avec l'ancienne version IndexedDB.
+// Toutes les exportations sont identiques pour ne pas modifier
+// les modules UI existants.
 // ============================================================
 
-import { IndexedDBManager } from './db.js';
+'use strict';
 
-export const dbManager = new IndexedDBManager();
+const API_BASE = '/api';
 
-// Exposer le diagnostic globalement dans la console
+// ── Shim dbManager (compatibilité main.js et diagnostics) ────
+export const dbManager = {
+    isInitialized: false,
+    log: (msg, type = 'info') => console.log(`[DB][${type.toUpperCase()}] ${msg}`),
+    printDiagnostic: () => console.log('[DB] Diagnostic: API Express (pas IndexedDB)'),
+    getDiagnosticLog: () => [],
+    exportDiagnosticData: async () => ({}),
+    diagnose: async () => ({ available: true, mode: 'api' }),
+    advancedDiagnosis: async () => ({ mode: 'api' }),
+    init: async () => {
+        try {
+            await loadData();
+            dbManager.isInitialized = true;
+            dbManager.log('API Express initialisée', 'success');
+            return { available: true, mode: 'api' };
+        } catch (err) {
+            dbManager.log('Erreur init: ' + err.message, 'error');
+            return { available: false, error: err.message };
+        }
+    },
+    getStoreSizes: async () => {
+        try {
+            const res = await fetch(API_BASE + '/data');
+            const data = await res.json();
+            return {
+                employees:    (data.employees    || []).length,
+                groups:       (data.groups       || []).length,
+                advances:     (data.advances     || []).length,
+                payrolls:     (data.payrolls     || []).length,
+                remarks:      (data.remarks      || []).length,
+                attendance:   Object.keys(data.attendance || {}).length,
+                qrAttendance: (data.qrAttendance || []).length,
+            };
+        } catch (err) {
+            return { error: err.message };
+        }
+    },
+
+    get: async (store, key) => {
+        if (store === 'settings') {
+            try {
+                const res = await fetch(API_BASE + '/settings');
+                const data = await res.json();
+                const value = data[key];
+                if (value === undefined) return null;
+                return { key, value };
+            } catch { return null; }
+        }
+        return null;
+    },
+    put: async (store, item) => {
+        if (store === 'settings' && item.key) {
+            try {
+                await fetch(API_BASE + '/settings/' + item.key, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ value: item.value }),
+                });
+            } catch (err) {
+                console.warn('[DB] put settings error:', err.message);
+            }
+        }
+    },    updateDBStatus: (msg, type) => {
+        dbManager.log(msg, type);
+        const el = document.getElementById('dbStatusText');
+        if (el && type === 'error') {
+            el.innerHTML = msg;
+        }
+    },
+};
+
 window._dbDiagnostic = {
-  printLog: () => dbManager.printDiagnostic(),
-  getLogs: () => dbManager.getDiagnosticLog(),
-  exportData: async () => dbManager.exportDiagnosticData(),
-  test: async () => dbManager.diagnose(),
-  advanced: async () => dbManager.advancedDiagnosis(),
+    printLog:    () => dbManager.printDiagnostic(),
+    getLogs:     () => dbManager.getDiagnosticLog(),
+    exportData:  async () => dbManager.exportDiagnosticData(),
+    test:        async () => dbManager.diagnose(),
+    advanced:    async () => dbManager.advancedDiagnosis(),
 };
 
-// Données métier
+// ── État global ───────────────────────────────────────────────
 export const state = {
-  employees:    [],
-  groups:       [],
-  attendance:   {},
-  payrolls:     [],
-  advances:     [],
-  qrAttendance: [],
-  remarks:      [],
-
-  // Paramètres
-  currentTheme: 'light',
-  qrSettings: { size: 480, color: '#000000' },
-
-  // Pagination
-  pagination: {
-    employee:      { current: 1, perPage: 20 },
-    attendance:    { current: 1, perPage: 20 },
-    advances:      { current: 1, perPage: 15 },
-    qrAttendance:  { current: 1, perPage: 15 },
-    faceAttendance:{ current: 1, perPage: 20 },
-    enrolled:      { current: 1, perPage: 20 },
-  },
-
-  // Scanner QR
-  isScanning:         false,
-  scanStream:         null,
-  scanInterval:       null,
-  currentScanPurpose: null,
-
-  // Reconnaissance faciale
-  facialRecognitionMode: 'pointage', // 'pointage' | 'status-search'
+    employees:    [],
+    groups:       [],
+    attendance:   {},
+    payrolls:     [],
+    advances:     [],
+    qrAttendance: [],
+    remarks:      [],
+    currentTheme: 'dark',
+    qrSettings:   { size: 480, color: '#000000' },
+    pagination: {
+        employee:       { current: 1, perPage: 20 },
+        attendance:     { current: 1, perPage: 20 },
+        advances:       { current: 1, perPage: 15 },
+        qrAttendance:   { current: 1, perPage: 15 },
+        faceAttendance: { current: 1, perPage: 20 },
+        enrolled:       { current: 1, perPage: 20 },
+    },
+    isScanning:          false,
+    scanStream:          null,
+    scanInterval:        null,
+    currentScanPurpose:  null,
+    facialRecognitionMode: 'pointage',
 };
 
-// ---------------------------------------------------------------
-// Persistance — Save / Load
-// ---------------------------------------------------------------
+// ── Snapshot pour détection des changements ───────────────────
+const _snap = {
+    employees:    new Map(),
+    groups:       new Map(),
+    advances:     new Map(),
+    payrolls:     new Map(),
+    remarks:      new Map(),
+    qrAttendance: new Map(),
+    attendance:   '',
+};
 
+function _snapItem(item) { return JSON.stringify(item); }
+
+function _updateSnap(key, items) {
+    _snap[key].clear();
+    for (const item of items) _snap[key].set(item.id, _snapItem(item));
+}
+
+// ── Helpers API ───────────────────────────────────────────────
+async function _api(method, url, body) {
+    const opts = {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+    };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(url, opts);
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `HTTP ${res.status}`);
+    }
+    return res.json();
+}
+
+// ── Sync différentielle d'une entité tableau ──────────────────
+async function _syncArray(endpoint, currentItems, snapMap) {
+    const currentMap = new Map(currentItems.map(i => [i.id, i]));
+
+    // Ajouts et mises à jour
+    for (const [id, item] of currentMap) {
+        const json = _snapItem(item);
+        if (!snapMap.has(id)) {
+            await _api('POST', `${API_BASE}/${endpoint}`, item).catch(e =>
+                console.warn(`[STATE] POST ${endpoint} ${id}:`, e.message));
+        } else if (snapMap.get(id) !== json) {
+            await _api('PUT', `${API_BASE}/${endpoint}/${id}`, item).catch(e =>
+                console.warn(`[STATE] PUT ${endpoint} ${id}:`, e.message));
+        }
+    }
+
+    // Suppressions
+    for (const [id] of snapMap) {
+        if (!currentMap.has(id)) {
+            await _api('DELETE', `${API_BASE}/${endpoint}/${id}`).catch(e =>
+                console.warn(`[STATE] DELETE ${endpoint} ${id}:`, e.message));
+        }
+    }
+
+    _updateSnap(endpoint.replace('/',''), currentItems);
+}
+
+// ── Sync présences ────────────────────────────────────────────
+async function _syncAttendance() {
+    const current = JSON.stringify(state.attendance);
+    if (current === _snap.attendance) return;
+
+    // Envoyer chaque entrée modifiée
+    for (const [date, dayObj] of Object.entries(state.attendance)) {
+        for (const [employeeId, value] of Object.entries(dayObj)) {
+            await _api('POST', `${API_BASE}/attendance`, {
+                date, employeeId, value,
+            }).catch(e => console.warn(`[STATE] POST attendance ${date}/${employeeId}:`, e.message));
+        }
+    }
+    _snap.attendance = current;
+}
+
+// ── Préparation employé pour l'API (camelCase + JSON) ─────────
+function _prepEmployee(emp) {
+    const e = { ...emp };
+    // Mapper snake_case → camelCase pour l'API
+    if ('face_descriptors' in e) {
+        e.faceDescriptors = e.face_descriptors?.length
+            ? JSON.stringify(e.face_descriptors)
+            : null;
+        delete e.face_descriptors;
+    }
+    if ('face_enrolled' in e) {
+        e.faceEnrolled = e.face_enrolled;
+        delete e.face_enrolled;
+    }
+    if ('face_enrollment_date' in e) {
+        e.faceEnrollmentDate = e.face_enrollment_date;
+        delete e.face_enrollment_date;
+    }
+    // Supprimer les relations Prisma
+    ['group','attendance','advances','payrolls','remarks','qrCode','qrAttendance'].forEach(k => delete e[k]);
+    return e;
+}
+
+// ── saveData — persistance complète ──────────────────────────
 export async function saveData() {
-  try {
-    if (!dbManager.isInitialized) {
-      dbManager.log('⚠️  Database non initialisée, tentative de sauvegarde...', 'warn');
+    try {
+        // Employés (avec mapping face descriptors)
+        const empsForApi = state.employees.map(_prepEmployee);
+        const empSnapMap = _snap.employees;
+        const empCurrentMap = new Map(empsForApi.map(i => [i.id, i]));
+        for (const [id, item] of empCurrentMap) {
+            const json = _snapItem(item);
+            if (!empSnapMap.has(id)) {
+                await _api('POST', `${API_BASE}/employees`, item).catch(e =>
+                    console.warn('[STATE] POST employees:', e.message));
+            } else if (empSnapMap.get(id) !== json) {
+                await _api('PUT', `${API_BASE}/employees/${id}`, item).catch(e =>
+                    console.warn('[STATE] PUT employees:', e.message));
+            }
+        }
+        for (const [id] of empSnapMap) {
+            if (!empCurrentMap.has(id)) {
+                await _api('DELETE', `${API_BASE}/employees/${id}`).catch(e =>
+                    console.warn('[STATE] DELETE employees:', e.message));
+            }
+        }
+        _snap.employees.clear();
+        for (const [id, item] of empCurrentMap) _snap.employees.set(id, _snapItem(item));
+
+        // Autres entités
+        await _syncArray('groups',       state.groups,       _snap.groups);
+        await _syncArray('advances',     state.advances,     _snap.advances);
+        await _syncArray('payroll',      state.payrolls,     _snap.payrolls);
+        await _syncArray('remarks',      state.remarks,      _snap.remarks);
+        await _syncArray('qr/attendance',state.qrAttendance, _snap.qrAttendance);
+        await _syncAttendance();
+
+        // Settings
+        await _api('PUT', `${API_BASE}/settings/theme`,      { value: state.currentTheme }).catch(() => {});
+        await _api('PUT', `${API_BASE}/settings/qrSettings`, { value: state.qrSettings   }).catch(() => {});
+        await _api('PUT', `${API_BASE}/settings/lastUpdated`,{ value: new Date().toISOString() }).catch(() => {});
+
+        dbManager.log(`✅ Sauvegarde complète: ${state.employees.length} employé(s)`, 'success');
+    } catch (err) {
+        dbManager.log(`❌ Erreur saveData: ${err.message}`, 'error');
+        console.error('Erreur saveData:', err);
+        throw err;
     }
-    
-    await dbManager.clear('employees');
-    for (const emp of state.employees)   await dbManager.add('employees', emp);
-
-    await dbManager.clear('groups');
-    for (const grp of state.groups)      await dbManager.add('groups', grp);
-
-    await dbManager.clear('attendance');
-    for (const [date, day] of Object.entries(state.attendance))
-      await dbManager.put('attendance', { date, data: day });
-
-    await dbManager.clear('payrolls');
-    for (const p of state.payrolls)      await dbManager.add('payrolls', p);
-
-    await dbManager.clear('advances');
-    for (const a of state.advances)      await dbManager.add('advances', a);
-
-    await dbManager.clear('remarks');
-    for (const r of (state.remarks || [])) await dbManager.add('remarks', r);
-
-    await dbManager.put('settings', { key: 'theme',      value: state.currentTheme });
-    await dbManager.put('settings', { key: 'qrSettings', value: state.qrSettings   });
-    await dbManager.put('settings', { key: 'lastUpdated',value: new Date().toISOString() });
-    
-    dbManager.log(`✅ Sauvegarde complète: ${state.employees.length} employé(s)`, 'success');
-  } catch (err) {
-    dbManager.log(`❌ Erreur sauvegarde données: ${err.message}`, 'error');
-    console.error('Erreur saveData:', err);
-    throw err;
-  }
 }
 
+// ── saveAttendanceData — présences uniquement ─────────────────
 export async function saveAttendanceData() {
-  try {
-    await dbManager.clear('attendance');
-    for (const [date, dayAtt] of Object.entries(state.attendance)) {
-      const valid = {};
-      for (const empId in dayAtt) {
-        if (dayAtt[empId]) valid[empId] = dayAtt[empId];
-      }
-      await dbManager.put('attendance', { date, data: valid });
+    try {
+        await _syncAttendance();
+        dbManager.log(`✅ Présences sauvegardées`, 'success');
+    } catch (err) {
+        dbManager.log(`❌ Erreur saveAttendanceData: ${err.message}`, 'error');
+        throw err;
     }
-    dbManager.log(`✅ Présences sauvegardées: ${Object.keys(state.attendance).length} jour(s)`, 'success');
-  } catch (err) {
-    dbManager.log(`❌ Erreur sauvegarde présences: ${err.message}`, 'error');
-    console.error('Erreur saveAttendanceData:', err);
-    throw err;
-  }
 }
 
+// ── loadData — chargement depuis l'API ───────────────────────
 export async function loadData() {
-  try {
-    if (!dbManager.isInitialized) {
-      dbManager.log('⚠️  Database non initialisée, chargement des données depuis la DB...', 'warn');
+    try {
+        const res = await fetch(`${API_BASE}/data`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        state.employees    = data.employees    || [];
+        state.groups       = data.groups       || [];
+        state.advances     = data.advances     || [];
+        state.payrolls     = data.payrolls     || [];
+        state.remarks      = data.remarks      || [];
+        state.qrAttendance = data.qrAttendance || [];
+        state.attendance   = data.attendance   || {};
+
+        if (data.settings?.theme)      state.currentTheme = data.settings.theme;
+        if (data.settings?.qrSettings) state.qrSettings   = data.settings.qrSettings;
+
+        // Mettre à jour les snapshots
+        _updateSnap('employees',    state.employees.map(_prepEmployee));
+        _updateSnap('groups',       state.groups);
+        _updateSnap('advances',     state.advances);
+        _updateSnap('payrolls',     state.payrolls);
+        _updateSnap('remarks',      state.remarks);
+        _updateSnap('qrAttendance', state.qrAttendance);
+        _snap.attendance = JSON.stringify(state.attendance);
+
+        dbManager.isInitialized = true;
+        dbManager.log(`✅ ${state.employees.length} employé(s) chargé(s)`, 'success');
+    } catch (err) {
+        dbManager.log(`❌ Erreur loadData: ${err.message}`, 'error');
+        console.error('Erreur loadData:', err);
+        state.employees = []; state.groups = []; state.attendance = {};
+        state.payrolls = []; state.advances = []; state.qrAttendance = [];
+        state.remarks = [];
+        throw err;
     }
-    
-    state.employees = await dbManager.getAll('employees');
-    dbManager.log(`✅ ${state.employees.length} employé(s) chargé(s)`, 'success');
-
-    const attRecords = await dbManager.getAll('attendance');
-    state.attendance = {};
-    attRecords.forEach(r => { state.attendance[r.date] = r.data; });
-    dbManager.log(`✅ ${attRecords.length} enregistrement(s) de présence chargé(s)`, 'success');
-
-    state.payrolls     = await dbManager.getAll('payrolls');
-    state.advances     = await dbManager.getAll('advances');
-    state.groups       = await dbManager.getAll('groups');
-    state.qrAttendance = await dbManager.getAll('qr_attendance');
-    state.remarks      = await dbManager.getAll('remarks');
-    dbManager.log(`✅ Données complètes chargées (Groupes: ${state.groups.length}, Paies: ${state.payrolls.length}, Remarques: ${state.remarks.length})`, 'success');
-
-    const themeSetting = await dbManager.get('settings', 'theme');
-    if (themeSetting) state.currentTheme = themeSetting.value;
-
-    const qrSetting = await dbManager.get('settings', 'qrSettings');
-    if (qrSetting) state.qrSettings = qrSetting.value;
-    
-    dbManager.log('✅ Toutes les données chargées avec succès', 'success');
-  } catch (err) {
-    dbManager.log(`❌ Erreur chargement données: ${err.message}`, 'error');
-    console.error('Erreur loadData:', err);
-    
-    // Charger les valeurs par défaut si la DB est inaccessible
-    dbManager.log('⚠️  Initialisation avec valeurs par défaut', 'warn');
-    state.employees = [];
-    state.groups = [];
-    state.attendance = {};
-    state.payrolls = [];
-    state.advances = [];
-    state.qrAttendance = [];
-    state.remarks = [];
-    
-    throw err; // Re-lever pour que main.js le capture
-  }
 }
+
+// ── WebSocket — synchronisation temps réel ───────────────────
+(function _initWebSocket() {
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${proto}//${location.host}/ws`;
+    let _retryMs   = 1000;
+    let _reloading = false;
+
+    function connect() {
+        const ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+            console.log('[WS] Connecté — synchronisation temps réel active.');
+            _retryMs = 1000;
+            dbManager.isInitialized = true;
+        };
+
+        ws.onmessage = async (event) => {
+            try {
+                const msg = JSON.parse(event.data);
+                if (msg.event === 'update' || msg.event === 'scan') {
+                    if (_reloading) return;
+                    _reloading = true;
+                    try {
+                        await loadData();
+                        // Déclencher le rafraîchissement UI si disponible
+                        if (typeof window.refreshUI === 'function') window.refreshUI();
+                    } finally {
+                        _reloading = false;
+                    }
+                }
+            } catch { /* message malformé */ }
+        };
+
+        ws.onclose = () => {
+            console.log(`[WS] Déconnecté — reconnexion dans ${_retryMs}ms`);
+            setTimeout(() => {
+                _retryMs = Math.min(_retryMs * 2, 30000);
+                connect();
+            }, _retryMs);
+        };
+
+        ws.onerror = () => ws.close();
+    }
+
+    connect();
+})();
