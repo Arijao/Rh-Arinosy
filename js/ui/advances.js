@@ -211,11 +211,49 @@ async function handleUpdateAdvance(e) {
 
 // ------ Confirm / Delete ------
 
+// -- Synchronisation RiseVanilla -- Avance sur salaire ----
+async function _pushAvanceToRiseVanilla(adv) {
+    const RISEVANILLA_URL = 'http://localhost:4000/api/sync/avances';
+    const SYNC_TOKEN      = 'rv-sync-2026-secret';
+    try {
+        const res = await fetch(RISEVANILLA_URL, {
+            method:  'POST',
+            headers: {
+                'Content-Type':  'application/json',
+                'X-Sync-Token': SYNC_TOKEN,
+            },
+            body: JSON.stringify({
+                externalId:   adv.id,
+                employe:      adv.employeeName,
+                montant:      adv.amount,
+                date:         adv.date,
+                motif:        adv.reason || '',
+                campaignYear: new Date(adv.date).getFullYear(),
+            }),
+        });
+        if (res.ok) {
+            const data = await res.json();
+            if (!data.skipped) {
+                console.log('[SYNC-RV] Avance synchronisee -> RiseVanilla id:', data.id);
+                showToast('Avance synchronisee avec RiseVanilla.', 'success', 3000);
+            }
+        } else {
+            const err = await res.json().catch(() => ({}));
+            console.warn('[SYNC-RV] Erreur avance:', err.error || res.status);
+            showToast('Avance non synchronisee avec RiseVanilla.', 'warning', 4000);
+        }
+    } catch (err) {
+        console.warn('[SYNC-RV] RiseVanilla inaccessible:', err.message);
+        showToast('RiseVanilla inaccessible -- avance non synchronisee.', 'warning', 4000);
+    }
+}
+
 export async function confirmAdvance(id) {
   const idx = state.advances.findIndex(a => a.id === id);
   if (idx === -1) return;
   state.advances[idx].status = 'Confirmé';
   await saveData();
+  await _pushAvanceToRiseVanilla(state.advances[idx]);
   displayAdvances();
   showToast("Avance confirmée!", 'success');
 }
