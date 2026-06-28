@@ -1,47 +1,24 @@
 {
-  "name": "rh-behavana",
+  "name": "rh-arinosy-v2",
   "version": "2.0.0",
-  "description": "Système de Gestion des Ressources Humaines - Mode Sombre & Offline-First",
-  "main": "index.html",
+  "description": "Système RH Local — Offline-First avec serveur Express",
   "type": "module",
+  "main": "server/src/app.js",
   "scripts": {
-    "start": "npx serve .",
-    "serve": "python3 -m http.server 8080",
-    "dev": "npx live-server",
-    "build": "echo 'No build step needed - static HTML'",
-    "deploy": "vercel --prod",
-    "bridge": "node index.js",
-    "bridge:hid": "node index.js --adapter hid",
-    "bridge:zkteco": "node index.js --adapter zkteco",
-    "bridge:hikvision": "node index.js --adapter hikvision"
+    "start": "node server/src/app.js",
+    "dev": "node --watch server/src/app.js"
   },
-  "keywords": [
-    "rh",
-    "hr",
-    "gestion",
-    "employés",
-    "paie",
-    "offline"
-  ],
-  "author": "Your Name",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/YOUR_USERNAME/rh-behavana.git"
-  },
-  "devDependencies": {
-    "live-server": "^1.2.1",
-    "serve": "^14.0.0",
-    "vercel": "^28.0.0"
+  "dependencies": {
+    "@prisma/adapter-better-sqlite3": "^7.8.0",
+    "@prisma/client": "^7.0.0",
+    "better-sqlite3": "^12.11.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.0",
+    "express": "^4.18.0",
+    "prisma": "^7.0.0",
+    "ws": "^8.18.0"
   },
   "engines": {
     "node": ">=18.0.0"
-  },
-  "dependencies": {
-    "node-hid": "^3.1.0",
-    "ws": "^8.20.0"
-  },
-  "optionalDependencies": {
-    "node-zkfp": "*"
   }
 }

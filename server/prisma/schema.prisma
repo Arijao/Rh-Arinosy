@@ -1,0 +1,122 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Group {
+  id          String     @id
+  name        String     @unique
+  description String?
+  salary      Float?
+  employees   Employee[]
+}
+
+model Employee {
+  id                 String             @id
+  name               String
+  position           String?
+  gender             String?
+  salary             Float?
+  useGroupSalary     Boolean            @default(false)
+  groupId            String?
+  group              Group?             @relation(fields: [groupId], references: [id])
+  status             String             @default("actif")
+  departureDate      String?
+  dateAdded          String
+  faceDescriptors    String?
+  faceEnrolled       Boolean            @default(false)
+  faceEnrollmentDate String?
+  createdAt          DateTime           @default(now())
+  attendance         AttendanceRecord[]
+  advances           Advance[]
+  payrolls           Payroll[]
+  remarks            Remark[]
+  qrCode             QrCode?
+  qrAttendance       QrAttendance[]
+}
+
+model AttendanceRecord {
+  id         Int      @id @default(autoincrement())
+  date       String
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  present    Boolean  @default(false)
+  demi       Boolean  @default(false)
+  arrivee    String?
+  depart     String?
+  method     String?
+  createdAt  DateTime @default(now())
+  @@unique([date, employeeId])
+}
+
+model Advance {
+  id           String   @id
+  employeeId   String
+  employee     Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeName String
+  amount       Float
+  date         String
+  reason       String?
+  status       String   @default("En attente")
+  dateCreated  String
+  externalId   String?  @unique
+  createdAt    DateTime @default(now())
+}
+
+model Payroll {
+  id           String   @id
+  employeeId   String
+  employee     Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeName String
+  amount       Float
+  year         Int
+  month        Int
+  date         String
+  timestamp    Float
+  note         String?
+  advDays      Int?
+  externalId   String?  @unique
+  createdAt    DateTime @default(now())
+}
+
+model Remark {
+  id         String   @id
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type       String
+  content    String?
+  date       String
+  status     String   @default("actif")
+  createdAt  String
+  severity   String   @default("info")
+  blocking   Boolean  @default(false)
+}
+
+model QrCode {
+  id         Int      @id @default(autoincrement())
+  employeeId String   @unique
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  payload    String
+  generated  String
+  size       Int?
+  color      String?
+}
+
+model QrAttendance {
+  id           String   @id
+  employeeId   String
+  employee     Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeName String
+  date         String
+  timestamp    String
+  type         String
+  time         String
+}
+
+model Setting {
+  key   String @id
+  value String
+}
