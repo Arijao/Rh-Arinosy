@@ -59,6 +59,20 @@ export const dbManager = {
         }
         return null;
     },
+    getAll: async (store) => {
+        // Retourner les donnees depuis state en memoire
+        const map = {
+            'employees':    () => state.employees,
+            'groups':       () => state.groups,
+            'advances':     () => state.advances,
+            'payrolls':     () => state.payrolls,
+            'remarks':      () => state.remarks,
+            'qr_attendance':() => state.qrAttendance,
+            'attendance':   () => Object.entries(state.attendance).map(([date, data]) => ({ date, data })),
+            'qr_codes':     () => state.employees.map(e => e.qrCode).filter(Boolean),
+        };
+        return map[store] ? map[store]() : [];
+    },
     put: async (store, item) => {
         if (store === 'settings' && item.key) {
             try {
@@ -113,6 +127,9 @@ export const state = {
     currentScanPurpose:  null,
     facialRecognitionMode: 'pointage',
 };
+
+// ── Guard save/reload ────────────────────────────────────
+let _saving = false;
 
 // ── Snapshot pour détection des changements ───────────────────
 const _snap = {
@@ -180,14 +197,32 @@ async function _syncAttendance() {
     const current = JSON.stringify(state.attendance);
     if (current === _snap.attendance) return;
 
-    // Envoyer chaque entrée modifiée
-    for (const [date, dayObj] of Object.entries(state.attendance)) {
-        for (const [employeeId, value] of Object.entries(dayObj)) {
-            await _api('POST', `${API_BASE}/attendance`, {
-                date, employeeId, value,
-            }).catch(e => console.warn(`[STATE] POST attendance ${date}/${employeeId}:`, e.message));
+    const prev = _snap.attendance ? JSON.parse(_snap.attendance) : {};
+
+    // Suppressions
+    for (const [date, dayObj] of Object.entries(prev)) {
+        for (const employeeId of Object.keys(dayObj)) {
+            const stillPresent = state.attendance[date] && (employeeId in state.attendance[date]);
+            if (!stillPresent) {
+                await _api('DELETE', `${API_BASE}/attendance/${date}/${employeeId}`)
+                    .catch(e => console.warn('[STATE] DELETE attendance:', e.message));
+            }
         }
     }
+
+    // Ajouts et modifications
+    for (const [date, dayObj] of Object.entries(state.attendance)) {
+        for (const [employeeId, value] of Object.entries(dayObj)) {
+            const prevVal = JSON.stringify(prev[date] && prev[date][employeeId]);
+            const currVal = JSON.stringify(value);
+            if (prevVal !== currVal) {
+                await _api('POST', `${API_BASE}/attendance`, {
+                    date, employeeId, value,
+                }).catch(e => console.warn('[STATE] POST attendance:', e.message));
+            }
+        }
+    }
+
     _snap.attendance = current;
 }
 
@@ -216,6 +251,7 @@ function _prepEmployee(emp) {
 
 // ── saveData — persistance complète ──────────────────────────
 export async function saveData() {
+    _saving = true;
     try {
         // Employés (avec mapping face descriptors)
         const empsForApi = state.employees.map(_prepEmployee);
@@ -258,17 +294,22 @@ export async function saveData() {
         dbManager.log(`❌ Erreur saveData: ${err.message}`, 'error');
         console.error('Erreur saveData:', err);
         throw err;
+    } finally {
+        _saving = false;
     }
 }
 
 // ── saveAttendanceData — présences uniquement ─────────────────
 export async function saveAttendanceData() {
+    _saving = true;
     try {
         await _syncAttendance();
         dbManager.log(`✅ Présences sauvegardées`, 'success');
     } catch (err) {
         dbManager.log(`❌ Erreur saveAttendanceData: ${err.message}`, 'error');
         throw err;
+    } finally {
+        _saving = false;
     }
 }
 
@@ -331,7 +372,7 @@ export async function loadData() {
             try {
                 const msg = JSON.parse(event.data);
                 if (msg.event === 'update' || msg.event === 'scan') {
-                    if (_reloading) return;
+                    if (_reloading || _saving) return;
                     _reloading = true;
                     try {
                         await loadData();

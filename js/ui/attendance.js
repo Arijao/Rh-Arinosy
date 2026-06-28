@@ -138,6 +138,14 @@ export function displayAttendance() {
     state.pagination.attendance.current = p;
     displayAttendance();
   });
+
+  // Mettre a jour le label du bouton tout cocher/decocher
+  const _btnLabel = document.getElementById('checkAllAttendanceBtnLabel');
+  if (_btnLabel) {
+    const _dayAtt = state.attendance[selectedDate] || {};
+    const _anyP   = filtered.some(e => !!_dayAtt[e.id]);
+    _btnLabel.textContent = _anyP ? 'Tout décocher' : 'Tout cocher';
+  }
 }
 
 function renderAttendanceSummary(active, dayAtt) {
@@ -286,32 +294,28 @@ export async function saveAttendanceManual() {
 export async function checkAllAttendance() {
   const selectedDate = document.getElementById('attendanceDate')?.value;
   if (!selectedDate) { showToast('Veuillez sélectionner une date.', 'error'); return; }
-
   const groupFilter = document.getElementById('attendanceGroupFilter')?.value || 'all';
   const searchTerm  = (document.getElementById('attendanceEmployeeSearch')?.value || '').toLowerCase();
 
-  // Même filtre que displayAttendance
   let active = state.employees.filter(e => e.status !== 'inactif');
   if (groupFilter !== 'all') active = active.filter(e => e.groupId === groupFilter);
   const filtered = active.filter(e =>
     e.name.toLowerCase().includes(searchTerm) || e.position.toLowerCase().includes(searchTerm)
   );
-
   if (!filtered.length) return;
 
   if (!state.attendance[selectedDate]) state.attendance[selectedDate] = {};
   const dayAtt = state.attendance[selectedDate];
 
-  // Détecter l'état global : tous présents → tout décocher, sinon → tout cocher
-  const allPresent = filtered.every(e => !!dayAtt[e.id]);
+  // Si au moins un est present → tout decocher, sinon → tout cocher
+  const anyPresent = filtered.some(e => !!dayAtt[e.id]);
 
   filtered.forEach(emp => {
-    if (allPresent) {
-      // Tout décocher : supprimer uniquement les présences simples (true)
-      // Ne pas toucher aux présences détaillées (QR, facial, manuel horodaté)
+    if (anyPresent) {
+      // Decocher uniquement les presences simples (true)
+      // Ne pas toucher aux presences detaillees (QR, facial, horodatees)
       if (dayAtt[emp.id] === true) delete dayAtt[emp.id];
     } else {
-      // Tout cocher : marquer présent uniquement ceux qui ne le sont pas encore
       if (!dayAtt[emp.id]) dayAtt[emp.id] = true;
     }
   });
@@ -321,12 +325,13 @@ export async function checkAllAttendance() {
   window._updateStats?.();
   window._runSmartChecks?.();
 
-  // Mettre à jour le libellé du bouton
+  // Label selon etat APRES modification
+  const nowAnyPresent = filtered.some(e => !!dayAtt[e.id]);
   const label = document.getElementById('checkAllAttendanceBtnLabel');
-  if (label) label.textContent = allPresent ? 'Tout cocher' : 'Tout décocher';
-
-  showToast(allPresent ? 'Présences décochées.' : 'Tous marqués présents.', 'success');
+  if (label) label.textContent = nowAnyPresent ? 'Tout décocher' : 'Tout cocher';
+  showToast(anyPresent ? 'Présences décochées.' : 'Tous marqués présents.', 'success');
 }
+
 
 export function changeItemsPerPage(section, value) {
   const n = parseInt(value, 10);
