@@ -56,11 +56,26 @@ export const dbManager = {
                 if (value === undefined) return null;
                 return { key, value };
             } catch { return null; }
+        } else if (store === 'qr_codes') {
+            try {
+                const res  = await fetch(API_BASE + '/qr/codes');
+                const list = await res.json();
+                const found = list.find(q => q.employeeId === key);
+                if (!found) return null;
+                const parsed = JSON.parse(found.payload || '{}');
+                return { ...parsed, employeeId: found.employeeId };
+            } catch { return null; }
         }
         return null;
     },
     getAll: async (store) => {
-        // Retourner les donnees depuis state en memoire
+        if (store === 'qr_codes') {
+            try {
+                const res  = await fetch(API_BASE + '/qr/codes');
+                const list = await res.json();
+                return list.map(q => ({ ...JSON.parse(q.payload || '{}'), employeeId: q.employeeId }));
+            } catch { return []; }
+        }
         const map = {
             'employees':    () => state.employees,
             'groups':       () => state.groups,
@@ -69,7 +84,6 @@ export const dbManager = {
             'remarks':      () => state.remarks,
             'qr_attendance':() => state.qrAttendance,
             'attendance':   () => Object.entries(state.attendance).map(([date, data]) => ({ date, data })),
-            'qr_codes':     () => state.employees.map(e => e.qrCode).filter(Boolean),
         };
         return map[store] ? map[store]() : [];
     },
@@ -83,6 +97,22 @@ export const dbManager = {
                 });
             } catch (err) {
                 console.warn('[DB] put settings error:', err.message);
+            }
+        } else if (store === 'qr_codes' && item.employeeId) {
+            try {
+                await fetch(API_BASE + '/qr/codes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        employeeId: item.employeeId,
+                        payload:    JSON.stringify(item),
+                        generated:  item.generated || new Date().toISOString(),
+                        size:       item.size || null,
+                        color:      item.color || null,
+                    }),
+                });
+            } catch (err) {
+                console.warn('[DB] put qr_codes error:', err.message);
             }
         }
     },    updateDBStatus: (msg, type) => {
