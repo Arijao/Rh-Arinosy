@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Scanner RH</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --primary: #6750A4;
+    --on-primary: #fff;
+    --surface: #1c1b1f;
+    --surface2: #2b2930;
+    --on-surface: #e6e1e5;
+    --on-surface-var: #cac4d0;
+    --error: #f2b8b5;
+    --success: #6dd58c;
+    --warning: #f9c642;
+    --radius: 16px;
+  }
+  body { font-family: 'Roboto', sans-serif; background: var(--surface); color: var(--on-surface); min-height: 100vh; display: flex; flex-direction: column; }
+
+  /* ── PIN Screen ── */
+  #pin-screen {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 32px 24px; gap: 24px;
+  }
+  .app-logo { font-size: 48px; }
+  .app-title { font-size: 22px; font-weight: 700; color: var(--on-surface); }
+  .app-subtitle { font-size: 14px; color: var(--on-surface-var); text-align: center; }
+  .pin-display {
+    display: flex; gap: 12px; margin: 8px 0;
+  }
+  .pin-dot {
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 2px solid var(--on-surface-var); background: transparent;
+    transition: background .2s;
+  }
+  .pin-dot.filled { background: var(--primary); border-color: var(--primary); }
+  .pin-pad {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+    width: 100%; max-width: 280px;
+  }
+  .pin-btn {
+    background: var(--surface2); border: none; border-radius: var(--radius);
+    color: var(--on-surface); font-size: 22px; font-weight: 600;
+    padding: 18px; cursor: pointer; transition: background .15s, transform .1s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .pin-btn:active { background: var(--primary); transform: scale(.95); }
+  .pin-btn.del { font-size: 18px; }
+  .pin-error { color: var(--error); font-size: 13px; min-height: 20px; text-align: center; }
+
+  /* ── Main Scanner Screen ── */
+  #scanner-screen { flex: 1; display: none; flex-direction: column; }
+  #scanner-screen.active { display: flex; }
+
+  .mode-banner {
+    background: var(--surface2); padding: 12px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+  }
+  .mode-label { font-size: 13px; color: var(--on-surface-var); }
+  .mode-value { font-size: 15px; font-weight: 700; color: var(--primary); }
+  .ws-dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; transition: background .3s; }
+  .ws-dot.connected { background: var(--success); }
+
+  .scan-tabs {
+    display: flex; border-bottom: 1px solid rgba(255,255,255,.08);
+  }
+  .tab-btn {
+    flex: 1; padding: 14px; background: none; border: none;
+    color: var(--on-surface-var); font-size: 14px; font-weight: 600;
+    cursor: pointer; border-bottom: 2px solid transparent;
+    transition: all .2s; display: flex; flex-direction: column; align-items: center; gap: 4px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+  .tab-icon { font-size: 22px; }
+
+  .scan-panel { flex: 1; display: none; flex-direction: column; align-items: center; padding: 16px; gap: 16px; }
+  .scan-panel.active { display: flex; }
+
+  /* QR */
+  #qr-video-wrap {
+    width: 100%; max-width: 360px; position: relative; border-radius: var(--radius); overflow: hidden;
+    background: #000; aspect-ratio: 1;
+  }
+  #qr-video { width: 100%; height: 100%; object-fit: cover; }
+  .qr-overlay {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none;
+  }
+  .qr-frame {
+    width: 65%; height: 65%; border: 3px solid var(--primary); border-radius: 12px;
+    box-shadow: 0 0 0 9999px rgba(0,0,0,.4);
+  }
+  #qr-canvas { display: none; }
+
+  /* Face */
+  #face-video-wrap {
+    width: 100%; max-width: 360px; position: relative; border-radius: var(--radius); overflow: hidden;
+    background: #000; aspect-ratio: 4/3;
+  }
+  #face-video { width: 100%; height: 100%; object-fit: cover; }
+  #face-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  /* ✅ FIX: mirroir uniquement en caméra avant (selfie). La caméra arrière ne doit pas être inversée. */
+  #face-video.mirrored, #face-canvas.mirrored { transform: scaleX(-1); }
+  #enroll-video.mirrored, #enroll-canvas.mirrored { transform: scaleX(-1); }
+
+  .face-controls { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+
+  /* ✅ FIX: Sélecteur de caméra (avant/arrière) — facial + enrôlement */
+  .cam-select {
+    display: flex; gap: 8px; width: 100%; max-width: 360px;
+  }
+  .cam-btn {
+    flex: 1; padding: 10px 8px; border-radius: 12px;
+    background: var(--surface2); border: 2px solid transparent;
+    color: var(--on-surface-var); font-size: 13px; font-weight: 600;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
+    transition: all .15s; -webkit-tap-highlight-color: transparent;
+  }
+  .cam-btn.active { border-color: var(--primary); color: var(--primary); background: rgba(103,80,164,.15); }
+  .cam-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  /* ✅ FIX: Cadre de guidage facial (oval + vignette + feedback couleur temps réel) */
+  .face-guide-frame {
+    position: absolute; left: 50%; top: 44%; transform: translate(-50%, -50%);
+    width: 60%; aspect-ratio: 3/4; border-radius: 50%;
+    border: 3px dashed rgba(255,255,255,.5);
+    box-shadow: 0 0 0 9999px rgba(0,0,0,.30);
+    pointer-events: none; z-index: 5;
+    transition: border-color .2s, border-style .2s, box-shadow .2s;
+  }
+  .face-guide-frame.detected {
+    border-color: var(--success); border-style: solid;
+    box-shadow: 0 0 0 9999px rgba(0,0,0,.15), 0 0 18px rgba(109,213,140,.55);
+  }
+  .face-guide-frame.off-center {
+    border-color: var(--warning); border-style: solid;
+  }
+  .face-guide-hint {
+    position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+    font-size: 11px; padding: 4px 12px; border-radius: 20px;
+    background: rgba(0,0,0,.55); color: rgba(255,255,255,.85);
+    pointer-events: none; z-index: 6; white-space: nowrap;
+  }
+
+  /* Result */
+  #scan-result {
+    width: 100%; max-width: 360px; padding: 16px; border-radius: var(--radius);
+    background: var(--surface2); display: none; animation: fadeIn .3s ease;
+  }
+  #scan-result.show { display: block; }
+  .result-name { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .result-meta { font-size: 13px; color: var(--on-surface-var); }
+  .result-mode { font-size: 12px; margin-top: 8px; padding: 4px 10px; border-radius: 20px; background: rgba(103,80,164,.2); color: var(--primary); display: inline-block; }
+
+  /* Buttons */
+  .btn {
+    padding: 14px 24px; border-radius: var(--radius); border: none;
+    font-size: 15px; font-weight: 600; cursor: pointer;
+    display: flex; align-items: center; gap: 8px;
+    transition: opacity .2s, transform .1s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn:active { transform: scale(.97); }
+  .btn-primary { background: var(--primary); color: var(--on-primary); }
+  .btn-outline { background: transparent; color: var(--primary); border: 2px solid var(--primary); }
+  .btn-danger { background: rgba(242,184,181,.15); color: var(--error); border: 1px solid var(--error); }
+  .btn-full { width: 100%; max-width: 360px; justify-content: center; }
+
+  .status-msg {
+    font-size: 13px; color: var(--on-surface-var); text-align: center; min-height: 20px;
+  }
+  .status-msg.ok { color: var(--success); }
+  .status-msg.err { color: var(--error); }
+  .status-msg.warn { color: var(--warning); }
+
+  .models-progress {
+    width: 100%; max-width: 360px; background: var(--surface2); border-radius: 8px; overflow: hidden; height: 6px;
+  }
+  .models-bar { height: 100%; background: var(--primary); transition: width .3s; width: 0%; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  .enroll-steps { width: 100%; max-width: 360px; }
+  .step { padding: 10px 14px; border-radius: 10px; background: var(--surface2); margin-bottom: 8px; font-size: 13px; }
+  .step.done { color: var(--success); }
+  .step.active { color: var(--warning); }
+
+  /* ✅ Anti-doublon enrôlement : cadre rouge pulsant + bannière d'alerte */
+  @keyframes dupPulse {
+    0%, 100% { box-shadow: 0 0 0 9999px rgba(0,0,0,.30), 0 0 10px 2px rgba(239,68,68,.6); }
+    50%      { box-shadow: 0 0 0 9999px rgba(239,68,68,.22), 0 0 26px 8px rgba(239,68,68,.95); }
+  }
+  .face-guide-frame.duplicate {
+    border-color: #ef4444; border-style: solid;
+    animation: dupPulse .55s ease-in-out infinite;
+  }
+  .duplicate-banner {
+    display: none; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; max-width: 360px; margin-bottom: 12px;
+    background: rgba(239,68,68,.15); border: 1px solid #ef4444; border-radius: 12px;
+    padding: 12px 14px; color: #ef4444; font-size: 13px; font-weight: 700;
+    text-align: center; animation: fadeIn .2s ease;
+  }
+  .duplicate-banner.show { display: flex; }
+</style>
+</head>
+<body>
+
+<!-- ── PIN Screen ── -->
+<div id="pin-screen">
+  <div class="app-logo">📱</div>
+  <div class="app-title">Scanner RH</div>
+  <div class="app-subtitle">Entrez le code PIN pour accéder au scanner</div>
+  <div class="pin-display">
+    <div class="pin-dot" id="d0"></div>
+    <div class="pin-dot" id="d1"></div>
+    <div class="pin-dot" id="d2"></div>
+    <div class="pin-dot" id="d3"></div>
+  </div>
+  <div class="pin-pad">
+    <button class="pin-btn" onclick="pinKey('1')">1</button>
+    <button class="pin-btn" onclick="pinKey('2')">2</button>
+    <button class="pin-btn" onclick="pinKey('3')">3</button>
+    <button class="pin-btn" onclick="pinKey('4')">4</button>
+    <button class="pin-btn" onclick="pinKey('5')">5</button>
+    <button class="pin-btn" onclick="pinKey('6')">6</button>
+    <button class="pin-btn" onclick="pinKey('7')">7</button>
+    <button class="pin-btn" onclick="pinKey('8')">8</button>
+    <button class="pin-btn" onclick="pinKey('9')">9</button>
+    <button class="pin-btn del" onclick="pinKey('del')">⌫</button>
+    <button class="pin-btn" onclick="pinKey('0')">0</button>
+    <button class="pin-btn" onclick="pinKey('ok')">✓</button>
+  </div>
+  <div class="pin-error" id="pin-error"></div>
+</div>
+
+<!-- ── Scanner Screen ── -->
+<div id="scanner-screen">
+  <!-- Mode banner -->
+  <div class="mode-banner">
+    <div>
+      <div class="mode-label">Mode actif</div>
+      <div class="mode-value" id="mode-display">En attente...</div>
+    </div>
+    <div class="ws-dot" id="ws-dot"></div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="scan-tabs">
+    <button class="tab-btn active" id="tab-qr" onclick="switchTab('qr')">
+      <span class="tab-icon">⬛</span>QR Code
+    </button>
+    <button class="tab-btn" id="tab-face" onclick="switchTab('face')">
+      <span class="tab-icon">👤</span>Facial
+    </button>
+    <button class="tab-btn" id="tab-enroll" onclick="switchTab('enroll')">
+      <span class="tab-icon">➕</span>Enrôler
+    </button>
+  </div>
+
+  <!-- QR Panel -->
+  <div class="scan-panel active" id="panel-qr">
+    <div id="qr-video-wrap">
+      <video id="qr-video" autoplay playsinline muted></video>
+      <div class="qr-overlay"><div class="qr-frame"></div></div>
+    </div>
+    <canvas id="qr-canvas"></canvas>
+    <div class="status-msg" id="qr-status">Appuyez pour activer la caméra</div>
+    <button class="btn btn-primary" id="btn-start-qr" onclick="startQRScan()">
+      <span>📷</span> Activer la caméra
+    </button>
+    <div id="scan-result">
+      <div class="result-name" id="result-name"></div>
+      <div class="result-meta" id="result-meta"></div>
+      <div class="result-mode" id="result-mode"></div>
+    </div>
+  </div>
+
+  <!-- Face Panel -->
+  <div class="scan-panel" id="panel-face">
+    <div id="face-video-wrap">
+      <video id="face-video" autoplay playsinline muted></video>
+      <canvas id="face-canvas"></canvas>
+      <div class="face-guide-frame" id="face-guide"></div>
+      <div class="face-guide-hint" id="face-guide-hint">Centrez votre visage dans le cadre</div>
+    </div>
+    <div class="models-progress" id="models-progress" style="display:none">
+      <div class="models-bar" id="models-bar"></div>
+    </div>
+    <!-- ✅ FIX: Choix de la caméra avant de lancer le pointage facial -->
+    <div class="cam-select" id="face-cam-select">
+      <button class="cam-btn active" type="button" data-facing="user" onclick="selectFaceCamera('user')">🤳 Caméra avant</button>
+      <button class="cam-btn" type="button" data-facing="environment" onclick="selectFaceCamera('environment')">📷 Caméra arrière</button>
+    </div>
+    <div class="status-msg" id="face-status">Chargement des modèles...</div>
+    <div class="face-controls">
+      <button class="btn btn-primary" id="btn-start-face" onclick="startFaceRecognition()" style="display:none">
+        <span>▶</span> Démarrer
+      </button>
+      <button class="btn btn-danger" id="btn-stop-face" onclick="stopFaceRecognition()" style="display:none">
+        <span>⏹</span> Arrêter
+      </button>
+    </div>
+    <div id="scan-result-face" class="scan-panel" style="display:none; padding:0; width:100%; max-width:360px;">
+      <div id="scan-result" style="display:block; width:100%;">
+        <div class="result-name" id="result-name-face"></div>
+        <div class="result-meta" id="result-meta-face"></div>
+        <div class="result-mode" id="result-mode-face"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Enroll Panel -->
+  <div class="scan-panel" id="panel-enroll">
+    <div style="width:100%; max-width:360px;">
+      <div style="font-size:15px; font-weight:600; margin-bottom:12px;">Enrôlement facial</div>
+      <select id="enroll-emp-select" style="width:100%; padding:12px; border-radius:10px; background:var(--surface2); color:var(--on-surface); border:1px solid rgba(255,255,255,.15); font-size:14px; margin-bottom:12px;">
+        <option value="">Choisir un employé...</option>
+      </select>
+      <!-- ✅ FIX: Choix de la caméra avant de lancer l'enrôlement facial -->
+      <div class="cam-select" id="enroll-cam-select" style="margin-bottom:12px;">
+        <button class="cam-btn active" type="button" data-facing="user" onclick="selectEnrollCamera('user')">🤳 Caméra avant</button>
+        <button class="cam-btn" type="button" data-facing="environment" onclick="selectEnrollCamera('environment')">📷 Caméra arrière</button>
+      </div>
+      <div class="duplicate-banner" id="enroll-duplicate-banner">
+        🚫 <span id="enroll-duplicate-text">Ce visage est déjà enrôlé</span>
+      </div>
+      <div id="face-video-wrap-enroll" style="width:100%; border-radius:var(--radius); overflow:hidden; background:#000; aspect-ratio:4/3; display:none; margin-bottom:12px; position:relative;">
+        <video id="enroll-video" autoplay playsinline muted style="width:100%; height:100%; object-fit:cover;"></video>
+        <canvas id="enroll-canvas" style="position:absolute; inset:0; width:100%; height:100%;"></canvas>
+        <div class="face-guide-frame" id="enroll-guide"></div>
+        <div class="face-guide-hint" id="enroll-guide-hint">Centrez votre visage dans le cadre</div>
+      </div>
+      <div class="enroll-steps" id="enroll-steps" style="display:none;"></div>
+      <div class="status-msg" id="enroll-status">Sélectionnez un employé à enrôler</div>
+      <div style="display:flex; gap:10px; margin-top:8px; flex-wrap:wrap;">
+        <button class="btn btn-primary btn-full" id="btn-start-enroll" onclick="startEnrollment()">
+          <span>📷</span> Démarrer l'enrôlement
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// -- Bip sonore de confirmation --
+const _beepCtx = window.AudioContext ? new AudioContext() : null;
+// -- Bip sonore d'erreur (doublon détecté) — distinct du bip de succès --
+function playErrorBeep() {
+  if (!_beepCtx) return;
+  try {
+    const now = _beepCtx.currentTime;
+    // Deux tonalités graves et carrées, nettement différentes du bip de succès (aigu/sinusoïdal)
+    [0, 0.16].forEach(delay => {
+      const osc = _beepCtx.createOscillator();
+      const gain = _beepCtx.createGain();
+      osc.connect(gain);
+      gain.connect(_beepCtx.destination);
+      osc.frequency.value = 220;
+      osc.type = 'square';
+      gain.gain.setValueAtTime(0.35, now + delay);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + delay + 0.14);
+      osc.start(now + delay);
+      osc.stop(now + delay + 0.15);
+    });
+  } catch {}
+}
+function playBeep() {
+  if (!_beepCtx) return;
+  try {
+    const osc = _beepCtx.createOscillator();
+    const gain = _beepCtx.createGain();
+    osc.connect(gain);
+    gain.connect(_beepCtx.destination);
+    osc.frequency.value = 880;
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0.3, _beepCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, _beepCtx.currentTime + 0.15);
+    osc.start();
+    osc.stop(_beepCtx.currentTime + 0.15);
+  } catch {}
+}
+
+const API = '';  // même origine
+let _token    = null;
+let _ws       = null;
+let _wsRetry  = 1000;
+let _mode     = { section: 'attendance', label: 'Présence' };
+let _faceApi  = null;
+let _models   = false;
+let _scanning = false;
+let _qrStream = null;
+let _faceStream = null;
+let _enrollStream = null;
+let _employees = [];
+// ✅ FIX: Préférence de caméra choisie par l'utilisateur (avant/arrière), séparée pour pointage et enrôlement
+let _faceCamFacing = 'user';
+let _enrollCamFacing = 'user';
+// ✅ FIX: Empêche le double-déclenchement de startEnrollment() (double-tap mobile),
+// qui provoquait "The play() request was interrupted by a new load request."
+let _enrollInProgress = false;
+
+// ✅ FIX: Ouverture de flux caméra robuste — essaie 'exact' puis retombe sur 'ideal'
+// (même stratégie que la modale de pointage facial côté Chromebook)
+async function getCameraStream(facing, extraConstraints = {}) {
+  try {
+    return await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: facing }, ...extraConstraints } });
+  } catch {
+    return await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: facing }, ...extraConstraints } });
+  }
+}
+
+function selectFaceCamera(facing) {
+  _faceCamFacing = facing;
+  document.querySelectorAll('#face-cam-select .cam-btn').forEach(b => b.classList.toggle('active', b.dataset.facing === facing));
+  document.getElementById('face-video')?.classList.toggle('mirrored', facing === 'user');
+  document.getElementById('face-canvas')?.classList.toggle('mirrored', facing === 'user');
+  // Si un scan est déjà en cours, on relance avec la nouvelle caméra
+  if (_scanning) { stopFaceRecognition(); startFaceRecognition(); }
+}
+
+function selectEnrollCamera(facing) {
+  // Ne pas permettre de changer pendant une capture d'enrôlement en cours
+  if (_enrollStream) return;
+  _enrollCamFacing = facing;
+  document.querySelectorAll('#enroll-cam-select .cam-btn').forEach(b => b.classList.toggle('active', b.dataset.facing === facing));
+  document.getElementById('enroll-video')?.classList.toggle('mirrored', facing === 'user');
+  document.getElementById('enroll-canvas')?.classList.toggle('mirrored', facing === 'user');
+}
+
+// ✅ FIX: Logique de "bon positionnement" extraite en fonction pure, partagée entre
+// le rendu du cadre visuel (updateFaceGuide) ET le déclenchement de capture dans
+// startEnrollment(), pour garantir que la capture n'est jamais déclenchée tant que
+// le cadre n'est pas réellement vert (mêmes critères, une seule source de vérité).
+function isFaceWellPositioned(det, videoEl) {
+  const vw = videoEl?.videoWidth, vh = videoEl?.videoHeight;
+  if (!det || !vw || !vh) return false;
+  const box = det.box || det;
+  const cx = (box.x + box.width / 2) / vw;
+  const cy = (box.y + box.height / 2) / vh;
+  const sizeRatio = box.width / vw;
+  const dx = cx - 0.5, dy = cy - 0.44; // centre du cadre légèrement au-dessus du milieu
+  const centered = Math.sqrt(dx * dx + dy * dy) < 0.13;
+  const goodSize = sizeRatio > 0.26 && sizeRatio < 0.65;
+  return centered && goodSize;
+}
+
+// ✅ FIX: Cadre de guidage facial — feedback visuel temps réel (oval + couleur)
+// Fonction partagée entre le pointage et l'enrôlement. Ne fait AUCUNE reconnaissance
+// ni matching : uniquement une détection légère (TinyFaceDetector, sans landmarks/
+// descriptor) pour indiquer si le visage est bien centré et à bonne distance.
+// La logique de reconnaissance/capture existante n'est pas modifiée.
+function updateFaceGuide(guideEl, hintEl, det, videoEl) {
+  if (!guideEl) return;
+  const vw = videoEl?.videoWidth, vh = videoEl?.videoHeight;
+  if (!det || !vw || !vh) {
+    guideEl.classList.remove('detected', 'off-center');
+    if (hintEl) hintEl.textContent = 'Centrez votre visage dans le cadre';
+    return;
+  }
+  const box = det.box || det;
+  const sizeRatio = box.width / vw;
+  const goodSize = sizeRatio > 0.26 && sizeRatio < 0.65;
+
+  if (isFaceWellPositioned(det, videoEl)) {
+    guideEl.classList.add('detected'); guideEl.classList.remove('off-center');
+    if (hintEl) hintEl.textContent = '✓ Visage bien positionné';
+  } else {
+    guideEl.classList.add('off-center'); guideEl.classList.remove('detected');
+    if (hintEl) hintEl.textContent = !goodSize
+      ? (sizeRatio <= 0.26 ? 'Rapprochez-vous de la caméra' : 'Éloignez-vous un peu')
+      : 'Centrez votre visage dans le cadre';
+  }
+}
+
+// ── PIN ──────────────────────────────────────────────────────
+let _pin = '';
+function pinKey(k) {
+  if (k === 'del') { _pin = _pin.slice(0, -1); }
+  else if (k === 'ok') { submitPin(); return; }
+  else if (_pin.length < 4) { _pin += k; }
+  updatePinDots();
+  if (_pin.length === 4) setTimeout(submitPin, 200);
+}
+function updatePinDots() {
+  for (let i = 0; i < 4; i++) {
+    document.getElementById(`d${i}`).classList.toggle('filled', i < _pin.length);
+  }
+}
+async function submitPin() {
+  if (_pin.length < 4) return;
+  try {
+    const res = await fetch(`${API}/api/scan/auth`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin: _pin }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      document.getElementById('pin-error').textContent = data.error || 'PIN invalide';
+      _pin = ''; updatePinDots(); return;
+    }
+    _token = data.token;
+    localStorage.setItem('scanner_token', _token);
+    enterScanner();
+  } catch (err) {
+    document.getElementById('pin-error').textContent = 'Erreur connexion serveur';
+    _pin = ''; updatePinDots();
+  }
+}
+
+async function enterScanner() {
+  document.getElementById('pin-screen').style.display = 'none';
+  document.getElementById('scanner-screen').classList.add('active');
+  initWS();
+  fetchEmployees();
+  loadFaceApiModels();
+  document.getElementById('qr-status').textContent = 'Appuyez pour activer la caméra';
+  // ✅ FIX: applique le mirroir par défaut (caméra avant) aux flux facial/enrôlement
+  document.getElementById('face-video')?.classList.add('mirrored');
+  document.getElementById('face-canvas')?.classList.add('mirrored');
+  document.getElementById('enroll-video')?.classList.add('mirrored');
+  document.getElementById('enroll-canvas')?.classList.add('mirrored');
+}
+
+// ── WebSocket ────────────────────────────────────────────────
+function initWS() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const ws = new WebSocket(`${proto}//${location.host}/ws`);
+  _ws = ws;
+  ws.onopen = () => {
+    document.getElementById('ws-dot').classList.add('connected');
+    _wsRetry = 1000;
+  };
+  ws.onmessage = (e) => {
+    try {
+      const msg = JSON.parse(e.data);
+      if (msg.event === 'mode') {
+        _mode = msg;
+        document.getElementById('mode-display').textContent = msg.label || msg.section;
+      }
+    } catch {}
+  };
+  ws.onclose = () => {
+    document.getElementById('ws-dot').classList.remove('connected');
+    setTimeout(() => { _wsRetry = Math.min(_wsRetry * 2, 30000); initWS(); }, _wsRetry);
+  };
+  ws.onerror = () => ws.close();
+  // Récupérer le mode actif
+  fetch(`${API}/api/scan/mode`).then(r => r.json()).then(m => {
+    _mode = m;
+    document.getElementById('mode-display').textContent = m.label || m.section;
+  }).catch(() => {});
+}
+
+// ── Employees ────────────────────────────────────────────────
+async function fetchEmployees() {
+  try {
+    const res = await fetch(`${API}/api/data`);
+    const data = await res.json();
+    _employees = data.employees || [];
+    const sel = document.getElementById('enroll-emp-select');
+    _employees.forEach(e => {
+      const opt = document.createElement('option');
+      opt.value = e.id;
+      opt.textContent = `${e.name} — ${e.position || ''}`;
+      sel.appendChild(opt);
+    });
+  } catch {}
+}
+
+// ── Tabs ─────────────────────────────────────────────────────
+function switchTab(tab) {
+  ['qr','face','enroll'].forEach(t => {
+    document.getElementById(`tab-${t}`).classList.toggle('active', t === tab);
+    document.getElementById(`panel-${t}`).classList.toggle('active', t === tab);
+  });
+  if (tab === 'qr') { if (_qrStream) startQRScan(); }
+  else stopQRScan();
+  if (tab !== 'face') stopFaceRecognition();
+  if (tab !== 'enroll') stopEnrollStream();
+}
+
+// ── QR Scan ──────────────────────────────────────────────────
+async function startQRScan() {
+  const btn = document.getElementById('btn-start-qr');
+  try {
+    _qrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 640 } } });
+    const video = document.getElementById('qr-video');
+    video.srcObject = _qrStream;
+    await video.play();
+    if (btn) btn.style.display = 'none';
+    document.getElementById('qr-status').textContent = 'Pointez la caméra vers un QR Code';
+    document.getElementById('qr-status').className = 'status-msg';
+    requestAnimationFrame(scanQRFrame);
+  } catch (err) {
+    document.getElementById('qr-status').textContent = 'Caméra inaccessible: ' + err.message;
+    document.getElementById('qr-status').className = 'status-msg err';
+    if (btn) btn.style.display = 'flex';
+  }
+}
+function stopQRScan() {
+  if (_qrStream) { _qrStream.getTracks().forEach(t => t.stop()); _qrStream = null; }
+}
+let _lastScan = 0;
+function scanQRFrame() {
+  if (!_qrStream) return;
+  const video = document.getElementById('qr-video');
+  const canvas = document.getElementById('qr-canvas');
+  if (video.readyState === video.HAVE_ENOUGH_DATA) {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    if (window.jsQR) {
+      const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
+      if (code && Date.now() - _lastScan > 2000) {
+        _lastScan = Date.now();
+        handleQRResult(code.data);
+      }
+    }
+  }
+  requestAnimationFrame(scanQRFrame);
+}
+function handleQRResult(raw) {
+  try {
+    let empId = raw;
+    if (raw.startsWith('BEHAVANAHR:')) {
+      empId = raw.slice('BEHAVANAHR:'.length);
+    } else {
+      try { const p = JSON.parse(raw); empId = p.employeeId || p.id || raw; } catch {}
+    }
+    const emp = _employees.find(e => e.id === empId);
+    if (!emp) {
+      document.getElementById('qr-status').textContent = 'Employé non reconnu';
+      document.getElementById('qr-status').className = 'status-msg warn';
+      return;
+    }
+    showResult(emp, 'qr');
+    sendScan(empId, 'qr');
+  } catch {}
+}
+
+// ── Face API Models ──────────────────────────────────────────
+async function loadFaceApiModels() {
+  if (_models) return;
+  document.getElementById('face-status').textContent = 'Chargement des modèles IA...';
+  document.getElementById('models-progress').style.display = 'block';
+  try {
+    // Charger face-api.js depuis CDN
+    await loadScript('https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js');
+    _faceApi = faceapi;
+    const MODEL_URL = `${location.protocol}//${location.host}/model`;
+    const bar = document.getElementById('models-bar');
+    bar.style.width = '20%';
+    await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+    bar.style.width = '50%';
+    await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+    bar.style.width = '80%';
+    await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+    bar.style.width = '100%';
+    _models = true;
+    document.getElementById('models-progress').style.display = 'none';
+    document.getElementById('face-status').textContent = 'Modèles prêts — appuyez sur Démarrer';
+    document.getElementById('face-status').className = 'status-msg ok';
+    document.getElementById('btn-start-face').style.display = 'flex';
+  } catch (err) {
+    document.getElementById('face-status').textContent = 'Erreur chargement modèles: ' + err.message;
+    document.getElementById('face-status').className = 'status-msg err';
+  }
+}
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src; s.onload = resolve; s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+
+// ── Face Recognition ─────────────────────────────────────────
+async function startFaceRecognition() {
+  if (!_models) return;
+  try {
+    // ✅ FIX: utilise la caméra choisie par l'utilisateur (avant ou arrière)
+    _faceStream = await getCameraStream(_faceCamFacing, { width: { ideal: 480 } });
+    const video = document.getElementById('face-video');
+    video.srcObject = _faceStream;
+    await video.play();
+    _scanning = true;
+    document.getElementById('btn-start-face').style.display = 'none';
+    document.getElementById('btn-stop-face').style.display = 'flex';
+    document.getElementById('face-status').textContent = 'Reconnaissance en cours...';
+    recognizeFaceLoop();
+  } catch (err) {
+    document.getElementById('face-status').textContent = 'Caméra inaccessible';
+  }
+}
+function stopFaceRecognition() {
+  _scanning = false;
+  if (_faceStream) { _faceStream.getTracks().forEach(t => t.stop()); _faceStream = null; }
+  document.getElementById('btn-start-face').style.display = _models ? 'flex' : 'none';
+  document.getElementById('btn-stop-face').style.display = 'none';
+  // ✅ FIX: réinitialise le cadre de guidage à l'arrêt du scan
+  document.getElementById('face-guide')?.classList.remove('detected', 'off-center');
+}
+let _lastFaceScan = 0;
+let _lastFaceGuideCheck = 0;
+async function recognizeFaceLoop() {
+  if (!_scanning) return;
+  const video = document.getElementById('face-video');
+  const now = Date.now();
+
+  // ✅ FIX: Guide visuel — détection légère, cadence rapide (~300ms), indépendante
+  // de la reconnaissance ci-dessous. N'affecte ni la logique ni le timing du matching.
+  if (video.readyState === video.HAVE_ENOUGH_DATA && now - _lastFaceGuideCheck > 300) {
+    _lastFaceGuideCheck = now;
+    try {
+      const guideDet = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 128, scoreThreshold: 0.5 }));
+      updateFaceGuide(document.getElementById('face-guide'), document.getElementById('face-guide-hint'), guideDet, video);
+    } catch {}
+  }
+
+  if (video.readyState === video.HAVE_ENOUGH_DATA && Date.now() - _lastFaceScan > 1500) {
+    try {
+      const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
+        .withFaceLandmarks().withFaceDescriptor();
+      if (detection) {
+        const enrolled = _employees.filter(e => e.face_descriptors?.length > 0);
+        if (enrolled.length > 0) {
+          const labeled = enrolled.map(e => new faceapi.LabeledFaceDescriptors(e.id, e.face_descriptors.map(d => new Float32Array(d))));
+          const matcher = new faceapi.FaceMatcher(labeled, 0.5);
+          const best = matcher.findBestMatch(detection.descriptor);
+          if (best.label !== 'unknown') {
+            _lastFaceScan = Date.now();
+            const emp = _employees.find(e => e.id === best.label);
+            if (emp) {
+              showResult(emp, 'face');
+              sendScan(emp.id, 'face');
+            }
+          } else {
+            document.getElementById('face-status').textContent = 'Visage non reconnu';
+            document.getElementById('face-status').className = 'status-msg warn';
+          }
+        } else {
+          document.getElementById('face-status').textContent = 'Aucun employé enrôlé';
+        }
+      }
+    } catch {}
+  }
+  if (_scanning) requestAnimationFrame(recognizeFaceLoop);
+}
+
+// ── Anti-doublon enrôlement ─────────────────────────────────────
+// ✅ Même seuil (0.4) et même logique de matching que le Chromebook
+// (recognition.js::FR.checkDuplicate / openEnrollmentModal), afin de garantir
+// le même niveau de fiabilité côté téléphone.
+const ENROLL_DUP_THRESHOLD = 0.4;
+
+// Compare un descripteur à tous les employés déjà enrôlés (hors empId en cours).
+// Retourne l'employé correspondant si un doublon est détecté, sinon null.
+function matchAgainstEnrolled(descriptor, excludeEmpId) {
+  const enrolled = _employees.filter(e => e.id !== excludeEmpId && e.face_descriptors?.length > 0);
+  if (!enrolled.length) return null;
+  const labeled = enrolled.map(e =>
+    new faceapi.LabeledFaceDescriptors(e.id, e.face_descriptors.map(d => new Float32Array(d)))
+  );
+  const matcher = new faceapi.FaceMatcher(labeled, ENROLL_DUP_THRESHOLD);
+  const best = matcher.findBestMatch(descriptor);
+  if (best.label !== 'unknown' && best.distance < ENROLL_DUP_THRESHOLD) {
+    return _employees.find(e => e.id === best.label) || null;
+  }
+  return null;
+}
+
+let _dupAlertTimer = null;
+// Indicateur visuel (cadre rouge pulsant) + bannière + signal sonore + vibration.
+function showDuplicateAlert(matchName) {
+  playErrorBeep();
+  if (navigator.vibrate) navigator.vibrate([120, 60, 120]);
+
+  const guide = document.getElementById('enroll-guide');
+  const banner = document.getElementById('enroll-duplicate-banner');
+  const text = document.getElementById('enroll-duplicate-text');
+
+  guide?.classList.add('duplicate');
+  if (text) text.textContent = `Ce visage est déjà enrôlé pour ${matchName}`;
+  banner?.classList.add('show');
+
+  clearTimeout(_dupAlertTimer);
+  _dupAlertTimer = setTimeout(() => {
+    guide?.classList.remove('duplicate');
+    banner?.classList.remove('show');
+  }, 4000);
+}
+function clearDuplicateAlert() {
+  clearTimeout(_dupAlertTimer);
+  document.getElementById('enroll-guide')?.classList.remove('duplicate');
+  document.getElementById('enroll-duplicate-banner')?.classList.remove('show');
+}
+
+// ── Enrollment ───────────────────────────────────────────────
+async function startEnrollment() {
+  // ✅ FIX: bloque tout double-déclenchement (double-tap) tant qu'un enrôlement est en cours
+  if (_enrollInProgress) return;
+  const empId = document.getElementById('enroll-emp-select').value;
+  if (!empId) { document.getElementById('enroll-status').textContent = 'Sélectionnez un employé'; return; }
+  if (!_models) { document.getElementById('enroll-status').textContent = 'Modèles non chargés'; return; }
+  _enrollInProgress = true;
+  const btnStartEnroll = document.getElementById('btn-start-enroll');
+  if (btnStartEnroll) btnStartEnroll.disabled = true;
+  clearDuplicateAlert();
+  try {
+    // ✅ FIX: utilise la caméra choisie par l'utilisateur (avant ou arrière)
+    _enrollStream = await getCameraStream(_enrollCamFacing, {});
+    // Verrouille le sélecteur de caméra pendant la capture
+    document.querySelectorAll('#enroll-cam-select .cam-btn').forEach(b => b.disabled = true);
+    const video = document.getElementById('enroll-video');
+    const wrap = document.getElementById('face-video-wrap-enroll');
+    wrap.style.display = 'block';
+    video.srcObject = _enrollStream;
+    await video.play();
+
+    // ── ÉTAPE 1 : Anti-doublon — vérification immédiate AVANT toute capture ──
+    // Même stratégie que le Chromebook : on vérifie sur le flux live avant de
+    // lancer la séquence de 5 photos, pour bloquer le plus tôt possible.
+    document.getElementById('enroll-status').textContent = '🔍 Vérification anti-doublon...';
+    await new Promise(r => setTimeout(r, 400)); // laisse la caméra stabiliser l'exposition
+    let preCheckDone = false;
+    for (let attempt = 0; attempt < 4 && !preCheckDone; attempt++) {
+      let preDet;
+      try {
+        preDet = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
+          .withFaceLandmarks().withFaceDescriptor();
+      } catch { preDet = null; }
+      if (preDet) {
+        const dup = matchAgainstEnrolled(preDet.descriptor, empId);
+        if (dup) {
+          showDuplicateAlert(dup.name);
+          document.getElementById('enroll-status').textContent = `🚫 Enrôlement bloqué — visage déjà enregistré (${dup.name})`;
+          document.getElementById('enroll-status').className = 'status-msg err';
+          stopEnrollStream();
+          return;
+        }
+        preCheckDone = true;
+      } else {
+        await new Promise(r => setTimeout(r, 250));
+      }
+    }
+
+    // ✅ FIX: démarre la boucle de guidage visuel — c'est elle qui pilote désormais
+    // aussi le minuteur de stabilité (_enrollGoodSince) utilisé ci-dessous.
+    _enrollGuideRunning = true;
+    _enrollGoodSince = null;
+    enrollGuideLoop();
+    document.getElementById('enroll-steps').style.display = 'block';
+    const descriptors = [];
+    const SAMPLES = 5;
+    const STABILITY_MS = 700;   // durée de positionnement stable (cadre vert) exigée avant chaque capture
+    const POLL_MS = 120;        // cadence de vérification (lecture d'état — aucune détection ML ici)
+    const MAX_WAIT_TICKS = 250; // garde-fou anti-blocage (~30s max d'attente par capture)
+
+    for (let i = 0; i < SAMPLES; i++) {
+      renderEnrollSteps(i, SAMPLES);
+
+      // ── Attendre un cadre vert STABLE avant de déclencher la capture ──────
+      // Toute sortie du bon positionnement réinitialise le minuteur : l'utilisateur
+      // peut ainsi reculer/se recentrer librement avant chaque photo.
+      let ticks = 0;
+      while (true) {
+        ticks++;
+        if (ticks > MAX_WAIT_TICKS) {
+          document.getElementById('enroll-status').textContent = 'Positionnement impossible à stabiliser. Réessayez.';
+          document.getElementById('enroll-status').className = 'status-msg err';
+          stopEnrollStream();
+          return;
+        }
+        if (_enrollGoodSince !== null && Date.now() - _enrollGoodSince >= STABILITY_MS) break;
+        document.getElementById('enroll-status').textContent = _enrollGoodSince !== null
+          ? '✓ Restez immobile...'
+          : `Photo ${i + 1}/${SAMPLES} : centrez-vous dans le cadre (vert requis)`;
+        document.getElementById('enroll-status').className = 'status-msg';
+        await new Promise(r => setTimeout(r, POLL_MS));
+      }
+
+      // ── Capture réelle (avec landmarks + descripteur), une fois stabilisé ──
+      document.getElementById('enroll-status').textContent = `📸 Capture ${i + 1}/${SAMPLES}...`;
+      let det;
+      try {
+        det = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
+          .withFaceLandmarks().withFaceDescriptor();
+      } catch { det = null; }
+
+      if (!det) {
+        // Le visage a bougé pile au moment de la capture → on retente cette capture,
+        // en exigeant à nouveau une stabilisation complète (pas de capture "à moitié bonne").
+        _enrollGoodSince = null;
+        document.getElementById('enroll-status').textContent = 'Visage perdu au moment de la capture, réessayez...';
+        document.getElementById('enroll-status').className = 'status-msg warn';
+        i--;
+        continue;
+      }
+
+      // ── ÉTAPE 2 (filet de sécurité anti-doublon) : re-vérifier à chaque capture ──
+      // Rare en pratique (l'étape 1 bloque déjà l'immense majorité des cas),
+      // mais protège contre un faux-négatif ponctuel de la pré-vérification.
+      const liveDup = matchAgainstEnrolled(det.descriptor, empId);
+      if (liveDup) {
+        showDuplicateAlert(liveDup.name);
+        document.getElementById('enroll-status').textContent = `🚫 Enrôlement bloqué — visage déjà enregistré (${liveDup.name})`;
+        document.getElementById('enroll-status').className = 'status-msg err';
+        stopEnrollStream();
+        return;
+      }
+
+      descriptors.push(Array.from(det.descriptor));
+      renderEnrollSteps(i + 1, SAMPLES);
+      document.getElementById('enroll-status').textContent = `✅ Photo ${i + 1}/${SAMPLES} enregistrée`;
+      document.getElementById('enroll-status').className = 'status-msg ok';
+      _enrollGoodSince = null; // exige un nouveau positionnement stable avant la capture suivante
+      await new Promise(r => setTimeout(r, 500)); // laisse le temps de voir la confirmation
+    }
+
+    // ── Garde-fou final : jamais de validation avant les 5 captures complètes ──
+    if (descriptors.length !== SAMPLES) {
+      document.getElementById('enroll-status').textContent = `Enrôlement incomplet (${descriptors.length}/${SAMPLES}). Réessayez.`;
+      document.getElementById('enroll-status').className = 'status-msg err';
+      stopEnrollStream();
+      return;
+    }
+
+    stopEnrollStream();
+    document.getElementById('enroll-status').textContent = 'Sauvegarde...';
+    // Envoyer les descripteurs au serveur
+    await fetch(`${API}/api/employees/${empId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Scanner-Token': _token },
+      body: JSON.stringify({ faceDescriptors: JSON.stringify(descriptors), faceEnrolled: true, faceEnrollmentDate: new Date().toISOString() }),
+    });
+    document.getElementById('enroll-status').textContent = '✅ Enrôlement réussi !';
+    document.getElementById('enroll-status').className = 'status-msg ok';
+    await fetchEmployees();
+  } catch (err) {
+    document.getElementById('enroll-status').textContent = 'Erreur: ' + err.message;
+    document.getElementById('enroll-status').className = 'status-msg err';
+    stopEnrollStream();
+  } finally {
+    // ✅ FIX: libère le verrou dans tous les cas (succès, doublon bloqué, erreur)
+    _enrollInProgress = false;
+    if (btnStartEnroll) btnStartEnroll.disabled = false;
+  }
+}
+function stopEnrollStream() {
+  if (_enrollStream) { _enrollStream.getTracks().forEach(t => t.stop()); _enrollStream = null; }
+  // ✅ FIX: réactive le sélecteur de caméra une fois la capture terminée
+  document.querySelectorAll('#enroll-cam-select .cam-btn').forEach(b => b.disabled = false);
+  // ✅ FIX: arrête la boucle de guidage et réinitialise le cadre
+  _enrollGuideRunning = false;
+  _enrollGoodSince = null;
+  document.getElementById('enroll-guide')?.classList.remove('detected', 'off-center');
+}
+
+// ✅ FIX: Boucle de guidage facial pour l'enrôlement — détection légère (~300ms),
+// tourne en parallèle de la séquence de capture (for-loop dans startEnrollment)
+// sans interférer avec elle. Même principe que le double-loop rendu/détection
+// déjà utilisé côté Chromebook dans recognition.js::openEnrollmentModal.
+//
+// ✅ FIX (fiabilité capture) : cette boucle est désormais l'UNIQUE source de
+// détection pendant l'attente de positionnement — elle alimente à la fois le
+// cadre visuel (updateFaceGuide) ET le minuteur de stabilité (_enrollGoodSince)
+// utilisé par startEnrollment() pour décider quand déclencher la capture.
+// Avant ce correctif, startEnrollment() lançait sa PROPRE boucle de détection
+// en parallèle de celle-ci (deux inférences ML concurrentes sur la même vidéo),
+// ce qui pouvait ralentir/désynchroniser la caméra sur les téléphones moins
+// puissants et expliquait les captures manquées ou déclenchées trop tôt.
+let _enrollGuideRunning = false;
+let _enrollGoodSince = null; // instant depuis lequel le visage est bien positionné SANS interruption (null sinon)
+async function enrollGuideLoop() {
+  if (!_enrollGuideRunning) return;
+  const video = document.getElementById('enroll-video');
+  if (video && video.readyState === video.HAVE_ENOUGH_DATA) {
+    try {
+      const det = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 128, scoreThreshold: 0.5 }));
+      updateFaceGuide(document.getElementById('enroll-guide'), document.getElementById('enroll-guide-hint'), det, video);
+      if (isFaceWellPositioned(det, video)) {
+        if (_enrollGoodSince === null) _enrollGoodSince = Date.now();
+      } else {
+        _enrollGoodSince = null;
+      }
+    } catch { _enrollGoodSince = null; }
+  } else {
+    _enrollGoodSince = null;
+  }
+  if (_enrollGuideRunning) setTimeout(enrollGuideLoop, 300);
+}
+function renderEnrollSteps(current, total) {
+  const el = document.getElementById('enroll-steps');
+  el.innerHTML = Array.from({length: total}, (_, i) => `
+    <div class="step ${i < current ? 'done' : i === current ? 'active' : ''}">
+      ${i < current ? '✅' : i === current ? '📷' : '⬜'} Capture ${i + 1}
+    </div>`).join('');
+}
+
+// ── Send scan ─────────────────────────────────────────────────
+async function sendScan(employeeId, scanType) {
+  playBeep();
+  try {
+    await fetch(`${API}/api/scan`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Scanner-Token': _token },
+      body: JSON.stringify({ employeeId, scanType, purpose: _mode.section }),
+    });
+  } catch (err) {
+    console.warn('sendScan error:', err.message);
+  }
+}
+
+// ── Show result ───────────────────────────────────────────────
+function showResult(emp, type) {
+  const group = ''; // simplifié
+  document.getElementById('result-name').textContent = emp.name;
+  document.getElementById('result-meta').textContent = emp.position || '';
+  document.getElementById('result-mode').textContent = `Mode: ${_mode.label || _mode.section} · ${type === 'qr' ? 'QR Code' : 'Facial'}`;
+  document.getElementById('scan-result').classList.add('show');
+  document.getElementById('qr-status').textContent = '✅ Envoyé au Chromebook';
+  document.getElementById('qr-status').className = 'status-msg ok';
+  setTimeout(() => {
+    document.getElementById('scan-result').classList.remove('show');
+    document.getElementById('qr-status').textContent = 'Pointez la caméra vers un QR Code';
+    document.getElementById('qr-status').className = 'status-msg';
+  }, 3000);
+}
+
+// ── Auto-login si token valide ────────────────────────────────
+(async function init() {
+  const saved = localStorage.getItem('scanner_token');
+  if (saved) {
+    _token = saved;
+    try {
+      const res = await fetch(`${API}/api/scan/mode`, { headers: { 'X-Scanner-Token': saved } });
+      if (res.ok) { enterScanner(); return; }
+    } catch {}
+    localStorage.removeItem('scanner_token');
+    _token = null;
+  }
+})();
+</script>
+
+<!-- jsQR depuis le serveur local -->
+<script src="/jsQR.min.js"></script>
+
+</body>
+</html>

@@ -341,6 +341,13 @@ export class FacialMode {
     await saveAttendanceData();
     // ✅ Rafraîchir la liste "Pointages Faciaux du Jour"
     window._displayFaceAttendance?.();
+    // ✅ FIX: Régénère immédiatement le widget "employé(s) en attente" du
+    // dashboard après un pointage facial (arrivée ou départ). Sans ces deux
+    // appels, runSmartChecks() n'était jamais rappelé côté facial, donc le
+    // widget restait figé sur son dernier rendu même si state.attendance
+    // était à jour.
+    window._updateStats?.();
+    window._runSmartChecks?.();
     this._refreshDisplay();
   }
 

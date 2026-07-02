@@ -181,9 +181,9 @@ export function runSmartChecks() {
   const notifId = `notif-${Date.now()}`;
 
   container.innerHTML = `
-    <div class="alert-warning-compact" style="margin:0 auto;padding:12px 16px;border-radius:12px;border-left:4px solid #f59e0b;background:rgba(245,158,11,0.09);cursor:pointer;transition:all 0.2s;max-width:600px;box-shadow:0 2px 8px rgba(245,158,11,0.2);"
+    <div class="alert-warning-compact smart-notif-toast" id="${notifId}" style="padding:12px 16px;border-left:4px solid #f59e0b;background:rgba(245,158,11,0.09);cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,0.16),0 2px 6px rgba(245,158,11,0.14);"
       onclick="window._toggleNotifDetails?.('${notifId}')">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
         <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
           <span class="material-icons" style="color:#f59e0b;font-size:24px;flex-shrink:0;">watch_later</span>
           <div style="min-width:0;">
@@ -191,7 +191,9 @@ export function runSmartChecks() {
             <span style="font-size:11px;color:#78716c;display:block;">Cliquez pour les détails</span>
           </div>
         </div>
-        <span class="material-icons" id="${notifId}-icon" style="color:#f59e0b;font-size:20px;flex-shrink:0;">expand_more</span>
+        <button type="button" class="smart-notif-close" aria-label="Fermer" onclick="event.stopPropagation();window._dismissSmartNotif?.('${notifId}')">
+          <span class="material-icons" style="font-size:18px;">close</span>
+        </button>
       </div>
       <div id="${notifId}-details" style="display:none;margin-top:12px;padding:8px 0;border-top:1px solid #fde68a;max-height:280px;overflow-y:auto;">
         ${missing.map((e, idx) => {
@@ -221,17 +223,20 @@ export function runSmartChecks() {
 }
 
 export function toggleNotificationDetails(id) {
-  const d    = document.getElementById(`${id}-details`);
-  const icon = document.getElementById(`${id}-icon`);
-  if (!d || !icon) return;
-  if (d.style.display === 'none') {
-    d.style.display = 'block'; icon.textContent = 'expand_less';
-  } else {
-    d.style.display = 'none'; icon.textContent = 'expand_more';
-  }
+  const d = document.getElementById(`${id}-details`);
+  if (!d) return;
+  d.style.display = d.style.display === 'none' ? 'block' : 'none';
+}
+
+export function dismissSmartNotif(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.add('smart-notif-closing');
+  setTimeout(() => el.remove(), 240);
 }
 
 // expose
 window._toggleNotifDetails = toggleNotificationDetails;
+window._dismissSmartNotif  = dismissSmartNotif;
 window._updateStats        = updateStats;
 window._runSmartChecks     = runSmartChecks;

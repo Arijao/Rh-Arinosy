@@ -19,7 +19,7 @@ import { initAttendance, displayAttendance } from './ui/attendance.js';
 import { initQR, startQRScan, stopQRScan, displayQRAttendance,
          generateAllQRCodes, downloadQRFromDB, printAllQRCodes, filterQRCodes,
          handleQRImageUpload } from './ui/qr.js';
-import { initFacePresence } from './face/recognition.js';
+import { initFacePresence, displayEnrolledEmployees, displayTodayFaceAttendance } from './face/recognition.js';
 import { initAdvances, displayAdvances } from './ui/advances.js';
 import { initPayroll, calculatePayroll, handlePayrollGroupChange,
          handlePayrollEmployeeChange, toggleAdvanceDaysInput, displayPayments } from './ui/payroll.js';
@@ -30,6 +30,7 @@ import { showNotification } from './utils/dialog-manager.js';
 import { initScanMenu, toggleScanMethodMenu, filterScanMethod, refreshScanCard, navigateToScanSection } from './ui/scan-menu.js';
 import { initBiometricAttendance } from './ui/biometric-attendance.js';
 import { initExternalScanner } from './utils/external-scanner.js';
+import { initScanReceiver } from './ui/scan-receiver.js';
 import { initRemarks } from './ui/remarks.js';
 import { injectPWAManifest } from './utils/pwa-manifest.js';
 
@@ -131,6 +132,29 @@ async function init() {
   }
 }
 
+// ✅ FIX (temps réel) : refreshUI — appelée par state.js après un rechargement
+// déclenché par WebSocket (ex: enrôlement facial fait depuis le téléphone).
+// Cette fonction n'existait nulle part : state.js rechargeait bien state.employees
+// en mémoire via loadData(), mais aucun rendu DOM n'était redéclenché ensuite —
+// d'où la nécessité de changer de section puis d'y revenir pour voir la mise à jour.
+// Les fonctions d'affichage vérifient elles-mêmes la présence de leur conteneur DOM
+// (ex: `if (!container) return;`), donc les appeler ici sans condition est sûr même
+// si la section correspondante n'est pas visible à l'instant T — la section sera
+// déjà à jour lorsque l'utilisateur y accèdera, et instantanément mise à jour si
+// elle est déjà affichée. Chaque appel est isolé par un try/catch pour qu'une
+// erreur dans l'une n'empêche pas le rafraîchissement des autres.
+function refreshUI() {
+  try { displayEmployees(); } catch (e) { console.warn('[refreshUI] displayEmployees:', e.message); }
+  try { displayGroups(); } catch (e) { console.warn('[refreshUI] displayGroups:', e.message); }
+  try { displayAttendance(); } catch (e) { console.warn('[refreshUI] displayAttendance:', e.message); }
+  try { displayAdvances(); } catch (e) { console.warn('[refreshUI] displayAdvances:', e.message); }
+  try { displayQRAttendance(); } catch (e) { console.warn('[refreshUI] displayQRAttendance:', e.message); }
+  try { displayPayments(); } catch (e) { console.warn('[refreshUI] displayPayments:', e.message); }
+  try { displayEnrolledEmployees(); } catch (e) { console.warn('[refreshUI] displayEnrolledEmployees:', e.message); }
+  try { displayTodayFaceAttendance(); } catch (e) { console.warn('[refreshUI] displayTodayFaceAttendance:', e.message); }
+  try { updateStats(); } catch (e) { console.warn('[refreshUI] updateStats:', e.message); }
+}
+
 export async function _bootApp() {
   console.log('🚀 Démarrage application...');
 
@@ -161,6 +185,7 @@ export async function _bootApp() {
   runSmartChecks();
   initScanMenu(); // initialise le menu scan après que les stats sont calculées
   initBiometricAttendance(); // module biométrique — empreintes digitales
+  initScanReceiver();          // récepteur de scans distants (téléphone)
 
   // ✅ OFFLINE-FIRST: Pré-charger les modèles face-api en arrière-plan
   // Cela va améliorer les performances pour la reconnaissance faciale même offline
@@ -319,6 +344,9 @@ function _exposeGlobals() {
   // Dialogs & Notifications
   window.showToast = showToast;
   window.showNotification = showNotification;
+
+  // ✅ FIX (temps réel) : hook attendu par state.js après un refresh WebSocket
+  window.refreshUI = refreshUI;
 
   // After login: boot the app
   window._bootApp = _bootApp;

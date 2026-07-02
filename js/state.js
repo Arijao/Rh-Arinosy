@@ -1,15 +1,12 @@
 // ============================================================
 // state.js — État global (ES Module) — v2 API Express
-// Compatible drop-in avec l'ancienne version IndexedDB.
-// Toutes les exportations sont identiques pour ne pas modifier
-// les modules UI existants.
 // ============================================================
 
 'use strict';
 
 const API_BASE = '/api';
 
-// ── Shim dbManager (compatibilité main.js et diagnostics) ────
+// ── Shim dbManager ────────────────────────────────────────────
 export const dbManager = {
     isInitialized: false,
     log: (msg, type = 'info') => console.log(`[DB][${type.toUpperCase()}] ${msg}`),
@@ -46,7 +43,6 @@ export const dbManager = {
             return { error: err.message };
         }
     },
-
     get: async (store, key) => {
         if (store === 'settings') {
             try {
@@ -77,13 +73,13 @@ export const dbManager = {
             } catch { return []; }
         }
         const map = {
-            'employees':    () => state.employees,
-            'groups':       () => state.groups,
-            'advances':     () => state.advances,
-            'payrolls':     () => state.payrolls,
-            'remarks':      () => state.remarks,
-            'qr_attendance':() => state.qrAttendance,
-            'attendance':   () => Object.entries(state.attendance).map(([date, data]) => ({ date, data })),
+            'employees':     () => state.employees,
+            'groups':        () => state.groups,
+            'advances':      () => state.advances,
+            'payrolls':      () => state.payrolls,
+            'remarks':       () => state.remarks,
+            'qr_attendance': () => state.qrAttendance,
+            'attendance':    () => Object.entries(state.attendance).map(([date, data]) => ({ date, data })),
         };
         return map[store] ? map[store]() : [];
     },
@@ -115,21 +111,20 @@ export const dbManager = {
                 console.warn('[DB] put qr_codes error:', err.message);
             }
         }
-    },    updateDBStatus: (msg, type) => {
+    },
+    updateDBStatus: (msg, type) => {
         dbManager.log(msg, type);
         const el = document.getElementById('dbStatusText');
-        if (el && type === 'error') {
-            el.innerHTML = msg;
-        }
+        if (el && type === 'error') el.innerHTML = msg;
     },
 };
 
 window._dbDiagnostic = {
-    printLog:    () => dbManager.printDiagnostic(),
-    getLogs:     () => dbManager.getDiagnosticLog(),
-    exportData:  async () => dbManager.exportDiagnosticData(),
-    test:        async () => dbManager.diagnose(),
-    advanced:    async () => dbManager.advancedDiagnosis(),
+    printLog:   () => dbManager.printDiagnostic(),
+    getLogs:    () => dbManager.getDiagnosticLog(),
+    exportData: async () => dbManager.exportDiagnosticData(),
+    test:       async () => dbManager.diagnose(),
+    advanced:   async () => dbManager.advancedDiagnosis(),
 };
 
 // ── État global ───────────────────────────────────────────────
@@ -151,15 +146,15 @@ export const state = {
         faceAttendance: { current: 1, perPage: 20 },
         enrolled:       { current: 1, perPage: 20 },
     },
-    isScanning:          false,
-    scanStream:          null,
-    scanInterval:        null,
-    currentScanPurpose:  null,
+    isScanning:           false,
+    scanStream:           null,
+    scanInterval:         null,
+    currentScanPurpose:   null,
     facialRecognitionMode: 'pointage',
 };
 
-// ── Guard save/reload ────────────────────────────────────
-let _saving = false;
+// ── Guards save/reload ────────────────────────────────────────
+let _saving    = false;
 
 // ── Snapshot pour détection des changements ───────────────────
 const _snap = {
@@ -181,10 +176,7 @@ function _updateSnap(key, items) {
 
 // ── Helpers API ───────────────────────────────────────────────
 async function _api(method, url, body) {
-    const opts = {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-    };
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
     if (body) opts.body = JSON.stringify(body);
     const res = await fetch(url, opts);
     if (!res.ok) {
@@ -246,9 +238,8 @@ async function _syncAttendance() {
             const prevVal = JSON.stringify(prev[date] && prev[date][employeeId]);
             const currVal = JSON.stringify(value);
             if (prevVal !== currVal) {
-                await _api('POST', `${API_BASE}/attendance`, {
-                    date, employeeId, value,
-                }).catch(e => console.warn('[STATE] POST attendance:', e.message));
+                await _api('POST', `${API_BASE}/attendance`, { date, employeeId, value })
+                    .catch(e => console.warn('[STATE] POST attendance:', e.message));
             }
         }
     }
@@ -256,25 +247,17 @@ async function _syncAttendance() {
     _snap.attendance = current;
 }
 
-// ── Préparation employé pour l'API (camelCase + JSON) ─────────
+// ── Préparation employé pour l'API ────────────────────────────
 function _prepEmployee(emp) {
     const e = { ...emp };
-    // Mapper snake_case → camelCase pour l'API
     if ('face_descriptors' in e) {
         e.faceDescriptors = e.face_descriptors?.length
             ? JSON.stringify(e.face_descriptors)
             : null;
         delete e.face_descriptors;
     }
-    if ('face_enrolled' in e) {
-        e.faceEnrolled = e.face_enrolled;
-        delete e.face_enrolled;
-    }
-    if ('face_enrollment_date' in e) {
-        e.faceEnrollmentDate = e.face_enrollment_date;
-        delete e.face_enrollment_date;
-    }
-    // Supprimer les relations Prisma
+    if ('face_enrolled' in e)          { e.faceEnrolled = e.face_enrolled; delete e.face_enrolled; }
+    if ('face_enrollment_date' in e)   { e.faceEnrollmentDate = e.face_enrollment_date; delete e.face_enrollment_date; }
     ['group','attendance','advances','payrolls','remarks','qrCode','qrAttendance'].forEach(k => delete e[k]);
     return e;
 }
@@ -283,10 +266,10 @@ function _prepEmployee(emp) {
 export async function saveData() {
     _saving = true;
     try {
-        // Employés (avec mapping face descriptors)
-        const empsForApi = state.employees.map(_prepEmployee);
-        const empSnapMap = _snap.employees;
+        const empsForApi    = state.employees.map(_prepEmployee);
+        const empSnapMap    = _snap.employees;
         const empCurrentMap = new Map(empsForApi.map(i => [i.id, i]));
+
         for (const [id, item] of empCurrentMap) {
             const json = _snapItem(item);
             if (!empSnapMap.has(id)) {
@@ -306,18 +289,16 @@ export async function saveData() {
         _snap.employees.clear();
         for (const [id, item] of empCurrentMap) _snap.employees.set(id, _snapItem(item));
 
-        // Autres entités
-        await _syncArray('groups',       state.groups,       _snap.groups);
-        await _syncArray('advances',     state.advances,     _snap.advances);
-        await _syncArray('payroll',      state.payrolls,     _snap.payrolls);
-        await _syncArray('remarks',      state.remarks,      _snap.remarks);
-        await _syncArray('qr/attendance',state.qrAttendance, _snap['qrAttendance']);
+        await _syncArray('groups',        state.groups,       _snap.groups);
+        await _syncArray('advances',      state.advances,     _snap.advances);
+        await _syncArray('payroll',       state.payrolls,     _snap.payrolls);
+        await _syncArray('remarks',       state.remarks,      _snap.remarks);
+        await _syncArray('qr/attendance', state.qrAttendance, _snap['qrAttendance']);
         await _syncAttendance();
 
-        // Settings
-        await _api('PUT', `${API_BASE}/settings/theme`,      { value: state.currentTheme }).catch(() => {});
-        await _api('PUT', `${API_BASE}/settings/qrSettings`, { value: state.qrSettings   }).catch(() => {});
-        await _api('PUT', `${API_BASE}/settings/lastUpdated`,{ value: new Date().toISOString() }).catch(() => {});
+        await _api('PUT', `${API_BASE}/settings/theme`,       { value: state.currentTheme }).catch(() => {});
+        await _api('PUT', `${API_BASE}/settings/qrSettings`,  { value: state.qrSettings   }).catch(() => {});
+        await _api('PUT', `${API_BASE}/settings/lastUpdated`, { value: new Date().toISOString() }).catch(() => {});
 
         dbManager.log(`✅ Sauvegarde complète: ${state.employees.length} employé(s)`, 'success');
     } catch (err) {
@@ -361,7 +342,6 @@ export async function loadData() {
         if (data.settings?.theme)      state.currentTheme = data.settings.theme;
         if (data.settings?.qrSettings) state.qrSettings   = data.settings.qrSettings;
 
-        // Mettre à jour les snapshots
         _updateSnap('employees',    state.employees.map(_prepEmployee));
         _updateSnap('groups',       state.groups);
         _updateSnap('advances',     state.advances);
@@ -376,8 +356,8 @@ export async function loadData() {
         dbManager.log(`❌ Erreur loadData: ${err.message}`, 'error');
         console.error('Erreur loadData:', err);
         state.employees = []; state.groups = []; state.attendance = {};
-        state.payrolls = []; state.advances = []; state.qrAttendance = [];
-        state.remarks = [];
+        state.payrolls  = []; state.advances = []; state.qrAttendance = [];
+        state.remarks   = [];
         throw err;
     }
 }
@@ -386,8 +366,35 @@ export async function loadData() {
 (function _initWebSocket() {
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${proto}//${location.host}/ws`;
-    let _retryMs   = 1000;
-    let _reloading = false;
+    let _retryMs = 1000;
+
+    // FIX #4 : l'ancienne implémentation abandonnait silencieusement tout
+    // message 'update' reçu pendant _saving ou _reloading, sans jamais le
+    // retraiter — d'où la nécessité de scanner deux fois.
+    // Solution : file d'attente de rafraîchissements identique au pattern
+    // de scan-receiver.js. Chaque message est chaîné ; si un reload est
+    // déjà en cours, le suivant attend qu'il se termine au lieu d'être perdu.
+    let _refreshQueue = Promise.resolve();
+
+    function _scheduleRefresh() {
+        _refreshQueue = _refreshQueue.then(async () => {
+            // Si une sauvegarde est en cours, attendre sa fin avant de recharger
+            // (max 5 s pour éviter un blocage permanent en cas d'erreur save)
+            let waited = 0;
+            while (_saving && waited < 5000) {
+                await new Promise(r => setTimeout(r, 100));
+                waited += 100;
+            }
+            try {
+                await loadData();
+                if (typeof window.refreshUI === 'function') window.refreshUI();
+            } catch (err) {
+                console.warn('[WS] Erreur refresh après event:', err.message);
+            }
+        }).catch(err => {
+            console.warn('[WS] _refreshQueue error:', err.message);
+        });
+    }
 
     function connect() {
         const ws = new WebSocket(wsUrl);
@@ -398,19 +405,11 @@ export async function loadData() {
             dbManager.isInitialized = true;
         };
 
-        ws.onmessage = async (event) => {
+        ws.onmessage = (event) => {
             try {
                 const msg = JSON.parse(event.data);
                 if (msg.event === 'update' || msg.event === 'scan') {
-                    if (_reloading || _saving) return;
-                    _reloading = true;
-                    try {
-                        await loadData();
-                        // Déclencher le rafraîchissement UI si disponible
-                        if (typeof window.refreshUI === 'function') window.refreshUI();
-                    } finally {
-                        _reloading = false;
-                    }
+                    _scheduleRefresh();
                 }
             } catch { /* message malformé */ }
         };

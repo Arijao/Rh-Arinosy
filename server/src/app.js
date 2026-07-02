@@ -16,6 +16,7 @@ import payrollRoutes    from './routes/payroll.js';
 import remarksRoutes    from './routes/remarks.js';
 import qrRoutes         from './routes/qr.js';
 import settingsRoutes   from './routes/settings.js';
+import scanRoutes       from './routes/scan.js';
 import { initWS }       from './lib/ws.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -37,10 +38,20 @@ app.use('/api/payroll',    payrollRoutes);
 app.use('/api/remarks',    remarksRoutes);
 app.use('/api/qr',         qrRoutes);
 app.use('/api/settings',   settingsRoutes);
+app.use('/api/scan',         scanRoutes);
 app.get('/api/health',     (req, res) => res.json({ status: 'ok', ts: Date.now() }));
 
 // ── Modèles face-api.js (servis localement) ───────────────────
 app.use('/model', express.static(path.join(ROOT_DIR, 'model')));
+
+// ── Scanner mobile (page dédiée) ───────────────────────────────
+app.get('/test-camera', (req, res) => {
+    res.sendFile(path.join(ROOT_DIR, 'test-camera.html'));
+});
+
+app.get('/scanner', (req, res) => {
+    res.sendFile(path.join(ROOT_DIR, 'scanner.html'));
+});
 
 // ── Frontend statique ─────────────────────────────────────────
 app.use(express.static(ROOT_DIR));

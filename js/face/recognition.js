@@ -790,6 +790,81 @@ export async function startFaceScanForSelection(purpose) {
 // ENROLLED LIST & TODAY ATTENDANCE
 // ============================================================
 
+// ============================================================
+// SUPPRESSION D'ENROLLMENT
+// ============================================================
+
+// ✅ Suppression complète et propre des données d'enrôlement facial d'un employé.
+// Réinitialise les 3 champs liés (descripteurs, flag, date) pour permettre un
+// nouvel enrôlement, et passe par le même pipeline saveData() que l'enrôlement
+// lui-même afin de rester cohérent avec la base de données côté serveur.
+export async function deleteFaceEnrollment(empId) {
+  const emp = state.employees.find(e => e.id === empId);
+  if (!emp || !emp.face_enrolled) return;
+
+  const confirmed = await new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.id = 'delEnrollOverlay';
+    overlay.style.cssText = [
+      'position:fixed;inset:0;z-index:10100',
+      'background:rgba(0,0,0,.55)',
+      'display:flex;align-items:center;justify-content:center;padding:20px',
+    ].join(';');
+
+    overlay.innerHTML = `
+      <div style="
+        background:#fff;border-radius:14px;padding:28px 24px;
+        max-width:380px;width:95%;text-align:center;
+        border-top:5px solid #ef4444;box-shadow:0 8px 32px rgba(0,0,0,.35);">
+        <span style="font-size:48px;display:block;margin-bottom:8px;">🗑️</span>
+        <h3 style="margin:0 0 10px;color:#b91c1c;font-size:1.1rem;">Supprimer l'enrôlement facial ?</h3>
+        <p style="margin:0 0 20px;color:#374151;font-size:.95rem;">
+          Les données faciales de<br>
+          <strong style="color:#111;font-size:1.05rem;">${emp.name}</strong><br>
+          seront <strong>définitivement supprimées</strong>.<br>
+          Un nouvel enrôlement sera nécessaire.
+        </p>
+        <div style="display:flex;gap:10px;justify-content:center;">
+          <button id="delEnrollCancel" style="
+            background:#e5e7eb;color:#374151;border:none;border-radius:8px;
+            padding:10px 22px;font-size:.95rem;font-weight:600;cursor:pointer;">
+            Annuler
+          </button>
+          <button id="delEnrollOk" style="
+            background:#ef4444;color:#fff;border:none;border-radius:8px;
+            padding:10px 22px;font-size:.95rem;font-weight:600;cursor:pointer;">
+            Supprimer
+          </button>
+        </div>
+      </div>`;
+
+    document.body.appendChild(overlay);
+    const close = (result) => { overlay.remove(); resolve(result); };
+    document.getElementById('delEnrollOk').addEventListener('click', () => close(true));
+    document.getElementById('delEnrollCancel').addEventListener('click', () => close(false));
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(false); });
+  });
+
+  if (!confirmed) return;
+
+  const idx = state.employees.findIndex(e => e.id === empId);
+  if (idx === -1) return;
+
+  // Suppression propre et complète : les 3 champs liés à l'enrôlement facial.
+  state.employees[idx] = {
+    ...state.employees[idx],
+    face_descriptors: null,
+    face_enrolled: false,
+    face_enrollment_date: null,
+  };
+
+  await saveData();
+
+  showAlert(`✅ Enrôlement facial de ${emp.name} supprimé.`, 'success');
+  displayEnrolledEmployees();
+  window._displayEmployees?.();
+}
+
 export function displayEnrolledEmployees() {
   const container = document.getElementById('enrolledEmployeesList');
   const countSpan = document.getElementById('enrolledCount');
@@ -815,8 +890,15 @@ export function displayEnrolledEmployees() {
         <span class="material-icons" style="font-size:40px;color:var(--md-sys-color-success);">face</span>
         <div><div style="font-weight:600;font-size:16px;">${emp.name}</div><div style="font-size:13px;color:var(--md-sys-color-on-surface-variant);">${emp.position || 'N/A'}</div></div>
       </div>
-      <div style="text-align:right;font-size:12px;color:var(--md-sys-color-on-surface-variant);">
-        <div>Enrolled le</div><div style="font-weight:500;margin-top:4px;">${formatDate(emp.face_enrollment_date, false)}</div>
+      <div style="display:flex;align-items:center;gap:16px;">
+        <div style="text-align:right;font-size:12px;color:var(--md-sys-color-on-surface-variant);">
+          <div>Enrolled le</div><div style="font-weight:500;margin-top:4px;">${formatDate(emp.face_enrollment_date, false)}</div>
+        </div>
+        <button onclick="window._deleteFaceEnrollment?.('${emp.id}')" title="Supprimer l'enrôlement facial"
+          style="background:none;border:none;cursor:pointer;color:#ef4444;padding:8px;border-radius:8px;display:flex;align-items:center;justify-content:center;transition:background .15s;"
+          onmouseover="this.style.background='rgba(239,68,68,.1)'" onmouseout="this.style.background='none'">
+          <span class="material-icons" style="font-size:22px;">delete_forever</span>
+        </button>
       </div>
     </div>`).join('');
 
@@ -879,4 +961,6 @@ export function initFacePresence() {
   // - window._displayFaceAttendance est appelé depuis facial-mode._registerAttendance()
   window._displayEnrolled       = displayEnrolledEmployees;
   window._displayFaceAttendance = displayTodayFaceAttendance;
+  // ✅ Exposer la suppression d'enrôlement pour le bouton dans displayEnrolledEmployees
+  window._deleteFaceEnrollment  = deleteFaceEnrollment;
 }

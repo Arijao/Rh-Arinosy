@@ -190,6 +190,7 @@ async function handleAddEmployee(e) {
     const emp = {
       id: Date.now().toString(), name, position, gender, salary,
       groupId: groupId || null, dateAdded: new Date().toISOString(), status: 'actif', departureDate: null,
+      useGroupSalary: true,
     };
     state.employees.push(emp);
     await saveData();

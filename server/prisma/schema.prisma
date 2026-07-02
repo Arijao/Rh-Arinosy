@@ -20,7 +20,7 @@ model Employee {
   position           String?
   gender             String?
   salary             Float?
-  useGroupSalary     Boolean            @default(false)
+  useGroupSalary     Boolean            @default(true)
   groupId            String?
   group              Group?             @relation(fields: [groupId], references: [id])
   status             String             @default("actif")

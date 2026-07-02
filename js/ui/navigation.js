@@ -106,6 +106,10 @@ export function showSection(sectionId) {
 
   // Appeler le callback enregistré pour cette section
   _sectionCallbacks[sectionId]?.();
+  // Annoncer la section active au système de scan distant (telephone)
+  if (typeof window.announceScanMode === 'function') {
+    window.announceScanMode(sectionId);
+  }
 }
 
 // ------ Dates ------

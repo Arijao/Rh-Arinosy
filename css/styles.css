@@ -2079,3 +2079,72 @@ textarea[disabled] {
 
 #qrAttendanceList > div:first-child > div:nth-child(3) .material-icons,
 #todayFaceAttendance > div:first-child > div:nth-child(3) .material-icons { color: var(--md-sys-color-primary) !important; }
+
+/* ============================================================
+   SMART NOTIFICATION WIDGET — Toast haut-droite (dashboard)
+   Repositionnement de la notification "employé(s) en attente"
+   Ancien : bandeau centré dans le flux (margin:0 auto, max-width:600px)
+   Nouveau : toast flottant haut-droite façon WhatsApp/Facebook/
+   Instagram — position, forme et animation modifiées uniquement.
+   Couleurs, texte, structure interne inchangés.
+   ============================================================ */
+
+.smart-notif-toast {
+  position: fixed;
+  top: 96px;
+  right: 20px;
+  z-index: 1500;
+  width: 340px;
+  max-width: calc(100vw - 40px);
+  border-radius: 18px;
+  animation: smartNotifIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.smart-notif-toast:hover {
+  transform: translateY(-2px);
+}
+
+.smart-notif-toast.smart-notif-closing {
+  animation: smartNotifOut 0.25s ease forwards;
+}
+
+@keyframes smartNotifIn {
+  from { opacity: 0; transform: translateX(30px) scale(.95); }
+  to   { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+@keyframes smartNotifOut {
+  from { opacity: 1; transform: translateX(0) scale(1); }
+  to   { opacity: 0; transform: translateX(30px) scale(.95); }
+}
+
+.smart-notif-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  flex-shrink: 0;
+  color: inherit;
+  opacity: 0.55;
+  transition: opacity 0.2s ease, background 0.2s ease;
+}
+
+.smart-notif-close:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+@media (max-width: 480px) {
+  .smart-notif-toast {
+    top: 84px;
+    right: 12px;
+    left: 12px;
+    width: auto;
+    max-width: none;
+  }
+}

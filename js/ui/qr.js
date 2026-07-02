@@ -338,6 +338,13 @@ export async function processAttendanceScan(emp, method = 'QR', skipSound = fals
 function _refreshAfterScan() {
   if (document.getElementById('qr-presence')?.classList.contains('active')) displayQRAttendance();
   if (document.getElementById('attendance')?.classList.contains('active')) window._displayAttendance?.();
+  // ✅ FIX Cause racine #1: la section face-presence n'était jamais rafraîchie ici.
+  // processAttendanceScan() enregistre correctement le pointage facial dans
+  // state.attendance (arrivée/départ), mais sans cet appel la page
+  // "Pointages Faciaux du Jour" restait figée après un scan reçu du téléphone
+  // (scan-receiver.js::_handleAttendanceScan → processAttendanceScan(emp, 'FACIAL'))
+  // tant que l'utilisateur ne quittait/revenait pas sur la section.
+  if (document.getElementById('face-presence')?.classList.contains('active')) window._displayFaceAttendance?.();
   window._updateStats?.();
   window._runSmartChecks?.();
 }
