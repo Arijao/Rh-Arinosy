@@ -273,6 +273,9 @@
     <button class="btn btn-primary" id="btn-start-qr" onclick="startQRScan()">
       <span>📷</span> Activer la caméra
     </button>
+    <button class="btn btn-primary" id="btn-scan-qr" onclick="armQRScan()" style="display:none">
+      <span>🔄</span> Scanner
+    </button>
     <div id="scan-result">
       <div class="result-name" id="result-name"></div>
       <div class="result-meta" id="result-meta"></div>
@@ -300,6 +303,9 @@
     <div class="face-controls">
       <button class="btn btn-primary" id="btn-start-face" onclick="startFaceRecognition()" style="display:none">
         <span>▶</span> Démarrer
+      </button>
+      <button class="btn btn-primary" id="btn-scan-face" onclick="armFaceScan()" style="display:none">
+        <span>🔄</span> Scanner
       </button>
       <button class="btn btn-danger" id="btn-stop-face" onclick="stopFaceRecognition()" style="display:none">
         <span>⏹</span> Arrêter
@@ -393,6 +399,8 @@ let _mode     = { section: 'attendance', label: 'Présence' };
 let _faceApi  = null;
 let _models   = false;
 let _scanning = false;
+let _qrArmed = false;   // ✅ true = un scan QR a été explicitement déclenché et attend un résultat
+let _faceArmed = false; // ✅ true = un scan facial a été explicitement déclenché et attend un résultat
 let _qrStream = null;
 let _faceStream = null;
 let _enrollStream = null;
@@ -594,7 +602,9 @@ async function startQRScan() {
     video.srcObject = _qrStream;
     await video.play();
     if (btn) btn.style.display = 'none';
-    document.getElementById('qr-status').textContent = 'Pointez la caméra vers un QR Code';
+    _qrArmed = false;
+    document.getElementById('btn-scan-qr').style.display = 'flex';
+    document.getElementById('qr-status').textContent = 'Appuyez sur "Scanner" pour lancer la détection';
     document.getElementById('qr-status').className = 'status-msg';
     requestAnimationFrame(scanQRFrame);
   } catch (err) {
@@ -619,7 +629,8 @@ function scanQRFrame() {
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     if (window.jsQR) {
       const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
-      if (code && Date.now() - _lastScan > 2000) {
+      // ✅ Un code détecté n'est exploité que si un scan a été explicitement armé
+      if (_qrArmed && code && Date.now() - _lastScan > 2000) {
         _lastScan = Date.now();
         handleQRResult(code.data);
       }
@@ -639,11 +650,28 @@ function handleQRResult(raw) {
     if (!emp) {
       document.getElementById('qr-status').textContent = 'Employé non reconnu';
       document.getElementById('qr-status').className = 'status-msg warn';
+      disarmQRScan();
       return;
     }
     showResult(emp, 'qr');
     sendScan(empId, 'qr');
+    disarmQRScan();
   } catch {}
+}
+
+// ✅ Désarme la détection après un scan traité (succès ou échec) et réaffiche
+// le bouton "Scanner" — un nouveau scan exige désormais une action explicite.
+function disarmQRScan() {
+  _qrArmed = false;
+  document.getElementById('btn-scan-qr').style.display = 'flex';
+}
+
+// ✅ Arme la détection pour UN seul scan, déclenché par l'utilisateur.
+function armQRScan() {
+  _qrArmed = true;
+  document.getElementById('btn-scan-qr').style.display = 'none';
+  document.getElementById('qr-status').textContent = 'Pointez la caméra vers un QR Code';
+  document.getElementById('qr-status').className = 'status-msg';
 }
 
 // ── Face API Models ──────────────────────────────────────────
@@ -692,9 +720,12 @@ async function startFaceRecognition() {
     video.srcObject = _faceStream;
     await video.play();
     _scanning = true;
+    _faceArmed = false;
     document.getElementById('btn-start-face').style.display = 'none';
+    document.getElementById('btn-scan-face').style.display = 'flex';
     document.getElementById('btn-stop-face').style.display = 'flex';
-    document.getElementById('face-status').textContent = 'Reconnaissance en cours...';
+    document.getElementById('face-status').textContent = 'Appuyez sur "Scanner" pour lancer la reconnaissance';
+    document.getElementById('face-status').className = 'status-msg';
     recognizeFaceLoop();
   } catch (err) {
     document.getElementById('face-status').textContent = 'Caméra inaccessible';
@@ -702,8 +733,10 @@ async function startFaceRecognition() {
 }
 function stopFaceRecognition() {
   _scanning = false;
+  _faceArmed = false;
   if (_faceStream) { _faceStream.getTracks().forEach(t => t.stop()); _faceStream = null; }
   document.getElementById('btn-start-face').style.display = _models ? 'flex' : 'none';
+  document.getElementById('btn-scan-face').style.display = 'none';
   document.getElementById('btn-stop-face').style.display = 'none';
   // ✅ FIX: réinitialise le cadre de guidage à l'arrêt du scan
   document.getElementById('face-guide')?.classList.remove('detected', 'off-center');
@@ -725,7 +758,7 @@ async function recognizeFaceLoop() {
     } catch {}
   }
 
-  if (video.readyState === video.HAVE_ENOUGH_DATA && Date.now() - _lastFaceScan > 1500) {
+  if (_faceArmed && video.readyState === video.HAVE_ENOUGH_DATA && Date.now() - _lastFaceScan > 1500) {
     try {
       const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
         .withFaceLandmarks().withFaceDescriptor();
@@ -741,6 +774,7 @@ async function recognizeFaceLoop() {
             if (emp) {
               showResult(emp, 'face');
               sendScan(emp.id, 'face');
+              disarmFaceScan(); // ✅ scan traité → exige une action explicite avant le suivant
             }
           } else {
             document.getElementById('face-status').textContent = 'Visage non reconnu';
@@ -753,6 +787,22 @@ async function recognizeFaceLoop() {
     } catch {}
   }
   if (_scanning) requestAnimationFrame(recognizeFaceLoop);
+}
+
+// ✅ Désarme la détection faciale après un scan réussi et réaffiche "Scanner".
+// Le cadre de guidage continue de tourner : le retour visuel reste actif,
+// seule la reconnaissance/matching est suspendue jusqu'au prochain armement.
+function disarmFaceScan() {
+  _faceArmed = false;
+  document.getElementById('btn-scan-face').style.display = 'flex';
+}
+
+// ✅ Arme la détection pour UN seul scan facial, déclenché par l'utilisateur.
+function armFaceScan() {
+  _faceArmed = true;
+  document.getElementById('btn-scan-face').style.display = 'none';
+  document.getElementById('face-status').textContent = 'Reconnaissance en cours...';
+  document.getElementById('face-status').className = 'status-msg';
 }
 
 // ── Anti-doublon enrôlement ─────────────────────────────────────
@@ -1026,12 +1076,19 @@ function showResult(emp, type) {
   document.getElementById('result-meta').textContent = emp.position || '';
   document.getElementById('result-mode').textContent = `Mode: ${_mode.label || _mode.section} · ${type === 'qr' ? 'QR Code' : 'Facial'}`;
   document.getElementById('scan-result').classList.add('show');
-  document.getElementById('qr-status').textContent = '✅ Envoyé au Chromebook';
-  document.getElementById('qr-status').className = 'status-msg ok';
+  // ✅ Cible le statut du panneau réellement concerné (QR ou Facial) au lieu
+  // d'écrire toujours dans qr-status, et adapte le texte au nouveau mode
+  // de déclenchement manuel (le scan suivant exige un appui sur "Scanner").
+  const statusEl = document.getElementById(type === 'qr' ? 'qr-status' : 'face-status');
+  const resetText = type === 'qr'
+    ? 'Appuyez sur "Scanner" pour scanner un autre QR Code'
+    : 'Appuyez sur "Scanner" pour scanner un autre visage';
+  statusEl.textContent = '✅ Envoyé au Chromebook';
+  statusEl.className = 'status-msg ok';
   setTimeout(() => {
     document.getElementById('scan-result').classList.remove('show');
-    document.getElementById('qr-status').textContent = 'Pointez la caméra vers un QR Code';
-    document.getElementById('qr-status').className = 'status-msg';
+    statusEl.textContent = resetText;
+    statusEl.className = 'status-msg';
   }, 3000);
 }
 

@@ -4,7 +4,7 @@
 // Offline-first: Tout le contenu statique est mis en cache
 // ============================================================
 
-const CACHE_VERSION = 'rh-v5'; // Ajout module biométrique
+const CACHE_VERSION = 'rh-v8'; // Ajout module biométrique
 
 // Tous les fichiers essentiels à mettre en cache
 const CACHE_URLS = [
@@ -55,6 +55,7 @@ const CACHE_URLS = [
   '/icons.css',
   '/manifest.webmanifest',
   '/jsQR.min.js',
+  '/face-api.min.js',
   '/efateo.mp3',
   '/suivant.mp3',
   '/icon-192.png',
