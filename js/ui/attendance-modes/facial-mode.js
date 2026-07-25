@@ -287,8 +287,12 @@ export class FacialMode {
 
       if (result.success) {
         const conf = Math.round(result.confidence * 100);
-        const dateInput = this.container.querySelector('[data-attendance-date]');
-        const date = dateInput?.value || new Date().toISOString().split('T')[0];
+        // ✅ FIX: un scan facial en direct doit toujours être enregistré à la date
+        // réelle du moment du scan, jamais à la valeur du champ [data-attendance-date]
+        // — celui-ci est fixé une seule fois au chargement de la page (_setupDateDefaults)
+        // et devient obsolète si l'application reste ouverte après minuit, causant
+        // l'enregistrement de nouveaux pointages sous la date de la veille.
+        const date = new Date().toISOString().split('T')[0];
 
         // ✅ Enregistrement réel dans state.attendance + persistance IndexedDB
         await this._registerAttendance(result.employe, date);

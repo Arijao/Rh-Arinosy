@@ -86,6 +86,7 @@ export function displayDashboardCharts() {
 function _renderWeeklyChart() {
   const ctx = document.getElementById('weeklyAttendanceChart');
   if (!ctx) return;
+  if (typeof Chart === 'undefined') { console.warn('[stats] Chart.js indisponible (CDN?) — graphique ignoré.'); return; }
   weeklyChart?.destroy();
   const labels = [], data = [];
   const total  = state.employees.length || 1;
@@ -115,6 +116,7 @@ function _renderWeeklyChart() {
 function _renderGroupChart() {
   const ctx = document.getElementById('groupDistributionChart');
   if (!ctx) return;
+  if (typeof Chart === 'undefined') { console.warn('[stats] Chart.js indisponible (CDN?) — graphique ignoré.'); return; }
   groupChart?.destroy();
   const counts = {};
   state.groups.forEach(g => { counts[g.name] = 0; });
@@ -138,6 +140,7 @@ function _renderGroupChart() {
 function _renderGenderChart() {
   const ctx = document.getElementById('genderDistributionChart');
   if (!ctx) return;
+  if (typeof Chart === 'undefined') { console.warn('[stats] Chart.js indisponible (CDN?) — graphique ignoré.'); return; }
   genderChart?.destroy();
   let males = 0, females = 0, other = 0;
   state.employees.forEach(e => {

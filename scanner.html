@@ -146,6 +146,22 @@
     pointer-events: none; z-index: 6; white-space: nowrap;
   }
 
+  #face-disarmed-overlay {
+    position: absolute; inset: 0; display: none;
+    align-items: center; justify-content: center; flex-direction: column; gap: 8px;
+    background: rgba(0,0,0,.25); /* léger — n'empêche pas de voir l'image en dessous */
+    color: #fff; font-size: 14px; font-weight: 600; text-align: center; padding: 16px;
+    z-index: 5; pointer-events: none; /* ne bloque aucune interaction */
+  }
+
+  #face-disarmed-name {
+    display: block; font-size: 36px; font-weight: 700; line-height: 1.15;
+    max-width: 100%; white-space: nowrap; overflow: hidden;
+  }
+  .face-disarmed-sub {
+    font-size: 12px; font-weight: 500; opacity: .85; margin-top: 4px; display: block;
+  }
+
   /* Result */
   #scan-result {
     width: 100%; max-width: 360px; padding: 16px; border-radius: var(--radius);
@@ -290,7 +306,12 @@
       <canvas id="face-canvas"></canvas>
       <div class="face-guide-frame" id="face-guide"></div>
       <div class="face-guide-hint" id="face-guide-hint">Centrez votre visage dans le cadre</div>
+      <div id="face-disarmed-overlay">
+        <span id="face-disarmed-name"></span>
+        <span class="face-disarmed-sub">✓ Scan enregistré — Appuyez sur "Scanner" pour le suivant</span>
+      </div>
     </div>
+
     <div class="models-progress" id="models-progress" style="display:none">
       <div class="models-bar" id="models-bar"></div>
     </div>
@@ -384,10 +405,12 @@ function playBeep() {
     gain.connect(_beepCtx.destination);
     osc.frequency.value = 880;
     osc.type = 'sine';
-    gain.gain.setValueAtTime(0.3, _beepCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, _beepCtx.currentTime + 0.15);
+    // ✅ FIX: volume augmenté (0.3 → 0.9) et durée légèrement allongée
+    // (0.15s → 0.22s) pour une meilleure perception en environnement bruyant.
+    gain.gain.setValueAtTime(0.9, _beepCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, _beepCtx.currentTime + 0.22);
     osc.start();
-    osc.stop(_beepCtx.currentTime + 0.15);
+    osc.stop(_beepCtx.currentTime + 0.22);
   } catch {}
 }
 
@@ -550,6 +573,10 @@ function initWS() {
       if (msg.event === 'mode') {
         _mode = msg;
         document.getElementById('mode-display').textContent = msg.label || msg.section;
+      } else if (msg.event === 'update' && msg.type === 'employee') {
+        // ✅ FIX: resynchronisation temps réel de la liste des employés
+        // (ajout/modification/enrôlement/suppression), sans rechargement de page.
+        fetchEmployees();
       }
     } catch {}
   };
@@ -572,12 +599,21 @@ async function fetchEmployees() {
     const data = await res.json();
     _employees = data.employees || [];
     const sel = document.getElementById('enroll-emp-select');
+    // ✅ FIX: préserve la sélection en cours et retire les anciennes options
+    // avant de repeupler — nécessaire car fetchEmployees() est désormais
+    // rappelée à chaque mise à jour temps réel (voir initWS), pas uniquement
+    // au chargement initial de la page.
+    const previousValue = sel.value;
+    sel.querySelectorAll('option:not([value=""])').forEach(o => o.remove());
     _employees.forEach(e => {
       const opt = document.createElement('option');
       opt.value = e.id;
       opt.textContent = `${e.name} — ${e.position || ''}`;
       sel.appendChild(opt);
     });
+    if (previousValue && _employees.some(e => e.id === previousValue)) {
+      sel.value = previousValue;
+    }
   } catch {}
 }
 
@@ -680,8 +716,8 @@ async function loadFaceApiModels() {
   document.getElementById('face-status').textContent = 'Chargement des modèles IA...';
   document.getElementById('models-progress').style.display = 'block';
   try {
-    // Charger face-api.js depuis CDN
-    await loadScript('https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js');
+    // Charger face-api.js — copie locale servie par le serveur Express (LAN-safe, aucune dépendance Internet)
+    await loadScript('/face-api.min.js');
     _faceApi = faceapi;
     const MODEL_URL = `${location.protocol}//${location.host}/model`;
     const bar = document.getElementById('models-bar');
@@ -774,7 +810,7 @@ async function recognizeFaceLoop() {
             if (emp) {
               showResult(emp, 'face');
               sendScan(emp.id, 'face');
-              disarmFaceScan(); // ✅ scan traité → exige une action explicite avant le suivant
+              disarmFaceScan(emp); // ✅ scan traité → exige une action explicite avant le suivant + affiche le nom
             }
           } else {
             document.getElementById('face-status').textContent = 'Visage non reconnu';
@@ -792,17 +828,50 @@ async function recognizeFaceLoop() {
 // ✅ Désarme la détection faciale après un scan réussi et réaffiche "Scanner".
 // Le cadre de guidage continue de tourner : le retour visuel reste actif,
 // seule la reconnaissance/matching est suspendue jusqu'au prochain armement.
-function disarmFaceScan() {
+// Affiche le nom complet de l'employé reconnu (taille auto-ajustée via
+// fitDisarmedName) à la place de l'ancienne icône "check_circle".
+//
+// NOTE MAINTENANCE : cette fonction (ainsi que armFaceScan ci-dessous) ne
+// doit exister qu'à UN SEUL endroit dans ce fichier. Une déclaration
+// dupliquée plus haut dans le script a existé par le passé et a été
+// supprimée — ne pas la réintroduire.
+function disarmFaceScan(emp) {
   _faceArmed = false;
   document.getElementById('btn-scan-face').style.display = 'flex';
+  document.getElementById('face-disarmed-overlay').style.display = 'flex';
+  const nameEl = document.getElementById('face-disarmed-name');
+  if (nameEl) {
+    nameEl.textContent = emp?.name || '';
+    fitDisarmedName(nameEl);
+  }
 }
 
 // ✅ Arme la détection pour UN seul scan facial, déclenché par l'utilisateur.
 function armFaceScan() {
   _faceArmed = true;
   document.getElementById('btn-scan-face').style.display = 'none';
+  document.getElementById('face-disarmed-overlay').style.display = 'none';
   document.getElementById('face-status').textContent = 'Reconnaissance en cours...';
   document.getElementById('face-status').className = 'status-msg';
+}
+
+// ✅ Réduit progressivement la taille du nom affiché tant qu'il dépasse
+// la largeur disponible (noms longs / téléphones étroits). Commence à 36px,
+// descend par paliers de 2px jusqu'à 18px minimum ; si le nom déborde encore
+// au minimum, autorise le retour à la ligne plutôt que de continuer à réduire.
+function fitDisarmedName(el) {
+  if (!el) return;
+  const MAX_SIZE = 36, MIN_SIZE = 18;
+  let size = MAX_SIZE;
+  el.style.whiteSpace = 'nowrap';
+  el.style.fontSize = size + 'px';
+  while (size > MIN_SIZE && el.scrollWidth > el.clientWidth) {
+    size -= 2;
+    el.style.fontSize = size + 'px';
+  }
+  if (el.scrollWidth > el.clientWidth) {
+    el.style.whiteSpace = 'normal'; // dernier recours : passage à 2 lignes
+  }
 }
 
 // ── Anti-doublon enrôlement ─────────────────────────────────────

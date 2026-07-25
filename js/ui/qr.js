@@ -283,6 +283,23 @@ export async function processAttendanceScan(emp, method = 'QR', skipSound = fals
   }
 
   if (!existing.depart) {
+    // ✅ FIX: délai minimum de 2 min entre arrivée et départ — évite qu'un
+    // second scan rapproché de la même personne (double-appui, visage encore
+    // dans le cadre, etc.) soit enregistré comme départ instantané.
+    // Symétrique à la règle des 30 min déjà existante plus bas pour la
+    // mise à jour d'un départ déjà enregistré.
+    let arrTime = existing.arrivee;
+    if (arrTime && arrTime.split(':').length === 3) arrTime = arrTime.substring(0, 5);
+    const lastArr = arrTime ? new Date(`${today}T${arrTime}:00`) : null;
+    const minSinceArrival = lastArr ? Math.floor((now - lastArr) / 60000) : Infinity;
+
+    if (minSinceArrival < 2) {
+      playErrorSound();
+      showScanResult(`<strong>❌ TROP RAPPROCHÉ</strong><br>${emp.name}<br>Arrivée il y a ${minSinceArrival} min (min 2)`, 'error');
+      setTimeout(() => stopQRScan(), 4000);
+      return false;
+    }
+
     // Départ
     existing.depart = time;
     if (!existing.checks) existing.checks = [];
@@ -452,18 +469,44 @@ export async function generateAllQRCodes() {
   container.innerHTML = `<div style="text-align:center;padding:60px;"><h3>Génération...</h3><p id="progressText">0/${state.employees.length}</p></div>`;
 
   const cards = [];
+  // FIX : dbManager.put('qr_codes', ...) avale toute erreur réseau en
+  // interne (state.js) sans jamais la signaler à l'appelant. On ne modifie
+  // pas cette fonction partagée — elle est aussi utilisée par le système
+  // de PIN (_savePin() dans auth.js) qu'on ne touche pas. À la place, on
+  // fait ici un appel direct avec le même format de payload, pour pouvoir
+  // détecter l'échec de persistance sans rien changer côté state.js.
+  let persistFailures = 0;
   for (let i = 0; i < state.employees.length; i++) {
     const emp = state.employees[i];
     document.getElementById('progressText').textContent = `${i + 1}/${state.employees.length}`;
     const dataURL = await _generateQRCode(emp);
     if (!dataURL) continue;
+
+    const item = {
+      employeeId: emp.id, employeeName: emp.name, employeePosition: emp.position,
+      employeeGroupId: emp.groupId, dataURL,
+      generated: new Date().toISOString(), size: state.qrSettings.size, color: state.qrSettings.color,
+    };
+    let persisted = true;
     try {
-      await dbManager.put('qr_codes', {
-        employeeId: emp.id, employeeName: emp.name, employeePosition: emp.position,
-        employeeGroupId: emp.groupId, dataURL,
-        generated: new Date().toISOString(), size: state.qrSettings.size, color: state.qrSettings.color,
+      const res = await fetch('/api/qr/codes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          employeeId: item.employeeId,
+          payload:    JSON.stringify(item),
+          generated:  item.generated,
+          size:       item.size || null,
+          color:      item.color || null,
+        }),
       });
-    } catch {}
+      persisted = res.ok;
+    } catch (err) {
+      persisted = false;
+      console.warn('[QR Generation] Échec de persistance pour', emp.name, ':', err.message);
+    }
+    if (!persisted) persistFailures++;
+
     const group = state.groups.find(g => g.id === emp.groupId);
     cards.push(`
       <div class="qr-card" data-employee-id="${emp.id}">
@@ -477,7 +520,11 @@ export async function generateAllQRCodes() {
       </div>`);
   }
   container.innerHTML = cards.join('') || '<p>Échec de génération.</p>';
-  showToast(`✅ ${cards.length} QR codes générés!`, 'success');
+  if (persistFailures > 0) {
+    showToast(`⚠️ ${cards.length - persistFailures}/${cards.length} QR codes générés — ${persistFailures} non sauvegardé(s) sur le serveur (connexion perdue). Réessayez.`, 'warning');
+  } else {
+    showToast(`✅ ${cards.length} QR codes générés!`, 'success');
+  }
 }
 
 function _generateQRCode(emp) {
@@ -538,87 +585,135 @@ function _generateQRCode(emp) {
 }
 
 export async function downloadQRFromDB(empId) {
-  const qr  = await dbManager.get('qr_codes', empId);
-  if (!qr)  { showToast('QR non trouvé. Générez d\'abord.', 'error'); return; }
-  const a   = document.createElement('a');
-  a.href    = qr.dataURL;
-  a.download = `qr-${qr.employeeName.replace(/\s+/g, '-')}.png`;
+  // FIX : le QR est déjà affiché dans le DOM (dataURL de l'<img> de la
+  // carte) — pas besoin de re-fetch le serveur pour un QR généré cette
+  // session, ce qui échouait systématiquement hors ligne. Fallback serveur
+  // conservé pour un QR généré lors d'une session précédente.
+  const cardImg = document.querySelector(`.qr-card[data-employee-id="${empId}"] img`);
+  let dataURL = cardImg?.src;
+  let employeeName = state.employees.find(e => e.id === empId)?.name;
+
+  if (!dataURL) {
+    const qr = await dbManager.get('qr_codes', empId);
+    if (!qr) { showToast('QR non trouvé. Générez d\'abord.', 'error'); return; }
+    dataURL = qr.dataURL;
+    employeeName = qr.employeeName;
+  }
+
+  const a    = document.createElement('a');
+  a.href     = dataURL;
+  a.download = `qr-${(employeeName || empId).replace(/\s+/g, '-')}.png`;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  showToast(`✅ QR de ${qr.employeeName} téléchargé!`, 'success');
+  showToast(`✅ QR de ${employeeName || 'employé'} téléchargé!`, 'success');
 }
 
 export async function printAllQRCodes() {
-  const all = await dbManager.getAll('qr_codes');
-  if (!all.length) { showToast('Aucun QR. Générez d\'abord.', 'error'); return; }
-  const items = all.map(qr => {
-    const emp = state.employees.find(e => e.id === qr.employeeId);
-    if (!emp || !qr.dataURL) return '';
-    return `<div class="qr-item-print"><h3>${emp.name}</h3><p>${emp.position}</p><img src="${qr.dataURL}" alt="QR"><p>Scanner pour présence/avance/paie</p></div>`;
-  }).join('');
+  // FIX : priorité aux cartes déjà rendues dans le DOM (générées cette
+  // session) — dbManager.getAll('qr_codes') dépend entièrement du serveur
+  // et renvoie une liste vide hors ligne, même juste après une génération
+  // réussie à l'écran.
+  const domCards = document.querySelectorAll('#qrContainer .qr-card');
+  let items = '';
+  if (domCards.length) {
+    items = Array.from(domCards).map(card => {
+      const emp = state.employees.find(e => e.id === card.dataset.employeeId);
+      const img = card.querySelector('img');
+      if (!emp || !img?.src) return '';
+      return `<div class="qr-item-print"><div class="qr-badge-header"><h3>${emp.name}</h3><p class="qr-position">${emp.position}</p></div><img src="${img.src}" alt="QR"><p class="qr-badge-footer">BEHAVANA HR</p></div>`;
+    }).join('');
+  } else {
+    const all = await dbManager.getAll('qr_codes');
+    items = all.map(qr => {
+      const emp = state.employees.find(e => e.id === qr.employeeId);
+      if (!emp || !qr.dataURL) return '';
+      return `<div class="qr-item-print"><div class="qr-badge-header"><h3>${emp.name}</h3><p class="qr-position">${emp.position}</p></div><img src="${qr.dataURL}" alt="QR"><p class="qr-badge-footer">BEHAVANA HR</p></div>`;
+    }).join('');
+  }
+  if (!items) { showToast('Aucun QR. Générez d\'abord.', 'error'); return; }
   const w = window.open('', '_blank');
+  if (!w) { showToast('Fenêtre bloquée par le navigateur (pop-up).', 'error'); return; }
   w.document.write(`
     <html>
     <head>
       <title>QR Codes — BEHAVANA HR</title>
       <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: Arial, sans-serif; background: #fff; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #fff; }
 
-        /* 2 colonnes × 3 lignes = 6 QR par page A4 portrait */
+        /* 3 colonnes × 4 lignes = 12 badges par page A4 portrait
+           (au lieu de 2×3=6). Dimensionné en mm pour un rendu fidèle à
+           l'impression quelle que soit la résolution d'écran. */
         .page-container {
           display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 10px;
-          padding: 10px;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 4mm;
+          padding: 8mm;
         }
 
         .qr-item-print {
-          border: 1.5px solid #ccc;
-          border-radius: 8px;
-          padding: 8px 10px;
+          border: 1px solid #d1d5db;
+          border-radius: 10px;
+          overflow: hidden;
           text-align: center;
           page-break-inside: avoid;
           break-inside: avoid;
           display: flex;
           flex-direction: column;
           align-items: center;
+          background: #fff;
         }
 
-        /* Nom : une seule ligne, tronqué si trop long */
+        /* Bandeau coloré nom/poste — look badge standard */
+        .qr-badge-header {
+          width: 100%;
+          background: #6750A4;
+          color: #fff;
+          padding: 3mm 2mm 2mm;
+        }
+
         .qr-item-print h3 {
-          font-size: 10px;
+          font-size: 11px;
           font-weight: 700;
-          margin-bottom: 1px;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
           width: 100%;
         }
 
-        /* Poste et label pied : compact */
-        .qr-item-print p {
-          font-size: 8px;
-          color: #666;
-          margin-bottom: 4px;
+        .qr-item-print .qr-position {
+          font-size: 8.5px;
+          font-weight: 400;
+          opacity: .9;
+          margin-top: 1px;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
           width: 100%;
         }
 
-        /* QR image : taille maximale préservée */
+        /* QR en mm : taille lisible et stable à l'impression (38mm ≈
+           largement au-dessus du seuil de scan fiable ~25-30mm) */
         .qr-item-print img {
-          width: 180px;
-          height: 180px;
+          width: 38mm;
+          height: 38mm;
           display: block;
-          margin: 4px auto;
+          margin: 3mm auto 2mm;
           image-rendering: pixelated;
+        }
+
+        .qr-badge-footer {
+          font-size: 7px;
+          color: #9ca3af;
+          letter-spacing: .5px;
+          text-transform: uppercase;
+          font-weight: 600;
+          margin-bottom: 3mm;
         }
 
         @media print {
           @page { margin: 6mm; size: A4 portrait; }
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .page-container { gap: 8px; padding: 0; }
+          .page-container { padding: 0; }
         }
       </style>
     </head>
@@ -670,10 +765,22 @@ export async function handleQRImageUpload(event) {
 // Expose
 window._downloadQRFromDB = downloadQRFromDB;
 window._printQRFromDB    = async (id) => {
-  const qr  = await dbManager.get('qr_codes', id);
-  if (!qr) return;
+  // FIX : même logique DOM-first que downloadQRFromDB. Auparavant, un
+  // échec silencieux (`return;` sans toast) donnait l'impression que le
+  // bouton "Imprimer" ne faisait rien.
+  const cardImg = document.querySelector(`.qr-card[data-employee-id="${id}"] img`);
+  const emp     = state.employees.find(e => e.id === id);
+  let dataURL = cardImg?.src, employeeName = emp?.name, employeePosition = emp?.position;
+
+  if (!dataURL) {
+    const qr = await dbManager.get('qr_codes', id);
+    if (!qr) { showToast('QR non trouvé. Générez d\'abord.', 'error'); return; }
+    dataURL = qr.dataURL; employeeName = qr.employeeName; employeePosition = qr.employeePosition;
+  }
+
   const w = window.open('', '_blank');
-  w.document.write(`<html><body style="text-align:center;font-family:Arial;padding:30px;"><h2>${qr.employeeName}</h2><p>${qr.employeePosition}</p><img src="${qr.dataURL}" style="width:280px;border:4px solid #6750A4;border-radius:12px;padding:12px;"><p><strong>BEHAVANA HR SYSTEM</strong></p></body></html>`);
+  if (!w) { showToast('Fenêtre bloquée par le navigateur (pop-up).', 'error'); return; }
+  w.document.write(`<html><body style="text-align:center;font-family:Arial;padding:30px;"><h2>${employeeName}</h2><p>${employeePosition || ''}</p><img src="${dataURL}" style="width:280px;border:4px solid #6750A4;border-radius:12px;padding:12px;"><p><strong>BEHAVANA HR SYSTEM</strong></p></body></html>`);
   w.document.close();
   setTimeout(() => { w.focus(); w.print(); }, 500);
 };

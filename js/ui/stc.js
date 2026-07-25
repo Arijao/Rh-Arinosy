@@ -104,7 +104,6 @@ export async function finalizeSTC(empId, amount) {
 
   const rec = { id: `stc-${empId}-${Date.now()}`, employeeId: empId, employeeName: emp.name, month: 'SOLDE_DE_TOUT_COMPTE', amount, date: new Date().toISOString() };
   state.payrolls.push(rec);
-  await dbManager.add('payrolls', rec);
 
   const idx = state.employees.findIndex(e => e.id === empId);
   if (idx > -1) { state.employees[idx].status = 'inactif'; state.employees[idx].departureDate = new Date().toISOString().split('T')[0]; }

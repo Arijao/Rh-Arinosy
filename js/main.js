@@ -180,9 +180,13 @@ export async function _bootApp() {
   updateLastBackupInfo();
 
   // Premier affichage
-  updateStats();
-  displayDashboardCharts();
-  runSmartChecks();
+  // ✅ FIX : isolé par try/catch (même pattern que refreshUI ci-dessus) pour
+  // qu'un échec de rendu (ex: CDN Chart.js indisponible) ne remonte pas
+  // jusqu'au catch global de init(), qui basculerait toute l'app en mode
+  // "erreur d'initialisation" alors que les données sont bien chargées.
+  try { updateStats(); } catch (e) { console.warn('[_bootApp] updateStats:', e.message); }
+  try { displayDashboardCharts(); } catch (e) { console.warn('[_bootApp] displayDashboardCharts:', e.message); }
+  try { runSmartChecks(); } catch (e) { console.warn('[_bootApp] runSmartChecks:', e.message); }
   initScanMenu(); // initialise le menu scan après que les stats sont calculées
   initBiometricAttendance(); // module biométrique — empreintes digitales
   initScanReceiver();          // récepteur de scans distants (téléphone)

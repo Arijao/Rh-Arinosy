@@ -176,7 +176,7 @@ async function handleAddRemark(e) {
 
     if (!state.remarks) state.remarks = [];
     state.remarks.push(remark);
-    await dbManager.add('remarks', remark);
+    await saveData();
 
     form.reset();
     document.getElementById('remarkEmployeeId').value = employeeId; // restaurer après reset
@@ -201,7 +201,7 @@ export async function toggleRemarkStatus(remarkId, newStatus) {
 
   state.remarks[idx].status = newStatus;
   try {
-    await dbManager.put('remarks', state.remarks[idx]);
+    await saveData();
     const empId = state.remarks[idx].employeeId;
     renderRemarksList(empId);
     _refreshEmployeeRemarkIndicator(empId);
@@ -230,7 +230,7 @@ export async function deleteRemark(remarkId) {
   state.remarks.splice(idx, 1);
 
   try {
-    await dbManager.delete('remarks', remarkId);
+    await saveData();
     renderRemarksList(empId);
     _refreshEmployeeRemarkIndicator(empId);
     showToast('Remarque supprimée.', 'success');

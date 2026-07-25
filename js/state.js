@@ -45,13 +45,17 @@ export const dbManager = {
     },
     get: async (store, key) => {
         if (store === 'settings') {
-            try {
-                const res = await fetch(API_BASE + '/settings');
-                const data = await res.json();
-                const value = data[key];
-                if (value === undefined) return null;
-                return { key, value };
-            } catch { return null; }
+            // FIX SÉCURITÉ : ne plus avaler l'erreur réseau ici. `null` ne doit
+            // signifier QUE "le serveur a répondu, cette clé n'existe pas" — pas
+            // "impossible de savoir". Sinon auth.js::_getStoredPin() confond une
+            // panne serveur avec "aucun PIN enregistré" et accepte n'importe quel
+            // code en mode "première utilisation" (bypass d'authentification).
+            const res = await fetch(API_BASE + '/settings');
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            const value = data[key];
+            if (value === undefined) return null;
+            return { key, value };
         } else if (store === 'qr_codes') {
             try {
                 const res  = await fetch(API_BASE + '/qr/codes');
@@ -111,6 +115,16 @@ export const dbManager = {
                 console.warn('[DB] put qr_codes error:', err.message);
             }
         }
+    },
+    // Reset total côté serveur (remplace l'ancien clear(storeName) IndexedDB,
+    // qui n'a pas de sens dans l'architecture API Express).
+    clearAll: async () => {
+        const res = await fetch(API_BASE + '/data', { method: 'DELETE' });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || `HTTP ${res.status}`);
+        }
+        return res.json();
     },
     updateDBStatus: (msg, type) => {
         dbManager.log(msg, type);
@@ -408,7 +422,21 @@ export async function loadData() {
         ws.onmessage = (event) => {
             try {
                 const msg = JSON.parse(event.data);
-                if (msg.event === 'update' || msg.event === 'scan') {
+                // ✅ FIX race condition scans simultanés : 'scan' est un événement brut,
+                // diffusé par scan.js AVANT toute écriture en base (scan.js::POST '/' ne
+                // fait que broadcast('scan', ...), aucun accès Prisma). scan-receiver.js
+                // gère déjà entièrement ce même événement (écriture + persistance +
+                // _refreshAfterScan) avec une sérialisation stricte via _scanQueue.
+                // Réagir ICI aussi à 'scan' déclenchait un second loadData() concurrent
+                // qui pouvait s'exécuter AVANT la fin de processAttendanceScan() (pendant
+                // l'await checkAndShowEmployeeAlerts, où _saving est encore false) et
+                // écraser state.attendance avec un instantané serveur ne contenant encore
+                // aucun des scans en cours — d'où la notification affichant "1" au lieu
+                // de "2" lors de deux scans quasi simultanés.
+                // 'update' est diffusé uniquement APRÈS confirmation d'écriture en base
+                // (attendance.js::POST '/' → broadcast('update') après upsert Prisma) :
+                // aucun risque de lecture d'un état prématuré.
+                if (msg.event === 'update') {
                     _scheduleRefresh();
                 }
             } catch { /* message malformé */ }

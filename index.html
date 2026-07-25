@@ -13,22 +13,23 @@
     document.documentElement.style.setProperty('color-scheme', 'dark');
   </script>
 
-  <!-- Bibliothèques tierces (CDN) -->
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.4.8/dist/sweetalert2.all.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Bibliothèques tierces — vendorisées en local, zéro dépendance CDN -->
+  <script src="sweetalert2.all.min.js"></script>
+  <script src="jspdf.umd.min.js"></script>
+  <script src="jspdf.plugin.autotable.min.js"></script>
+  <script src="qrcode.min.js"></script>
+  <script src="xlsx.full.min.js"></script>
+  <script src="jsQR.min.js"></script>
+  <script src="jszip.min.js"></script>
+  <script src="chart.min.js"></script>
   <script src="face-api.min.js"></script>
 
   <!-- Polices & icônes -->
   <link href="roboto.css" rel="stylesheet">
-  <!-- Material Icons : préconnexion CDN pour accélérer le premier chargement -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+  <!-- FIX : preconnect Google Fonts supprimé — roboto.css est
+       auto-hébergée depuis fonts/roboto/, ces hints réseau n'ont
+       plus d'utilité et sont incohérents avec le mode 100% offline -->
   <!-- icons.css gère le chargement hybride CDN + fallback @font-face local -->
   <link href="icons.css" rel="stylesheet">
 

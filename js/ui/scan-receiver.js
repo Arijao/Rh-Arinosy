@@ -83,42 +83,13 @@ async function routeScan({ employeeId, scanType, purpose }) {
 async function _handleAttendanceScan(emp, scanType) {
   const method = scanType === 'qr' ? 'QR' : 'FACIAL';
 
-  // Pages dédiées (QR/Facial/Biométrique) : workflow arrivée/départ complet
-  if (_currentSection === 'qr-presence' || _currentSection === 'face-presence' || _currentSection === 'biometric') {
-    if (typeof processAttendanceScan === 'function') {
-      await processAttendanceScan(emp, method);
-    }
-    return;
-  }
-
-  // Page Présence classique (Saisie Manuelle) : POST direct à l'API.
-  // FIX #3 : l'ancien code envoyait `value: true` (booléen).
-  // manual-mode.js lit `att?.arrivee` et qr.js::displayQRAttendance lit `p?.arrivee`
-  // → avec un booléen ces lectures retournent undefined, l'employé reste affiché absent.
-  // La valeur doit être le même objet structuré que processAttendanceScan() produit.
-  const dateInput = document.getElementById('attendanceDate');
-  const date = dateInput?.value || new Date().toISOString().split('T')[0];
-  const now  = new Date();
-  const time = now.toTimeString().split(' ')[0].substring(0, 5);
-
-  try {
-    await fetch('/api/attendance', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        date,
-        employeeId: emp.id,
-        value: {
-          arrivee: time,
-          depart:  null,
-          method,
-          checks: [{ type: 'arrivee', time, timestamp: now.toISOString() }],
-        },
-      }),
-    });
-    // Le serveur broadcast 'update' → loadData() + refresh UI automatique
-  } catch (err) {
-    console.warn('[SCAN-RECEIVER] Erreur attendance:', err.message);
+  // ✅ FIX: toutes les sections de présence (dédiées OU Saisie Manuelle)
+  // utilisent désormais processAttendanceScan(), qui détecte correctement
+  // s'il existe déjà une arrivée pour cet employé aujourd'hui et enregistre
+  // un départ le cas échéant — au lieu d'écraser l'arrivée existante avec
+  // un nouveau POST inconditionnel {arrivee, depart:null}.
+  if (typeof processAttendanceScan === 'function') {
+    await processAttendanceScan(emp, method);
   }
 }
 
@@ -156,9 +127,14 @@ function _handleStatusSearchScan(emp, scanType) {
 function _initScanListener() {
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsUrl = `${proto}//${location.host}/ws`;
+  // FIX : backoff exponentiel identique à state.js, au lieu d'un retry fixe
+  // toutes les 2s qui spamme la console indéfiniment en coupure prolongée.
+  let _retryMs = 1000;
 
   function connect() {
     _ws = new WebSocket(wsUrl);
+
+    _ws.onopen = () => { _retryMs = 1000; };
 
     _ws.onmessage = (event) => {
       try {
@@ -171,7 +147,10 @@ function _initScanListener() {
       } catch { /* ignorer */ }
     };
 
-    _ws.onclose = () => { setTimeout(connect, 2000); };
+    _ws.onclose = () => {
+      setTimeout(connect, _retryMs);
+      _retryMs = Math.min(_retryMs * 2, 30000);
+    };
     _ws.onerror = () => _ws.close();
   }
 

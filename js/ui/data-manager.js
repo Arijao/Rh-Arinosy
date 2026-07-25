@@ -127,14 +127,22 @@ export async function resetAllData() {
   );
   if (!confirmed) return;
 
-  const stores = ['groups','employees','attendance','payrolls','advances','settings','qr_attendance','qr_codes'];
-  for (const s of stores) await dbManager.clear(s);
+  try {
+    await dbManager.clearAll();
 
-  state.employees = []; state.groups = []; state.attendance = {};
-  state.payrolls  = []; state.advances = []; state.qrAttendance = [];
+    // FIX : loadData() était déjà importé mais jamais utilisé ici. On
+    // resynchronise depuis le serveur (qui vient de tout vider) plutôt que
+    // de réassigner state.* à la main — ça remet aussi à jour les snapshots
+    // internes de state.js (_snap), sinon un saveData() ultérieur pouvait
+    // redéclencher des DELETE inutiles vers des entités déjà supprimées.
+    await loadData();
 
-  await _refreshUI();
-  showToast('Remise à zéro effectuée.', 'success');
+    await _refreshUI();
+    showToast('Remise à zéro effectuée.', 'success');
+  } catch (err) {
+    console.error('[resetAllData] Erreur:', err);
+    showToast('Erreur lors de la remise à zéro: ' + err.message, 'error');
+  }
 }
 
 // ------ Refresh after import/reset ------

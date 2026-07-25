@@ -4,7 +4,7 @@
 // Offline-first: Tout le contenu statique est mis en cache
 // ============================================================
 
-const CACHE_VERSION = 'rh-v8'; // Ajout module biométrique
+const CACHE_VERSION = 'rh-v15'; // Roboto auto-hébergée — fin de la dépendance Google Fonts
 
 // Tous les fichiers essentiels à mettre en cache
 const CACHE_URLS = [
@@ -52,9 +52,20 @@ const CACHE_URLS = [
   '/js/utils/initializationManager.js',
   '/js/utils/model-cache.js',
   '/roboto.css',
+  '/fonts/roboto/roboto-v51-latin-300.woff2',
+  '/fonts/roboto/roboto-v51-latin-regular.woff2',
+  '/fonts/roboto/roboto-v51-latin-500.woff2',
+  '/fonts/roboto/roboto-v51-latin-700.woff2',
   '/icons.css',
   '/manifest.webmanifest',
   '/jsQR.min.js',
+  '/chart.min.js',
+  '/sweetalert2.all.min.js',
+  '/jspdf.umd.min.js',
+  '/jspdf.plugin.autotable.min.js',
+  '/qrcode.min.js',
+  '/xlsx.full.min.js',
+  '/jszip.min.js',
   '/face-api.min.js',
   '/efateo.mp3',
   '/suivant.mp3',
@@ -129,9 +140,9 @@ self.addEventListener('fetch', event => {
   // Ignorer les extensions navigateur
   if (request.url.startsWith('chrome-extension://')) return;
 
-  // Exclure Google Fonts du fetch intercept :
-  // Ces domaines retournent des réponses opaques (CORS) non cachables par le SW.
-  // Le navigateur gère leur cache HTTP natif directement.
+  // Roboto est désormais auto-hébergée (fonts/roboto/*.woff2, précachée
+  // via CACHE_URLS) — cette exclusion ne matche plus aucune requête de
+  // l'app mais reste inoffensive si un futur widget tiers y fait appel.
   if (
     request.url.includes('fonts.googleapis.com') ||
     request.url.includes('fonts.gstatic.com')
@@ -203,6 +214,18 @@ self.addEventListener('fetch', event => {
         return caches.match(request)
           .then(cachedResponse => {
             if (cachedResponse) return cachedResponse;
+            // FIX : navigation SPA avec ?section=xxx (history.pushState dans
+            // navigation.js) — un reload sur /?section=employees ne matche
+            // aucune entrée exacte du cache (seuls '/' et '/index.html' le
+            // sont). L'ancienne détection via request.mode/destination s'est
+            // révélée peu fiable selon le contexte de déclenchement (PWA
+            // standalone, reload interne, etc.) — on se base à la place sur
+            // le pathname, qui est garanti '/' pour toute route de cette
+            // app SPA, peu importe mode/destination.
+            const { pathname } = new URL(request.url);
+            if (pathname === '/' || pathname === '/index.html') {
+              return caches.match('/index.html');
+            }
             if (request.destination === 'image') {
               return new Response('', { status: 404 });
             }
