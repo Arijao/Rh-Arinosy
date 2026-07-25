@@ -31,3 +31,11 @@ Thumbs.db
 *.tmp
 structure.txt
 structure.txt
+
+# Certificats & secrets
+*.pem
+server/certs/
+
+# Base de données locale
+*.db
+*.db-journal
