@@ -4,7 +4,7 @@
 // Offline-first: Tout le contenu statique est mis en cache
 // ============================================================
 
-const CACHE_VERSION = 'rh-v15'; // Roboto auto-hébergée — fin de la dépendance Google Fonts
+const CACHE_VERSION = 'rh-v17'; // Filtre Genre + Liste Épurée
 
 // Tous les fichiers essentiels à mettre en cache
 const CACHE_URLS = [

@@ -132,12 +132,25 @@
       <div id="employees" class="section">
         <div class="card">
           <h2><span class="material-icons">people</span>Liste des Employés</h2>
-          <div style="margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid var(--md-sys-color-outline-variant);">
+          <div style="margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid var(--md-sys-color-outline-variant); display: flex; gap: 8px; flex-wrap: wrap;">
             <button class="btn" onclick="openAddEmployeeModal()"><span class="material-icons">person_add</span>Ajouter un Employé</button>
+            <button class="btn" style="background-color: var(--md-sys-color-secondary); color: var(--md-sys-color-on-secondary);" onclick="exportEmployeeListPDF()">
+              <span class="material-icons">print</span>Imprimer la Liste
+            </button>
           </div>
-          <div class="form-group" style="max-width:300px;margin-bottom:16px;">
-            <label for="employeeGroupFilter">Filtrer par Groupe</label>
-            <select class="form-control" id="employeeGroupFilter"><option value="all">Tous les Groupes</option><option value="none">Sans Groupe</option></select>
+          <div style="display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px;">
+            <div class="form-group" style="flex: 1; min-width: 200px; margin-bottom: 0;">
+              <label for="employeeGroupFilter">Filtrer par Groupe</label>
+              <select class="form-control" id="employeeGroupFilter"><option value="all">Tous les Groupes</option><option value="none">Sans Groupe</option></select>
+            </div>
+            <div class="form-group" style="flex: 1; min-width: 200px; margin-bottom: 0;">
+              <label for="employeeGenderFilter">Filtrer par Genre</label>
+              <select class="form-control" id="employeeGenderFilter">
+                <option value="all">Tous</option>
+                <option value="Homme">Hommes</option>
+                <option value="Femme">Femmes</option>
+              </select>
+            </div>
           </div>
           <div class="search-container" style="position:relative;"><span class="material-icons search-icon">search</span><input type="text" class="search-input" id="employeeSearch" placeholder="Rechercher un employé..."><div id="employeeSearchResults" style="display:none;position:absolute;top:100%;left:0;width:100%;z-index:100;background:rgba(30,41,59,.98);border:1px solid rgba(103,80,164,.4);border-radius:12px;padding:8px;margin-top:4px;box-shadow:0 8px 32px rgba(15,23,42,.5);max-height:320px;overflow-y:auto;"></div></div>
           <div class="form-group" style="max-width:200px;margin-top:16px;">

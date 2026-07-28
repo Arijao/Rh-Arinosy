@@ -227,3 +227,77 @@ export function exportAdvances(format) {
     showToast('Export Excel réussi!', 'success');
   }
 }
+
+// ------ Export Liste Employés ------
+
+export function exportEmployeeListPDF() {
+  const groupFilter = document.getElementById('employeeGroupFilter')?.value || 'all';
+  const genderFilter = document.getElementById('employeeGenderFilter')?.value || 'all';
+  const searchTerm  = (document.getElementById('employeeSearch')?.value || '').toLowerCase();
+
+  let filtered = state.employees.filter(e => e.status !== 'inactif');
+  if (groupFilter === 'none') filtered = filtered.filter(e => !e.groupId);
+  else if (groupFilter !== 'all') filtered = filtered.filter(e => e.groupId === groupFilter);
+  if (genderFilter !== 'all') filtered = filtered.filter(e => e.gender === genderFilter);
+  if (searchTerm) filtered = filtered.filter(e =>
+    e.name.toLowerCase().includes(searchTerm) || e.position.toLowerCase().includes(searchTerm)
+  );
+
+  if (!filtered.length) {
+    showToast('Aucun employé à imprimer.', 'warning');
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  // Titre & En-tête
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(18); doc.setFont('helvetica', 'bold');
+  let title = 'LISTE DES EMPLOYÉS';
+  
+  if (genderFilter === 'Homme') title = 'LISTE DU PERSONNEL MASCULIN';
+  else if (genderFilter === 'Femme') title = 'LISTE DU PERSONNEL FÉMININ';
+
+  if (groupFilter !== 'all' && groupFilter !== 'none') {
+    const group = state.groups.find(g => g.id === groupFilter);
+    if (group) title += ` - ${group.name.toUpperCase()}`;
+  } else if (groupFilter === 'none') {
+    title += ' - SANS GROUPE';
+  }
+  
+  doc.text(title, 105, 20, { align: 'center' });
+  
+  doc.setFontSize(10); doc.setFont('helvetica', 'normal');
+  doc.text(`Date d'édition: ${formatDate(new Date().toISOString())}`, 105, 28, { align: 'center' });
+
+  // Tableau : Numéro, Nom complet, Poste, Groupe
+  const rows = filtered.map((emp, i) => {
+    const group = state.groups.find(g => g.id === emp.groupId);
+    return [
+      i + 1,
+      emp.name,
+      emp.position || 'N/A',
+      group ? group.name : 'Sans groupe'
+    ];
+  });
+
+  doc.autoTable({
+    startY: 35,
+    head: [['#', 'Nom Complet', 'Poste', 'Groupe']],
+    body: rows,
+    theme: 'grid',
+    headStyles: { fillColor: [0, 0, 0], textColor: 255, fontStyle: 'bold' },
+    styles: { fontSize: 10, textColor: [0, 0, 0], cellPadding: 5 },
+    columnStyles: {
+      0: { cellWidth: 12 },
+      1: { cellWidth: 'auto' },
+      2: { cellWidth: 50 },
+      3: { cellWidth: 50 },
+    }
+  });
+
+  const filename = `liste-employes-${groupFilter}-${genderFilter}-${formatDateForFilename(new Date())}.pdf`;
+  doc.save(filename);
+  showToast('Liste des employés exportée au format PDF!', 'success');
+}

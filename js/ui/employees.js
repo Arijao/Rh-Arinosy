@@ -31,6 +31,11 @@ export function initEmployees() {
       const term = document.getElementById('employeeSearch')?.value || '';
       if (term.length >= 2) handleEmployeeSearch();
     });
+  document.getElementById('employeeGenderFilter')
+    ?.addEventListener('change', () => {
+      state.pagination.employee.current = 1;
+      displayEmployees();
+    });
 
   initEmployeeSearchDropdown();
 
@@ -70,11 +75,15 @@ export function initEmployees() {
 export function displayEmployees() {
   const container   = document.getElementById('employeeList');
   const groupFilter = document.getElementById('employeeGroupFilter')?.value || 'all';
+  const genderFilter = document.getElementById('employeeGenderFilter')?.value || 'all';
   const searchTerm  = (document.getElementById('employeeSearch')?.value || '').toLowerCase();
 
   let filtered = state.employees.filter(e => e.status !== 'inactif');
   if (groupFilter === 'none') filtered = filtered.filter(e => !e.groupId);
   else if (groupFilter !== 'all') filtered = filtered.filter(e => e.groupId === groupFilter);
+  
+  if (genderFilter !== 'all') filtered = filtered.filter(e => e.gender === genderFilter);
+
   if (searchTerm) filtered = filtered.filter(e =>
     e.name.toLowerCase().includes(searchTerm) || e.position.toLowerCase().includes(searchTerm)
   );
