@@ -25,7 +25,7 @@ import { initPayroll, calculatePayroll, handlePayrollGroupChange,
          handlePayrollEmployeeChange, toggleAdvanceDaysInput, displayPayments } from './ui/payroll.js';
 import { exportData, importData, resetAllData, handleImportedFile } from './ui/data-manager.js';
 import { initAuth, checkSession, logout } from './ui/auth.js';
-import { showToast } from './utils/notifications.js';
+import { showToast, showIdentificationPopup } from './utils/notifications.js';
 import { showNotification } from './utils/dialog-manager.js';
 import { initScanMenu, toggleScanMethodMenu, filterScanMethod, refreshScanCard, navigateToScanSection } from './ui/scan-menu.js';
 import { initBiometricAttendance } from './ui/biometric-attendance.js';
@@ -240,6 +240,7 @@ function _exposeGlobals() {
   // Employees
   window.openAddEmployeeModal = openAddEmployeeModal;
   window._displayEmployees    = displayEmployees;
+  window.exportEmployeeListPDF = () => import('./ui/reports.js').then(m => m.exportEmployeeListPDF());
 
   // Groups
   window.cancelGroupEdit       = cancelGroupEdit;
@@ -348,6 +349,7 @@ function _exposeGlobals() {
   // Dialogs & Notifications
   window.showToast = showToast;
   window.showNotification = showNotification;
+  window.showIdentificationPopup = showIdentificationPopup;
 
   // ✅ FIX (temps réel) : hook attendu par state.js après un refresh WebSocket
   window.refreshUI = refreshUI;

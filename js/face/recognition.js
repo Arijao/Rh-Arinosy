@@ -205,20 +205,45 @@ const FR = {
   },
 
   async recognizeFace(videoEl, db) {
-    const det = await faceapi.detectSingleFace(videoEl, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 })).withFaceLandmarks().withFaceDescriptor();
-    if (!det) return { success: false, message: 'Aucun visage détecté' };
+  const det = await faceapi.detectSingleFace(videoEl, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 })).withFaceLandmarks().withFaceDescriptor();
+  if (!det) return { success: false, message: 'Aucun visage détecté' };
 
-    const labeled = db.filter(e => e.face_descriptors?.length > 0).map(e =>
-      new faceapi.LabeledFaceDescriptors(e.id, e.face_descriptors.map(d => new Float32Array(d)))
-    );
-    if (!labeled.length) return { success: false, message: 'Aucun employé enregistré' };
+  // Étape 1 — Garde-fou qualité : image/éclairage insuffisant → refus avant toute comparaison
+  const MIN_DET_SCORE = 0.6;
+  if (det.detection.score < MIN_DET_SCORE) {
+    return { success: false, message: 'Impossible d\'identifier cette personne avec un niveau de confiance suffisant. Veuillez réessayer.' };
+  }
 
-    const matcher = new faceapi.FaceMatcher(labeled, 0.4);
-    const best    = matcher.findBestMatch(det.descriptor);
-    if (best.label === 'unknown') return { success: false, message: 'Non reconnu', distance: best.distance };
+  const enrolledEmployees = db.filter(e => e.face_descriptors?.length > 0);
+  if (!enrolledEmployees.length) return { success: false, message: 'Aucun employé enregistré' };
 
-    const emp = db.find(e => e.id === best.label);
-    return { success: true, employe: emp, confidence: 1 - best.distance, distance: best.distance };
+  // Étape 2 — Calcul manuel des distances (remplace FaceMatcher) pour obtenir
+  // le meilleur ET le 2e meilleur candidat, nécessaire à la marge de sécurité.
+  let best   = { id: null, distance: Infinity };
+  let second = { id: null, distance: Infinity };
+
+  for (const emp of enrolledEmployees) {
+    let empBest = Infinity;
+    for (const raw of emp.face_descriptors) {
+      const d = faceapi.euclideanDistance(det.descriptor, new Float32Array(raw));
+      if (d < empBest) empBest = d;
+    }
+    if (empBest < best.distance) { second = best; best = { id: emp.id, distance: empBest }; }
+    else if (empBest < second.distance) { second = { id: emp.id, distance: empBest }; }
+  }
+
+  const MAX_DISTANCE = 0.38; // Seuil inchangé pour l'instant (identique à l'ancien FaceMatcher)
+  const MIN_MARGIN   = 0.06; // Écart minimal exigé entre le 1er et le 2e candidat
+
+  if (best.distance > MAX_DISTANCE) {
+    return { success: false, message: 'Impossible d\'identifier cette personne avec un niveau de confiance suffisant. Veuillez réessayer.', distance: best.distance };
+  }
+  if (second.id !== null && (second.distance - best.distance) < MIN_MARGIN) {
+    return { success: false, message: 'Correspondance ambiguë entre plusieurs employés. Veuillez réessayer.', distance: best.distance };
+  }
+
+  const emp = db.find(e => e.id === best.id);
+  return { success: true, employe: emp, confidence: 1 - best.distance, distance: best.distance };
   },
 
   // ✅ FIX: Exposé comme méthode publique pour import dans facial-mode.js

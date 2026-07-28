@@ -46,14 +46,22 @@ async function routeScan({ employeeId, scanType, purpose }) {
   const emp = state.employees.find(e => e.id === employeeId);
   if (!emp) {
     console.warn('[SCAN-RECEIVER] Employé introuvable:', employeeId);
+    // ✅ Identification impossible → jamais de nom affiché, message générique
+    if (typeof window.showIdentificationPopup === 'function') {
+      window.showIdentificationPopup('Employé non reconnu', 'Identification impossible. Veuillez réessayer.', 'error');
+    }
     return;
   }
 
   console.log(`[SCAN-RECEIVER] Scan reçu — ${emp.name} (${scanType}) — mode: ${purpose}`);
 
+  // null = purpose sans notion de succès/échec (avance, paie, recherche)
+  // true/false = résultat réel du pointage pour les purposes de présence
+  let attendanceResult = null;
+
   switch (purpose) {
     case 'attendance':
-      await _handleAttendanceScan(emp, scanType);
+      attendanceResult = await _handleAttendanceScan(emp, scanType);
       break;
     case 'advances':
       _handleAdvanceScan(emp, scanType);
@@ -61,36 +69,58 @@ async function routeScan({ employeeId, scanType, purpose }) {
     case 'payroll':
       _handlePayrollScan(emp, scanType);
       break;
-    // FIX #2 : case manquant — 'status-search' tombait dans default
-    // → _handleAttendanceScan appelé au lieu de remplir #smartSearchInput
     case 'employee-stats':
       _handleStatusSearchScan(emp, scanType);
       break;
     default:
-      await _handleAttendanceScan(emp, scanType);
+      attendanceResult = await _handleAttendanceScan(emp, scanType);
   }
 
-  if (typeof playSuccessSound === 'function') {
-    playSuccessSound();
+  if (attendanceResult === null) {
+    // Purposes hors présence : même popup que la présence, message adapté au contexte
+    const PURPOSE_SUBTITLES = {
+      advances:         'Sélectionné pour une avance',
+      payroll:          'Sélectionné pour la paie',
+      'employee-stats': 'Recherche de statut',
+    };
+    const subtitle = PURPOSE_SUBTITLES[purpose] || 'Identifié via téléphone';
+
+    if (typeof playSuccessSound === 'function') playSuccessSound();
+    if (typeof window.showIdentificationPopup === 'function') {
+      window.showIdentificationPopup(emp.name, subtitle, 'success');
+    } else if (typeof window.showToast === 'function') {
+      // Filet de sécurité si le popup n'est pas disponible pour une raison quelconque
+      window.showToast(`📡 ${emp.name} identifié(e) via téléphone (${scanType === 'qr' ? 'QR' : 'Facial'})`, 'success', 3000);
+    }
+    return;
   }
 
-  if (typeof window.showToast === 'function') {
-    window.showToast(`📡 ${emp.name} identifié(e) via téléphone (${scanType === 'qr' ? 'QR' : 'Facial'})`, 'success', 3000);
+  if (attendanceResult === true) {
+    // ✅ Identification valide ET pointage enregistré → popup grand format avec le nom
+    if (typeof playSuccessSound === 'function') playSuccessSound();
+    if (typeof window.showIdentificationPopup === 'function') {
+      window.showIdentificationPopup(emp.name, 'Présence enregistrée', 'success');
+    }
+  } else {
+    // Pointage refusé pour raison métier (trop rapproché, bloqué par alerte, annulé).
+    // processAttendanceScan() a déjà joué son propre son d'erreur et affiché
+    // son message détaillé — on ne rejoue pas le son ici pour éviter un doublon.
+    if (typeof window.showIdentificationPopup === 'function') {
+      window.showIdentificationPopup('Pointage non enregistré', 'Veuillez réessayer ou consulter le scanner.', 'warning');
+    }
   }
 }
 
 // ── Présence : marquer présent à la date du jour ──────────────
 async function _handleAttendanceScan(emp, scanType) {
   const method = scanType === 'qr' ? 'QR' : 'FACIAL';
-
-  // ✅ FIX: toutes les sections de présence (dédiées OU Saisie Manuelle)
-  // utilisent désormais processAttendanceScan(), qui détecte correctement
-  // s'il existe déjà une arrivée pour cet employé aujourd'hui et enregistre
-  // un départ le cas échéant — au lieu d'écraser l'arrivée existante avec
-  // un nouveau POST inconditionnel {arrivee, depart:null}.
   if (typeof processAttendanceScan === 'function') {
-    await processAttendanceScan(emp, method);
+    // ✅ FIX: la valeur de retour (succès/échec réel du pointage) était
+    // auparavant ignorée — routeScan() affichait un toast "succès" même
+    // en cas de pointage refusé (bloqué, trop rapproché, annulé).
+    return await processAttendanceScan(emp, method);
   }
+  return false;
 }
 
 // ── Avance : pré-remplir le formulaire d'avance ────────────────

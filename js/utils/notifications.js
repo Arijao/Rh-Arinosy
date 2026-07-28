@@ -248,8 +248,51 @@ function showToast(message, type = 'info', duration = 3000) {
     window.addEventListener('beforeunload', cleanup, { once: true });
 }
 
+// ============================================================
+// 3. POPUP D'IDENTIFICATION (scans distants — grand format)
+// ============================================================
+
+let _idPopupEl = null;
+let _idPopupTimeout = null;
+
+/**
+ * Affiche un popup d'identification en grand format (nom en gros caractères),
+ * destiné à être vu de loin par l'opérateur après un scan distant (téléphone).
+ * Remplacement contrôlé : un nouveau scan remplace immédiatement le popup
+ * précédent au lieu de s'empiler, pour toujours refléter le scan le plus récent.
+ *
+ * @param {string} title    - Texte principal en gros (nom employé, ou "Non reconnu")
+ * @param {string} subtitle - Message secondaire ("Présence enregistrée", etc.)
+ * @param {string} type     - 'success' | 'error' | 'warning'
+ * @param {number} duration - Durée d'affichage en ms avant disparition auto
+ */
+function showIdentificationPopup(title, subtitle, type = 'success', duration = 3500) {
+    // Remplacement contrôlé : annule le popup précédent s'il existe encore
+    if (_idPopupTimeout) clearTimeout(_idPopupTimeout);
+    if (_idPopupEl) { _idPopupEl.remove(); _idPopupEl = null; }
+
+    const popupHTML = `
+        <div class="id-popup id-popup-${type}">
+            <div class="id-popup-title">${title}</div>
+            ${subtitle ? `<div class="id-popup-subtitle">${subtitle}</div>` : ''}
+        </div>
+    `;
+
+    const container = document.getElementById('toastContainer') || document.body;
+    const fragment = document.createElement('div');
+    fragment.innerHTML = popupHTML;
+    _idPopupEl = fragment.firstElementChild;
+    container.appendChild(_idPopupEl);
+
+    _idPopupTimeout = setTimeout(() => {
+        _idPopupEl?.classList.add('id-popup-hide');
+        setTimeout(() => { _idPopupEl?.remove(); _idPopupEl = null; }, 300);
+    }, duration);
+}
+
 export {
     openConfirm,
     openAlert,
     showToast,
+    showIdentificationPopup,
 };
