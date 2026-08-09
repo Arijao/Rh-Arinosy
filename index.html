@@ -95,6 +95,7 @@
         <div class="nav-menu-item"         onclick="navigateToSection('payroll',this)"><span class="material-icons">price_check</span><span class="nav-menu-label">Paie</span></div>
         <div class="nav-menu-item"         onclick="navigateToSection('stc',this)"><span class="material-icons">exit_to_app</span><span class="nav-menu-label">Solde Tout Compte</span></div>
         <div class="nav-menu-item"         onclick="navigateToSection('payments',this)"><span class="material-icons">history</span><span class="nav-menu-label">Paiements</span></div>
+        <div class="nav-menu-item"         onclick="navigateToSection('unpaid-tracker',this)"><span class="material-icons">person_off</span><span class="nav-menu-label">Employés Non Payés</span></div>
         <div class="nav-menu-item"         onclick="navigateToSection('reports',this)"><span class="material-icons">analytics</span><span class="nav-menu-label">Rapports</span></div>
         <div class="nav-menu-item"         onclick="navigateToSection('estimation',this)"><span class="material-icons">request_quote</span><span class="nav-menu-label">Estimation</span></div>
       </div>
@@ -605,6 +606,35 @@
         </div>
       </div>
 
+      <!-- Employés Non Payés -->
+      <div id="unpaid-tracker" class="section">
+        <div class="card">
+          <h2><span class="material-icons">person_off</span>Employés Non Payés</h2>
+
+          <div class="form-row" style="align-items:flex-end;">
+            <div class="form-group">
+              <label for="unpaidMonth">Mois</label>
+              <input type="month" class="form-control" id="unpaidMonth">
+            </div>
+            <div class="form-group">
+              <label for="unpaidGroupFilter">Groupe</label>
+              <div class="select-dropdown">
+                <select class="form-control" id="unpaidGroupFilter">
+                  <option value="all">Tous les Groupes</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn" onclick="window._calculateUnpaid?.()">
+            <span class="material-icons">search</span>Rechercher
+          </button>
+
+          <div id="unpaidSummary" style="margin-top:20px;"></div>
+          <div id="unpaidResults" style="margin-top:16px;"></div>
+        </div>
+      </div>
+
       <!-- STC -->
       <div id="stc" class="section">
         <div class="card">
@@ -815,6 +845,7 @@
     import { initEstimation } from './js/ui/estimation.js';
     import { initFacePresence } from './js/face/recognition.js';
     import { exportAdvances } from './js/ui/reports.js';
+    import { initUnpaidTracker } from './js/ui/unpaid.js';
 
     window.closeModal = closeModal;
     window.openModal  = openModal;
@@ -828,6 +859,7 @@
       initSTC();
       initEstimation();
       initFacePresence();
+      initUnpaidTracker();
     });
   </script>
 
