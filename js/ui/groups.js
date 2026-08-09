@@ -34,7 +34,21 @@ export function populateGroupSelects() {
 
   for (const [id, firstOpt] of Object.entries(configs)) {
     const el = document.getElementById(id);
-    if (el) el.innerHTML = firstOpt + opts;
+    if (!el) continue;
+
+    // FIX filtre groupe présences : conserve la sélection de l'utilisateur.
+    // Sans cela, chaque reconstruction de ce select (déclenchée notamment par
+    // refreshUI() après l'auto-écho WebSocket suivant une action de saisie
+    // manuelle des présences) réinitialise silencieusement le filtre sur
+    // "Tous les groupes", puisque remplacer innerHTML remet selectedIndex à 0.
+    const previousValue = el.value;
+
+    el.innerHTML = firstOpt + opts;
+
+    if (id === 'attendanceGroupFilter' && previousValue) {
+      const stillExists = Array.from(el.options).some(o => o.value === previousValue);
+      el.value = stillExists ? previousValue : 'all';
+    }
   }
 }
 
