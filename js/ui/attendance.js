@@ -112,10 +112,10 @@ export function displayAttendance() {
             </label>
           </div>
           <div id="simple-att-${emp.id}" style="display:${isSimple || !p ? 'flex' : 'none'};align-items:center;justify-content:flex-end;gap:8px;">
-            <label for="att-check-${emp.id}" style="cursor:pointer;font-weight:500;color:${p ? 'var(--md-sys-color-success)' : 'var(--md-sys-color-error)'};">
-              ${p ? 'Présent' : 'Absent'}
+            <label for="att-check-${emp.id}" style="cursor:pointer;font-weight:500;color:${isSimple ? 'var(--md-sys-color-success)' : 'var(--md-sys-color-error)'};">
+              ${isSimple ? 'Présent' : 'Absent'}
             </label>
-            <input type="checkbox" class="checkbox" id="att-check-${emp.id}" ${p ? 'checked' : ''}
+            <input type="checkbox" class="checkbox" id="att-check-${emp.id}" ${isSimple ? 'checked' : ''}
               onchange="window._updateAttCheckbox?.('${emp.id}','${selectedDate}',this.checked)">
           </div>
           <div id="detailed-att-${emp.id}" style="display:${isDetail ? 'block' : 'none'};">
