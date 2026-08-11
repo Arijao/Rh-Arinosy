@@ -890,16 +890,60 @@ export async function deleteFaceEnrollment(empId) {
   window._displayEmployees?.();
 }
 
+// Recherche locale — état module (persiste entre les rafraîchissements, ex. après suppression)
+let _enrolledSearchTerm = '';
+
+function _normalizeSearchText(str) {
+  return (str || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // retire les accents
+    .trim();
+}
+
+export function filterEnrolledEmployees() {
+  const input = document.getElementById('enrolledSearchInput');
+  _enrolledSearchTerm = _normalizeSearchText(input?.value || '');
+  state.pagination.enrolled.current = 1; // évite une page vide après filtrage
+
+  const clearBtn = document.getElementById('enrolledSearchClearBtn');
+  if (clearBtn) clearBtn.style.display = _enrolledSearchTerm ? 'block' : 'none';
+
+  displayEnrolledEmployees();
+}
+
+export function clearEnrolledSearch() {
+  const input = document.getElementById('enrolledSearchInput');
+  if (input) input.value = '';
+  filterEnrolledEmployees();
+}
+
 export function displayEnrolledEmployees() {
-  const container = document.getElementById('enrolledEmployeesList');
-  const countSpan = document.getElementById('enrolledCount');
+  const container    = document.getElementById('enrolledEmployeesList');
+  const countSpan     = document.getElementById('enrolledCount');
+  const resultCountEl = document.getElementById('enrolledSearchResultCount');
   if (!container) return;
 
-  const enrolled = state.employees.filter(e => e.face_enrolled && e.face_descriptors?.length > 0);
-  if (countSpan) countSpan.textContent = enrolled.length;
+  const allEnrolled = state.employees.filter(e => e.face_enrolled && e.face_descriptors?.length > 0);
+  if (countSpan) countSpan.textContent = allEnrolled.length; // total réel, jamais modifié par la recherche
+
+  const enrolled = _enrolledSearchTerm
+    ? allEnrolled.filter(e => _normalizeSearchText(e.name).includes(_enrolledSearchTerm))
+    : allEnrolled;
+
+  if (resultCountEl) {
+    if (_enrolledSearchTerm) {
+      resultCountEl.textContent = `${enrolled.length} résultat${enrolled.length > 1 ? 's' : ''}`;
+      resultCountEl.style.display = 'block';
+    } else {
+      resultCountEl.style.display = 'none';
+    }
+  }
 
   if (!enrolled.length) {
-    container.innerHTML = `<div style="text-align:center;padding:32px;"><span class="material-icons" style="font-size:64px;opacity:.3;">face_retouching_off</span><p>Aucun employé enrolled.</p></div>`;
+    container.innerHTML = _enrolledSearchTerm
+      ? `<div style="text-align:center;padding:32px;"><span class="material-icons" style="font-size:64px;opacity:.3;">search_off</span><p>Aucun résultat pour cette recherche.</p></div>`
+      : `<div style="text-align:center;padding:32px;"><span class="material-icons" style="font-size:64px;opacity:.3;">face_retouching_off</span><p>Aucun employé enrolled.</p></div>`;
     document.getElementById('enrolledPagination').innerHTML = '';
     return;
   }
@@ -981,11 +1025,9 @@ export const recognizeFace = (videoEl, db) => FR.recognizeFace(videoEl, db);
 // Init section
 export function initFacePresence() {
   registerSectionCallback('face-presence', () => { displayEnrolledEmployees(); displayTodayFaceAttendance(); });
-  // ✅ FIX: Exposer globalement pour rafraîchissement après enrôlement ou pointage
-  // - window._displayEnrolled était appelé ligne 314 mais jamais assigné → ignoré silencieusement
-  // - window._displayFaceAttendance est appelé depuis facial-mode._registerAttendance()
   window._displayEnrolled       = displayEnrolledEmployees;
   window._displayFaceAttendance = displayTodayFaceAttendance;
-  // ✅ Exposer la suppression d'enrôlement pour le bouton dans displayEnrolledEmployees
   window._deleteFaceEnrollment  = deleteFaceEnrollment;
+  window._filterEnrolled        = filterEnrolledEmployees;
+  window._clearEnrolledSearch   = clearEnrolledSearch;
 }

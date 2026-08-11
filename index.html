@@ -238,7 +238,15 @@
         </div>
         <div class="card">
           <h3 style="margin:0 0 16px;display:flex;align-items:center;gap:8px;"><span class="material-icons" style="color:var(--md-sys-color-primary);">people</span>Employés Enrolled (<span id="enrolledCount">0</span>)</h3>
-          <div class="form-group" style="max-width:200px;margin-bottom:16px;"><label for="enrolledItemsPerPageSelect">Éléments par page</label><select id="enrolledItemsPerPageSelect" class="form-control" onchange="changeItemsPerPage('enrolled',this.value)"><option value="10">10</option><option value="20" selected>20</option><option value="50">50</option></select></div>
+          <div class="search-container" style="position:relative;max-width:400px;">
+            <span class="material-icons search-icon">search</span>
+            <input type="text" class="search-input" id="enrolledSearchInput" placeholder="Rechercher un employé..." oninput="window._filterEnrolled?.()">
+            <button type="button" id="enrolledSearchClearBtn" onclick="window._clearEnrolledSearch?.()" style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--md-sys-color-on-surface-variant);">
+              <span class="material-icons" style="font-size:20px;">close</span>
+            </button>
+          </div>
+          <div id="enrolledSearchResultCount" style="font-size:13px;color:var(--md-sys-color-on-surface-variant);margin:8px 0 0;display:none;"></div>
+          <div class="form-group" style="max-width:200px;margin-top:16px;margin-bottom:16px;"><label for="enrolledItemsPerPageSelect">Éléments par page</label><select id="enrolledItemsPerPageSelect" class="form-control" onchange="changeItemsPerPage('enrolled',this.value)"><option value="10">10</option><option value="20" selected>20</option><option value="50">50</option></select></div>
           <div id="enrolledEmployeesList"></div>
           <div class="pagination-controls" id="enrolledPagination"></div>
         </div>
