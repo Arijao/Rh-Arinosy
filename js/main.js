@@ -241,6 +241,7 @@ function _exposeGlobals() {
   window.openAddEmployeeModal = openAddEmployeeModal;
   window._displayEmployees    = displayEmployees;
   window.exportEmployeeListPDF = () => import('./ui/reports.js').then(m => m.exportEmployeeListPDF());
+  window.exportEmployeeListExcel = () => import('./ui/reports.js').then(m => m.exportEmployeeListExcel());
 
   // Groups
   window.cancelGroupEdit       = cancelGroupEdit;

@@ -277,20 +277,19 @@ export function exportEmployeeListPDF() {
     return [
       i + 1,
       emp.name,
-      emp.position || 'N/A',
+      '',
       group ? group.name : 'Sans groupe'
     ];
   });
-
   doc.autoTable({
     startY: 35,
-    head: [['#', 'Nom Complet', 'Poste', 'Groupe']],
+    head: [['#', 'Nom Complet', 'Pointage', 'Groupe']],
     body: rows,
     theme: 'grid',
     headStyles: { fillColor: [0, 0, 0], textColor: 255, fontStyle: 'bold' },
     styles: { fontSize: 10, textColor: [0, 0, 0], cellPadding: 5 },
     columnStyles: {
-      0: { cellWidth: 12 },
+      0: { cellWidth: 14, cellPadding: 3 },
       1: { cellWidth: 'auto' },
       2: { cellWidth: 50 },
       3: { cellWidth: 50 },
@@ -300,4 +299,38 @@ export function exportEmployeeListPDF() {
   const filename = `liste-employes-${groupFilter}-${genderFilter}-${formatDateForFilename(new Date())}.pdf`;
   doc.save(filename);
   showToast('Liste des employés exportée au format PDF!', 'success');
+}
+
+export function exportEmployeeListExcel() {
+  const groupFilter  = document.getElementById('employeeGroupFilter')?.value || 'all';
+  const genderFilter = document.getElementById('employeeGenderFilter')?.value || 'all';
+  const searchTerm   = (document.getElementById('employeeSearch')?.value || '').toLowerCase();
+
+  let filtered = state.employees.filter(e => e.status !== 'inactif');
+  if (groupFilter === 'none') filtered = filtered.filter(e => !e.groupId);
+  else if (groupFilter !== 'all') filtered = filtered.filter(e => e.groupId === groupFilter);
+  if (genderFilter !== 'all') filtered = filtered.filter(e => e.gender === genderFilter);
+  if (searchTerm) filtered = filtered.filter(e =>
+    e.name.toLowerCase().includes(searchTerm) || e.position.toLowerCase().includes(searchTerm)
+  );
+
+  if (!filtered.length) {
+    showToast('Aucun employé à exporter.', 'warning');
+    return;
+  }
+  if (!window.XLSX) {
+    showToast('Bibliothèque Excel indisponible.', 'error');
+    return;
+  }
+
+  const rows = [['#', 'Nom', 'Pointage']];
+  filtered.forEach((emp, i) => {
+    rows.push([i + 1, emp.name, '']);
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Employés');
+  XLSX.writeFile(wb, `liste-employes-${new Date().toISOString().split('T')[0]}.xlsx`);
+  showToast('Liste des employés exportée en Excel!', 'success');
 }

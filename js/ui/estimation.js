@@ -3,7 +3,7 @@
 // ============================================================
 
 import { state } from '../state.js';
-import { formatCurrency, getDaysInMonth, calculateWorkDuration } from '../utils/format.js';
+import { formatCurrency, getDaysInMonth, calculateWorkDuration, toLocalISODate } from '../utils/format.js';
 import { showToast } from '../utils/notifications.js';
 import { registerSectionCallback } from './navigation.js';
 import { populateGroupSelects } from './groups.js';
@@ -14,8 +14,8 @@ export function initEstimation() {
     const today = new Date();
     const start = document.getElementById('estimationStartDate');
     const end   = document.getElementById('estimationEndDate');
-    if (start) start.value = today.toISOString().slice(0, 10);
-    if (end)   end.value   = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().slice(0, 10);
+    if (start) start.value = toLocalISODate(today);
+    if (end)   end.value   = toLocalISODate(new Date(today.getFullYear(), today.getMonth() + 1, 0));
   });
 }
 

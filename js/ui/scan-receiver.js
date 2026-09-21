@@ -25,6 +25,12 @@ let _ws = null;
 // → ReferenceError silencieux avalé par le catch, routeScan() jamais appelé
 let _scanQueue = Promise.resolve();
 
+// 🔍 INSTRUMENTATION DIAGNOSTIC — temporaire, à retirer après confirmation/infirmation.
+// Compteur d'instances WebSocket créées par connect(), pour détecter si
+// plusieurs objets WebSocket distincts restent actifs simultanément et
+// reçoivent chacun le même événement 'scan'.
+let _wsInstanceCounter = 0;
+
 // ── Annoncer la section active au serveur ─────────────────────
 export async function announceMode(section) {
   if (_currentSection === section) return;
@@ -163,13 +169,26 @@ function _initScanListener() {
 
   function connect() {
     _ws = new WebSocket(wsUrl);
+    // 🔍 INSTRUMENTATION : identifiant unique de cette instance WebSocket précise.
+    // Permet de savoir, dans les logs suivants, quelle instance exacte a reçu
+    // quel message — sans changer aucun comportement.
+    const _instanceId = ++_wsInstanceCounter;
+    console.log(`[SCAN-RECEIVER][DIAG] connect() → nouvelle instance WS #${_instanceId} créée`);
 
-    _ws.onopen = () => { _retryMs = 1000; };
+    _ws.onopen = () => {
+      _retryMs = 1000;
+      // 🔍 INSTRUMENTATION
+      console.log(`[SCAN-RECEIVER][DIAG] instance #${_instanceId} → OPEN`);
+    };
 
     _ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data);
         if (msg.event === 'scan') {
+          // 🔍 INSTRUMENTATION : trace quelle instance reçoit ce scan précis, et quand.
+          // C'est cette ligne qui permettra de voir si DEUX instances distinctes
+          // reçoivent le même employeeId à quelques centaines de ms d'écart.
+          console.log(`[SCAN-RECEIVER][DIAG] instance #${_instanceId} → scan reçu pour employeeId=${msg.employeeId} @ ${Date.now()}`);
           _scanQueue = _scanQueue
             .then(() => routeScan(msg))
             .catch(err => console.warn('[SCAN-RECEIVER] routeScan error:', err.message));
@@ -178,6 +197,8 @@ function _initScanListener() {
     };
 
     _ws.onclose = () => {
+      // 🔍 INSTRUMENTATION
+      console.log(`[SCAN-RECEIVER][DIAG] instance #${_instanceId} → CLOSE`);
       setTimeout(connect, _retryMs);
       _retryMs = Math.min(_retryMs * 2, 30000);
     };

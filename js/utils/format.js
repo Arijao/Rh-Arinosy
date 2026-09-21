@@ -49,6 +49,19 @@ export function getDaysInMonth(year, month) {
   return new Date(year, month, 0).getDate();
 }
 
+/**
+ * Formate une Date en 'YYYY-MM-DD' en utilisant ses composants LOCAUX
+ * (getFullYear/getMonth/getDate), sans jamais passer par toISOString().
+ * À utiliser partout où l'on doit transformer une Date en chaîne de date
+ * pour un <input type="date">, afin d'éviter tout décalage lié au fuseau.
+ */
+export function toLocalISODate(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 export function calculateWorkDuration(startTime, endTime) {
   if (!startTime || !endTime) return { totalMinutes: 0, displayText: '---' };
   try {
