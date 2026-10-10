@@ -20,8 +20,11 @@ export function updateStats() {
   const currentMonth = new Date().toISOString().slice(0, 7);
   const dayAtt       = state.attendance[today] || {};
 
-  // Total employés
-  _set('totalEmployees', state.employees.length);
+  // Total employés — exclut les employés archivés (status 'inactif'), sinon
+  // une suppression (qui archive plutôt que retire la ligne, pour préserver
+  // les paiements) ne fait jamais varier ce compteur.
+  const activeEmployees = state.employees.filter(e => e.status !== 'inactif');
+  _set('totalEmployees', activeEmployees.length);
 
   // Employés ayant pointé (arrivée ET départ)
   const checkedIn = Object.values(dayAtt).filter(a => a && a.arrivee && a.depart).length;
@@ -121,7 +124,10 @@ function _renderGroupChart() {
   const counts = {};
   state.groups.forEach(g => { counts[g.name] = 0; });
   let noGroup = 0;
-  state.employees.forEach(e => {
+  // Même correctif que displayGroups() (groups.js) et updateStats() : exclut
+  // les employés archivés (status 'inactif'), sinon ce graphique reste figé
+  // sur l'ancien effectif après une suppression.
+  state.employees.filter(e => e.status !== 'inactif').forEach(e => {
     const g = state.groups.find(g => g.id === e.groupId);
     g ? counts[g.name]++ : noGroup++;
   });

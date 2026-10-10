@@ -80,10 +80,11 @@ export function displayGroups() {
     container.innerHTML = "<p style='text-align:center;padding:20px;'>Aucun groupe créé.</p>"; return;
   }
 
-  container.innerHTML = state.groups.map(g => {
-    const members = state.employees.filter(e => e.groupId === g.id);
-    const males   = members.filter(m => m.gender === 'Homme').length;
-    const females = members.filter(m => m.gender === 'Femme').length;
+    container.innerHTML = state.groups.map(g => {
+      // Même cause que le compteur global : exclut les employés archivés.
+      const members = state.employees.filter(e => e.groupId === g.id && e.status !== 'inactif');
+      const males   = members.filter(m => m.gender === 'Homme').length;
+      const females = members.filter(m => m.gender === 'Femme').length;
     return `
       <div class="employee-item">
         <div class="employee-info">
@@ -149,7 +150,9 @@ export function cancelGroupEdit() {
 }
 
 export async function deleteGroup(id) {
-  const count = state.employees.filter(e => e.groupId === id).length;
+  // Un groupe qui ne contient plus que des employés archivés doit pouvoir
+  // être supprimé — même filtre que displayGroups().
+  const count = state.employees.filter(e => e.groupId === id && e.status !== 'inactif').length;
   if (count > 0) { showToast(`Impossible: ${count} employé(s) dans ce groupe.`, 'error'); return; }
   
   const confirmed = await openConfirm(
@@ -192,7 +195,10 @@ export function showMasseSalairePreview(groupId) {
   if (!preview) return;
   if (!groupId) { preview.style.display = 'none'; return; }
 
-  const members = state.employees.filter(e => e.groupId === groupId);
+  // Exclut les employés archivés (status 'inactif') — même correctif que
+  // displayGroups()/deleteGroup() : un employé supprimé ne doit plus
+  // apparaître dans les listes de gestion par groupe.
+  const members = state.employees.filter(e => e.groupId === groupId && e.status !== 'inactif');
   list.innerHTML = members.length
     ? members.map(e => `
         <div style="padding:10px;border-bottom:1px solid var(--md-sys-color-outline-variant);display:flex;justify-content:space-between;">
@@ -213,7 +219,9 @@ export async function applyMasseSalaire() {
     if (!groupId) { showToast("Veuillez sélectionner un groupe", 'warning'); return; }
     if (amount <= 0) { showToast("Montant invalide", 'error'); return; }
     
-    const affected = state.employees.filter(e => e.groupId === groupId && e.useGroupSalary !== false);
+    // Même filtre côté écriture : sans lui, "Appliquer à Tous" modifierait
+    // le salaire d'un employé archivé et le persisterait via saveData().
+    const affected = state.employees.filter(e => e.groupId === groupId && e.useGroupSalary !== false && e.status !== 'inactif');
     if (!affected.length) { showToast("Aucun employé dans ce groupe", 'warning'); return; }
     
     // ✅ CORRECTION CRITIQUE: Demander confirmation AVANT tout loading state

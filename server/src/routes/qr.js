@@ -24,6 +24,16 @@ router.post('/codes', async (req, res) => {
     } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
+// Suppression du QR code d'un employé (désassociation de son identifiant).
+// deleteMany et non delete : ne lève pas si l'employé n'a jamais eu de QR.
+router.delete('/codes/:employeeId', async (req, res) => {
+    try {
+        const r = await prisma.qrCode.deleteMany({ where: { employeeId: req.params.employeeId } });
+        broadcast('update', { type: 'qr' });
+        res.json({ ok: true, deleted: r.count });
+    } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
 // QR attendance
 router.get('/attendance', async (req, res) => {
     try {

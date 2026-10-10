@@ -597,7 +597,11 @@ async function fetchEmployees() {
   try {
     const res = await fetch(`${API}/api/data`);
     const data = await res.json();
-    _employees = data.employees || [];
+    // Exclut les employés archivés (status 'inactif') — même règle que
+    // populateEmployeeSelects() côté poste principal. Filtrer ici, à la
+    // source, suffit : le menu d'enrôlement, le pool de reconnaissance
+    // faciale et la recherche QR par id en héritent tous les trois.
+    _employees = (data.employees || []).filter(e => e.status !== 'inactif');
     const sel = document.getElementById('enroll-emp-select');
     // ✅ FIX: préserve la sélection en cours et retire les anciennes options
     // avant de repeupler — nécessaire car fetchEmployees() est désormais

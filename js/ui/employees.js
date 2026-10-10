@@ -12,6 +12,18 @@ import { registerSectionCallback } from './navigation.js';
 import { handleEmployeeSearch, initEmployeeSearchDropdown } from './smart-search.js';
 import { checkAndShowEmployeeAlerts, TRIGGER_POINTS, getAlertsSummary } from '../utils/alert-system.js';
 
+// ------ Sélection multiple ------
+// Persiste entre les re-rendus et les changements de page/filtre, ce qui permet
+// de sélectionner des employés appartenant à des groupes différents.
+const _selectedEmployees = new Set();
+
+// Date locale AAAA-MM-JJ. Volontairement pas toISOString() : en UTC+3 celui-ci
+// recule d'un jour entre 00h et 3h locales.
+function _todayLocal() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 // ------ Init ------
 
 export function initEmployees() {
@@ -37,6 +49,19 @@ export function initEmployees() {
       displayEmployees();
     });
 
+  // Délégation : le conteneur est réécrit à chaque rendu, pas les listeners.
+  document.getElementById('employeeList')
+    ?.addEventListener('change', (e) => {
+      const cb = e.target.closest?.('.employee-select');
+      if (!cb) return;
+      if (cb.checked) _selectedEmployees.add(cb.dataset.empId);
+      else            _selectedEmployees.delete(cb.dataset.empId);
+      // Réutilise le jeu filtré du dernier rendu (mémorisé sur la barre) pour
+      // que l'état de la case "Tout sélectionner" reste cohérent sans
+      // recalculer le filtre ici.
+      _renderSelectionBar(_currentFilteredIds());
+    });
+
   initEmployeeSearchDropdown();
 
   document.getElementById('employeeForm')
@@ -56,7 +81,7 @@ export function initEmployees() {
     nameInput.addEventListener('input', function (e) {
       e.target.value = capitalizeWords(e.target.value);
       const exists = state.employees.some(
-        emp => emp.name.toLowerCase() === e.target.value.trim().toLowerCase()
+        emp => emp.status !== 'inactif' && emp.name.toLowerCase() === e.target.value.trim().toLowerCase()
       );
       const submitBtn = document.querySelector('#employeeForm button[type="submit"]');
       if (exists && e.target.value.trim()) {
@@ -94,6 +119,15 @@ export function displayEmployees() {
   state.pagination.employee.current = adjustedPage;
 
   const slice = filtered.slice((adjustedPage - 1) * perPage, adjustedPage * perPage);
+
+  // Purge des sélections devenues obsolètes (employé archivé depuis un autre poste)
+  for (const id of _selectedEmployees) {
+    if (!state.employees.some(e => e.id === id && e.status !== 'inactif'))
+      _selectedEmployees.delete(id);
+  }
+  // "filtered" = tous les employés du filtre actif (groupe/genre/recherche),
+  // AVANT découpage en page — c'est le périmètre que "Tout sélectionner" doit couvrir.
+  _renderSelectionBar(filtered.map(e => e.id));
 
   if (!slice.length) {
     container.innerHTML = "<p style='text-align:center;padding:20px;'>Aucun employé trouvé.</p>";
@@ -140,6 +174,10 @@ export function displayEmployees() {
 
     return `
       <div class="employee-item">
+        <input type="checkbox" class="employee-select" data-emp-id="${emp.id}"
+               ${_selectedEmployees.has(emp.id) ? 'checked' : ''}
+               title="Sélectionner cet employé"
+               style="width:20px;height:20px;flex:0 0 auto;margin-right:12px;cursor:pointer;accent-color:var(--md-sys-color-primary);">
         <div class="employee-info">
           <div style="display:flex; align-items:center; gap:8px;">
             <h4>${emp.name}</h4>
@@ -188,8 +226,11 @@ async function handleAddEmployee(e) {
   if (!name || !position || !gender || (!isStaff && salary <= 0)) {
     showToast("Veuillez remplir tous les champs correctement.", 'error'); return;
   }
-  if (state.employees.some(e => e.name.toLowerCase() === name.toLowerCase())) {
-    showToast("Un employé avec ce nom existe déjà.", 'error'); return;
+  // Exclut les employés archivés : un ancien employé supprimé ne doit plus
+  // bloquer la création d'un nouvel employé homonyme. Les deux seront des
+  // enregistrements indépendants (id distinct, aucune relation par nom).
+  if (state.employees.some(e => e.status !== 'inactif' && e.name.toLowerCase() === name.toLowerCase())) {
+    showToast("Un employé actif avec ce nom existe déjà.", 'error'); return;
   }
 
   // Active l'état de chargement
@@ -297,10 +338,152 @@ async function handleEditEmployee(e) {
 
 // ------ Delete ------
 
+// Lit le jeu filtré mémorisé lors du dernier rendu, pour les handlers qui
+// n'ont pas "filtered" sous la main (ex: toggle d'une case individuelle).
+function _currentFilteredIds() {
+  return document.getElementById('employeeSelectionBar')?._filteredIds || [];
+}
+
+function _renderSelectionBar(filteredIds = []) {
+  const list = document.getElementById('employeeList');
+  if (!list) return;
+
+  let bar = document.getElementById('employeeSelectionBar');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'employeeSelectionBar';
+    // Toujours visible (contrairement à avant) : la case "Tout sélectionner"
+    // doit être accessible même quand rien n'est encore sélectionné.
+    bar.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 16px;margin-bottom:12px;border-radius:12px;background:var(--md-sys-color-surface-variant);border:1px solid var(--md-sys-color-outline-variant);';
+    bar.innerHTML = `
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:500;margin:0;">
+        <input type="checkbox" id="employeeSelectAll"
+               style="width:20px;height:20px;cursor:pointer;accent-color:var(--md-sys-color-primary);">
+        <span id="employeeSelectAllLabel"></span>
+      </label>
+      <div id="employeeSelectionActions" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span id="employeeSelectionCount" style="font-weight:600;"></span>
+        <button type="button" id="employeeSelectionClear"
+                style="padding:8px 14px;border:1px solid var(--md-sys-color-outline-variant);background:transparent;color:inherit;border-radius:8px;cursor:pointer;font-size:14px;">
+          Tout désélectionner
+        </button>
+        <button type="button" id="employeeSelectionDelete"
+                style="padding:8px 14px;border:none;background:var(--md-sys-color-error);color:#fff;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;display:flex;align-items:center;gap:6px;">
+          <span class="material-icons" style="font-size:18px;">delete</span> Supprimer la sélection
+        </button>
+      </div>`;
+    list.parentNode.insertBefore(bar, list);
+
+    // Coche/décoche UNIQUEMENT les employés du filtre actif (bar._filteredIds,
+    // mis à jour à chaque rendu ci-dessous) — jamais ceux masqués par le filtre.
+    bar.querySelector('#employeeSelectAll')
+       .addEventListener('change', (e) => {
+         const ids = bar._filteredIds || [];
+         if (e.target.checked) ids.forEach(id => _selectedEmployees.add(id));
+         else                  ids.forEach(id => _selectedEmployees.delete(id));
+         displayEmployees();
+       });
+    bar.querySelector('#employeeSelectionClear')
+       .addEventListener('click', () => { _selectedEmployees.clear(); displayEmployees(); });
+    bar.querySelector('#employeeSelectionDelete')
+       .addEventListener('click', deleteSelectedEmployees);
+  }
+
+  // Mémorisé sur l'élément DOM : le handler "change" créé une seule fois
+  // ci-dessus doit toujours connaître le filtre actif au moment du clic.
+  bar._filteredIds = filteredIds;
+
+  const n     = _selectedEmployees.size;
+  const total = filteredIds.length;
+  const allSelected  = total > 0 && filteredIds.every(id => _selectedEmployees.has(id));
+  const someSelected = filteredIds.some(id => _selectedEmployees.has(id));
+
+  const selectAllCb = bar.querySelector('#employeeSelectAll');
+  selectAllCb.checked       = allSelected;
+  selectAllCb.indeterminate = !allSelected && someSelected;
+  selectAllCb.disabled      = total === 0;
+
+  bar.querySelector('#employeeSelectAllLabel').textContent = total > 0
+    ? `Tout sélectionner (${total} affiché${total > 1 ? 's' : ''})`
+    : 'Aucun employé affiché';
+
+  const actions = bar.querySelector('#employeeSelectionActions');
+  actions.style.display = n ? 'flex' : 'none';
+  bar.querySelector('#employeeSelectionCount').textContent =
+    `${n} employé${n > 1 ? 's' : ''} sélectionné${n > 1 ? 's' : ''}`;
+}
+
+// Cœur de la suppression. On NE retire PAS l'objet de state.employees :
+// saveData() émettrait alors DELETE /api/employees/:id, dont le CASCADE Prisma
+// détruit Payroll, Advance, AttendanceRecord, QrAttendance et Remark.
+// En modifiant l'objet sur place, saveData() émet un PUT — aucun CASCADE.
+async function _archiveEmployees(ids) {
+  const today = _todayLocal();
+
+  for (const id of ids) {
+    const idx = state.employees.findIndex(e => e.id === id);
+    if (idx === -1) continue;
+    state.employees[idx] = {
+      ...state.employees[idx],
+      status: 'inactif',
+      departureDate: state.employees[idx].departureDate || today,
+      face_descriptors: null,
+      face_enrolled: false,
+      face_enrollment_date: null,
+    };
+  }
+
+  await saveData();
+
+  // Désassociation du QR code (route dédiée : saveData ne gère pas qr_codes).
+  await Promise.all(ids.map(id =>
+    fetch(`/api/qr/codes/${id}`, { method: 'DELETE' })
+      .catch(err => console.warn('[archive] QR non supprimé', id, err.message))
+  ));
+}
+
+export async function deleteSelectedEmployees() {
+  const ids = [..._selectedEmployees];
+  if (!ids.length) return;
+
+  const names = ids
+    .map(id => state.employees.find(e => e.id === id)?.name)
+    .filter(Boolean);
+
+  const confirmed = await openConfirm(
+    'Supprimer les employés sélectionnés ?',
+    `Cette action supprimera ${ids.length} employé(s) ainsi que leurs données d'identification associées (QR Code, reconnaissance faciale).\n\n`
+    + `Les paiements et historiques déjà enregistrés seront conservés.\n\n`
+    + names.join(', '),
+    'Supprimer',
+    'Annuler',
+    { isDanger: true }
+  );
+  if (!confirmed) return;
+
+  const btn = document.getElementById('employeeSelectionDelete');
+  if (btn) setButtonLoading(btn, true, { originalText: btn.textContent, loadingText: 'Suppression...' });
+
+  try {
+    await _archiveEmployees(ids);
+    _selectedEmployees.clear();
+    displayEmployees();
+    populateEmployeeSelects();
+    window.refreshUI?.();
+    showToast(`${ids.length} employé(s) supprimé(s). Paiements conservés.`, 'success');
+  } catch (error) {
+    console.error('[deleteSelectedEmployees] Erreur:', error);
+    showToast('Erreur lors de la suppression.', 'error');
+  } finally {
+    if (btn) setButtonLoading(btn, false, { originalText: 'Supprimer la sélection' });
+  }
+}
+
 export async function deleteEmployee(id) {
   const confirmed = await openConfirm(
-    'Confirmation de suppression',
-    'Êtes-vous sûr de vouloir supprimer cet employé? Toutes ses données seront effacées.',
+    'Supprimer cet employé ?',
+    "Cette action supprimera l'employé ainsi que ses données d'identification associées (QR Code, reconnaissance faciale).\n\n"
+    + 'Les paiements et historiques déjà enregistrés seront conservés.',
     'Supprimer',
     'Annuler',
     { isDanger: true }
@@ -317,13 +500,14 @@ export async function deleteEmployee(id) {
   }
 
   try {
-    state.employees = state.employees.filter(e => e.id !== id);
-    Object.keys(state.attendance).forEach(date => { delete state.attendance[date][id]; });
-    state.qrAttendance = state.qrAttendance.filter(a => a.employeeId !== id);
-    await saveData();
+    await _archiveEmployees([id]);
+    _selectedEmployees.delete(id);
     displayEmployees();
     populateEmployeeSelects();
-    window._updateStats?.();
+    // refreshUI() (main.js) recalcule updateStats() ET displayGroups() — c'est
+    // ce second appel qui manquait : sans lui, le compteur du groupe restait
+    // figé jusqu'au prochain changement d'onglet ou écho WebSocket.
+    window.refreshUI?.();
     showToast('Employé supprimé!', 'success');
   } catch (error) {
     console.error('[deleteEmployee] Erreur:', error);
@@ -344,3 +528,4 @@ export function openAddEmployeeModal() {
 // Exposer pour les onclick HTML inline
 window._editEmployee   = editEmployee;
 window._deleteEmployee = deleteEmployee;
+window._deleteSelectedEmployees = deleteSelectedEmployees;
