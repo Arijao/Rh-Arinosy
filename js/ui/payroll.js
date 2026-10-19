@@ -5,7 +5,7 @@
 //   Activé via la case "Inclure un acompte" + champ "Jours d'acompte".
 // ============================================================
 
-import { state, saveData }   from '../state.js';
+import { state, saveData, loadData }   from '../state.js';
 import { formatCurrency, debounce } from '../utils/format.js';
 import { showToast }          from '../utils/notifications.js';
 import { openConfirm }        from '../utils/notifications.js';
@@ -247,7 +247,12 @@ export function handlePayrollEmployeeChange() {
 // CALCUL PRINCIPAL
 // ============================================================
 
-export function calculatePayroll() {
+export async function calculatePayroll() {
+  // Mode journalier : relire les modes (réglages partagés entre postes). Sans effet pour le mensuel.
+  const dailyMod = await _loadDaily();
+  if (dailyMod && !(await dailyMod.refreshModes())) {
+    showToast('⚠️ Modes de paie non rafraîchis : vérifiez avant de payer.', 'warning', 4000);
+  }
   const monthVal = document.getElementById('payrollMonth')?.value;
   if (!monthVal) { showToast('Veuillez sélectionner un mois.', 'error'); return; }
 
@@ -307,7 +312,9 @@ export function calculatePayroll() {
     }
     const advances = _getAdvancesForPeriod(emp.id, year, month);
     const netPay   = Math.max(0, calc.grossPay - advances.total);
-    return { emp, calc, advances, netPay };
+    // Employé journalier : suivi par jours payés / restants (utils/daily-pay.js)
+    const daily    = (dailyMod && dailyMod.isDaily(emp.id)) ? dailyMod.computeDaily(emp) : null;
+    return { emp, calc, advances, netPay, daily };
   });
 
   _renderPayrollResults(results, { year, month, advDays, withAdv });
@@ -375,14 +382,15 @@ function _renderPayrollResults(results, { year, month, advDays, withAdv }) {
           Décalage acompte appliqué automatiquement
         </div>` : ''}
       </div>
-      ${results.map(({ emp, calc, advances, netPay }) =>
-        _renderEmployeeCard(emp, calc, advances, netPay, year, month)
+      ${results.map(({ emp, calc, advances, netPay, daily }) =>
+        _renderEmployeeCard(emp, calc, advances, netPay, year, month, daily)
       ).join('')}
       ${isDelayed ? _renderFollowingMonthInfo(year, month, advDays, results) : ''}
     </div>`;
 }
 
-function _renderEmployeeCard(emp, calc, advances, netPay, year, month) {
+function _renderEmployeeCard(emp, calc, advances, netPay, year, month, daily = null) {
+  if (daily) return _renderDailyCard(emp, daily);
   const group     = state.groups?.find(g => g.id === emp.groupId);
   const isDelayed = calc.mode === 'delayed';
 
@@ -436,7 +444,7 @@ function _renderEmployeeCard(emp, calc, advances, netPay, year, month) {
             </div>
             <div style="font-size:12px;color:var(--md-sys-color-on-surface-variant);margin-top:2px;">
               Montant versé : <strong>${formatCurrency(existingPayment.amount)} Ar</strong>
-              ${existingPayment.note ? `<span style="opacity:.7;"> · ${existingPayment.note}</span>` : ''}
+              ${_stripTag(existingPayment.note) ? `<span style="opacity:.7;"> · ${_stripTag(existingPayment.note)}</span>` : ''}
             </div>
           </div>
         </div>
@@ -445,7 +453,7 @@ function _renderEmployeeCard(emp, calc, advances, netPay, year, month) {
                   onclick="window._cancelPayment?.('${existingPayment.id}','${emp.name.replace(/'/g, "\\'")}')">
             <span class="material-icons" style="font-size:15px;">undo</span>Annuler
           </button>
-          <button class="btn btn-secondary" style="padding:6px 14px;font-size:12px;min-width:0;"
+          <button class="btn btn-secondary" style="${/\[\[DP1\|/.test(existingPayment.note || '') ? 'display:none;' : ''}padding:6px 14px;font-size:12px;min-width:0;"
                   onclick="window._repayEmployee?.('${emp.id}',${netPay},'${emp.name.replace(/'/g, "\\'")}')">
             <span class="material-icons" style="font-size:15px;">refresh</span>Refaire
           </button>
@@ -528,6 +536,11 @@ function _renderEmployeeCard(emp, calc, advances, netPay, year, month) {
                 onclick="window._markPaid?.('${emp.id}',${netPay},'${emp.name.replace(/'/g, "\\'")}')">
           <span class="material-icons">done</span>Marquer Payé
         </button>` : ''}
+        <button class="btn btn-secondary" style="flex:0 0 auto;min-width:0;"
+                title="Suivre les jours payés et les jours restants"
+                onclick="window._activateDaily?.('${emp.id}')">
+          <span class="material-icons">event_repeat</span>Mode journalier
+        </button>
         <button class="btn btn-secondary" style="flex:1;min-width:120px;"
                 onclick="window._showPayrollDetail?.('${emp.id}')">
           <span class="material-icons">info</span>Détail présence
@@ -591,10 +604,10 @@ function _renderPayrollSummary(results) {
   const summaryEl = document.getElementById('payrollSummary');
   if (!summaryEl) return;
 
-  const totalGross    = results.reduce((s, r) => s + r.calc.grossPay, 0);
-  const totalAdvances = results.reduce((s, r) => s + r.advances.total, 0);
-  const totalNet      = results.reduce((s, r) => s + r.netPay, 0);
-  const unpaid        = results.filter(r => r.netPay <= 0).map(r => r.emp.name);
+  const totalGross    = results.reduce((s, r) => s + (r.daily ? r.daily.amount : r.calc.grossPay), 0);
+  const totalAdvances = results.reduce((s, r) => s + (r.daily ? 0 : r.advances.total), 0);
+  const totalNet      = results.reduce((s, r) => s + (r.daily ? r.daily.amount : r.netPay), 0);
+  const unpaid        = results.filter(r => (r.daily ? r.daily.dueDays > 0 : r.netPay <= 0)).map(r => r.emp.name);
 
   document.getElementById('summaryTotalGross').textContent    = formatCurrency(totalGross) + ' Ar';
   document.getElementById('summaryTotalAdvances').textContent = formatCurrency(totalAdvances) + ' Ar';
@@ -666,6 +679,12 @@ async function _pushSalaireToRiseVanilla(payment) {
 
 
 export async function markEmployeePaid(employeeId, amount, name) {
+  // Garde-fou : un employé en mode journalier ne se paie jamais par le circuit mensuel
+  if (_dailyMod && _dailyMod.isDaily(employeeId)) {
+    showToast('Cet employé est en mode journalier : utilisez « Payer les jours dus ».', 'warning', 5000);
+    calculatePayroll();
+    return;
+  }
   const monthVal = document.getElementById('payrollMonth')?.value;
   const [py, pm] = monthVal ? monthVal.split('-').map(Number) : [0, 0];
 
@@ -733,6 +752,13 @@ export async function cancelPayment(paymentId, employeeName) {
 }
 
 export async function repayEmployee(employeeId, amount, name) {
+  // Garde-fou : ne jamais remplacer une ligne de paiement journalier
+  const _gm = document.getElementById('payrollMonth')?.value;
+  const [_gy, _gmo] = _gm ? _gm.split('-').map(Number) : [0, 0];
+  if ((state.payrolls || []).some(p => p.employeeId === employeeId && p.year === _gy && p.month === _gmo && /\[\[DP1\|/.test(p.note || ''))) {
+    showToast('Ce mois contient un paiement journalier : « Refaire » est désactivé.', 'warning', 5000);
+    return;
+  }
   const monthVal = document.getElementById('payrollMonth')?.value;
   const [py, pm] = monthVal ? monthVal.split('-').map(Number) : [0, 0];
 
@@ -1036,7 +1062,7 @@ export function displayPayments() {
       (p.date || '').includes(search) ||
       (MONTH_NAMES[p.month] || '').toLowerCase().includes(search) ||
       String(p.year || '').includes(search) ||
-      (p.note || '').toLowerCase().includes(search)
+      _stripTag(p.note).toLowerCase().includes(search)
     );
   }
 
@@ -1174,7 +1200,7 @@ function _renderPaymentCard(p) {
               <span class="material-icons" style="font-size:12px;">calendar_today</span>
               Versé le ${p.date}
             </span>
-            ${p.note ? `<span class="payment-card-note">· ${p.note}</span>` : ''}
+            ${_stripTag(p.note) ? `<span class="payment-card-note">· ${_stripTag(p.note)}</span>` : ''}
           </div>
         </div>
 
@@ -1288,3 +1314,306 @@ function _populatePaymentMonthFilter() {
       return `<option value="${m}" ${m === currentVal ? 'selected' : ''}>${MONTH_NAMES[mo]} ${y}</option>`;
     }).join('');
 }
+
+// ============================================================
+// RÉMUNÉRATION JOURNALIÈRE (ajout) — le calcul est isolé dans
+// js/utils/daily-pay.js, chargé à la demande. Aucune de ces fonctions
+// n'est appelée pour un employé resté en mode mensuel.
+// ============================================================
+
+let _dailyMod = null; // null = pas encore chargé, false = indisponible
+
+async function _loadDaily() {
+  if (_dailyMod !== null) return _dailyMod || null;
+  try {
+    _dailyMod = await import('../utils/daily-pay.js');
+  } catch (err) {
+    console.warn('[PAIE] Module journalier indisponible — le mensuel continue :', err.message);
+    _dailyMod = false;
+  }
+  return _dailyMod || null;
+}
+
+// Retire le marqueur de jours payés d'une note (affichage et envoi à RiseVanilla)
+const _stripTag = (note) => (note || '').replace(/\s*\[\[DP1\|[^\]]*\]\]/, '');
+
+const _fmtDays = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
+
+function _dailyPreviewHTML(r) {
+  const list  = r.dueList.map(x => (x.w < 1 ? `${x.date} (½)` : x.date));
+  const shown = list.length > 12
+    ? `${list.slice(0, 12).join(', ')} … (+${list.length - 12})`
+    : (list.join(', ') || 'Aucun');
+  return `
+    <div style="display:flex;justify-content:space-between;gap:12px;font-size:13px;margin-bottom:5px;">
+      <span>${_fmtDays(r.dueDays)} j à payer jusqu'au ${r.until} × ${formatCurrency(r.rate)}/j</span>
+      <span style="font-weight:700;color:var(--md-sys-color-success);">${formatCurrency(r.amount)}</span>
+    </div>
+    <div style="font-size:12px;color:var(--md-sys-color-on-surface-variant);">Jours : ${shown}</div>`;
+}
+
+function _renderDailyCard(emp, daily) {
+  const group    = state.groups?.find(g => g.id === emp.groupId);
+  const safeName = (emp.name || '').replace(/'/g, "\\'");
+  const today    = _dailyMod.todayLocal();
+  const warn = daily.overDays > 0 ? `
+    <div style="margin-top:12px;padding:10px 14px;border-radius:10px;font-size:12px;
+                background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);color:#ef4444;">
+      ⚠️ ${_fmtDays(daily.overDays)} j payés en trop (présence modifiée après paiement).
+      Rien n'est repris automatiquement.
+    </div>` : '';
+
+  return `
+    <div style="border:1px solid var(--md-sys-color-outline-variant);border-radius:16px;
+                padding:20px;margin-bottom:16px;background:var(--md-sys-color-surface);">
+      <div>
+        <h4 style="margin:0 0 2px;">${emp.name}
+          <span style="font-size:11px;padding:2px 8px;border-radius:12px;margin-left:6px;
+                       background:rgba(14,165,233,.12);color:#0ea5e9;">Journalier</span></h4>
+        <p style="margin:0;font-size:13px;color:var(--md-sys-color-on-surface-variant);">
+          ${emp.position || ''}${group ? ` · ${group.name}` : ''} · suivi depuis le ${daily.since}
+        </p>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-top:14px;">
+        ${_statPill('Jours présents',  _fmtDays(daily.totalDays), 'var(--md-sys-color-primary)', 'event_available')}
+        ${_statPill('Jours payés',     _fmtDays(daily.paidDays),  '#22c55e', 'check_circle')}
+        ${_statPill('Restent à payer', _fmtDays(daily.dueDays),   '#f59e0b', 'pending')}
+      </div>
+
+      <div style="display:flex;gap:12px;margin-top:14px;flex-wrap:wrap;align-items:flex-end;">
+        <label style="font-size:12px;">Tarif par jour (Ar)<br>
+          <input type="number" id="dailyRate_${emp.id}" min="1" step="any" value="${daily.rate}"
+                 oninput="window._dailyPreview?.('${emp.id}')"
+                 style="margin-top:4px;padding:8px;border-radius:8px;width:130px;">
+        </label>
+        <label style="font-size:12px;">Payer jusqu'au<br>
+          <input type="date" id="dailyUntil_${emp.id}" value="${today}" min="${daily.since}" max="${today}"
+                 oninput="window._dailyPreview?.('${emp.id}')"
+                 style="margin-top:4px;padding:8px;border-radius:8px;">
+        </label>
+      </div>
+
+      <div id="dailyPreview_${emp.id}" style="margin-top:14px;padding:14px;border-radius:10px;
+                  background:var(--md-sys-color-surface-variant);">
+        ${_dailyPreviewHTML(daily)}
+      </div>
+      ${warn}
+
+      <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">
+        <button class="btn btn-success" style="flex:1;min-width:140px;"
+                onclick="window._payDaily?.('${emp.id}','${safeName}')">
+          <span class="material-icons">done</span>Payer les jours dus
+        </button>
+        <button class="btn btn-secondary" style="flex:0 0 auto;min-width:0;"
+                onclick="window._deactivateDaily?.('${emp.id}','${safeName}')">
+          <span class="material-icons">undo</span>Repasser en mensuel
+        </button>
+      </div>
+    </div>`;
+}
+
+// Recalcule l'aperçu quand le tarif ou la date limite change
+function _dailyPreview(empId) {
+  const emp = state.employees.find(e => e.id === empId);
+  if (!emp || !_dailyMod) return;
+  const rate = Number(document.getElementById(`dailyRate_${empId}`)?.value) || 0;
+  const to   = document.getElementById(`dailyUntil_${empId}`)?.value || _dailyMod.todayLocal();
+  const el   = document.getElementById(`dailyPreview_${empId}`);
+  if (el) el.innerHTML = _dailyPreviewHTML(_dailyMod.computeDaily(emp, { rate, to }));
+}
+
+// Fenêtre de saisie intégrée (sans SweetAlert2) : tarif par jour et date de début du suivi.
+// Renvoie { rate, since } ou null si l'utilisateur annule.
+function _askDailyForm(title, defRate, defSince, maxDate) {
+  return new Promise((resolve) => {
+    document.getElementById('_dailyFormOverlay')?.remove();
+    const overlay = document.createElement('div');
+    overlay.id = '_dailyFormOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);';
+    overlay.innerHTML = `
+      <div style="background:var(--md-sys-color-surface);border-radius:20px;width:min(440px,94vw);padding:22px;
+                  border:1px solid var(--md-sys-color-outline-variant);box-shadow:0 24px 64px rgba(0,0,0,.35);">
+        <h3 style="margin:0 0 16px;font-size:18px;">${title}</h3>
+        <label style="font-size:13px;display:block;margin-bottom:12px;">Tarif par jour (Ar)<br>
+          <input id="dfRate" type="number" min="1" step="any" value="${defRate}"
+                 style="margin-top:6px;padding:10px;border-radius:8px;width:100%;box-sizing:border-box;">
+        </label>
+        <label style="font-size:13px;display:block;margin-bottom:8px;">Suivi à partir du<br>
+          <input id="dfSince" type="date" value="${defSince}" max="${maxDate}"
+                 style="margin-top:6px;padding:10px;border-radius:8px;width:100%;box-sizing:border-box;">
+        </label>
+        <div id="dfError" style="min-height:18px;font-size:12px;color:#ef4444;margin-bottom:10px;"></div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;">
+          <button type="button" id="dfCancel" class="btn btn-secondary">Annuler</button>
+          <button type="button" id="dfOk" class="btn">Continuer</button>
+        </div>
+      </div>`;
+    const onKey = (e) => { if (e.key === 'Escape') close(null); };
+    const close = (val) => {
+      document.removeEventListener('keydown', onKey);
+      overlay.remove();
+      resolve(val);
+    };
+    document.addEventListener('keydown', onKey);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(null); });
+    document.body.appendChild(overlay);
+    overlay.querySelector('#dfCancel').onclick = () => close(null);
+    overlay.querySelector('#dfOk').onclick = () => {
+      const rate  = Number(overlay.querySelector('#dfRate').value);
+      const since = overlay.querySelector('#dfSince').value;
+      const err   = overlay.querySelector('#dfError');
+      if (!Number.isFinite(rate) || rate <= 0) { err.textContent = 'Tarif invalide'; return; }
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(since) || since > maxDate) { err.textContent = 'Date invalide (pas dans le futur)'; return; }
+      close({ rate, since });
+    };
+    overlay.querySelector('#dfRate').focus();
+  });
+}
+
+export async function activateDailyMode(employeeId) {
+  const mod = await _loadDaily();
+  const emp = state.employees.find(e => e.id === employeeId);
+  if (!mod || !emp) { showToast('Mode journalier indisponible.', 'error'); return; }
+  // Saisie : fenêtre intégrée (SweetAlert2 ne se referme pas avec le style de cette application)
+
+  await mod.refreshModes();
+  const now      = mod.todayLocal();
+  const previous = mod.getMode(employeeId);
+  const defRate  = previous?.rate  || mod.defaultRate(emp);
+  const defSince = previous?.since || `${now.slice(0, 7)}-01`;
+
+  const form = await _askDailyForm(`Mode journalier — ${emp.name}`, defRate, defSince, now);
+  if (!form) return;
+  const { rate, since } = form;
+
+  // Aperçu des conséquences avant d'enregistrer le mode (aucun paiement n'est créé)
+  const r  = mod.computeDaily(emp, { from: since, to: now, rate });
+  const ok = await openConfirm(
+    'Activer le mode journalier',
+    `<strong>${emp.name}</strong> — tarif <strong>${formatCurrency(rate)}</strong> par jour, suivi depuis le <strong>${since}</strong>.<br>
+     Jours déjà couverts par des paiements existants : <strong>${_fmtDays(r.paidDays)}</strong><br>
+     Jours à payer dès l'activation : <strong>${_fmtDays(r.dueDays)}</strong> (${formatCurrency(r.amount)})<br>
+     <span style="font-size:12px;opacity:.8;">Aucun paiement n'est créé maintenant.</span>`,
+    'Activer', 'Annuler'
+  );
+  if (!ok) return;
+
+  try {
+    await mod.setMode(employeeId, { mode: 'daily', rate, since });
+  } catch (err) {
+    showToast('Mode non enregistré : ' + err.message, 'error');
+    return;
+  }
+  showToast(`✅ ${emp.name} : mode journalier activé.`, 'success');
+  calculatePayroll();
+}
+
+export async function deactivateDailyMode(employeeId, name) {
+  const mod = await _loadDaily();
+  if (!mod) return;
+  await mod.refreshModes();
+  const emp = state.employees.find(e => e.id === employeeId);
+  if (!emp) return;
+
+  const chk = mod.canReturnMonthly(emp);
+  if (!chk.ok) { showToast(chk.reason, 'warning', 6000); return; }
+
+  const ok = await openConfirm(
+    'Repasser en mensuel',
+    `Repasser <strong>${name}</strong> en paiement mensuel ?`,
+    'Confirmer', 'Annuler'
+  );
+  if (!ok) return;
+
+  try {
+    await mod.setMode(employeeId, { ...(mod.getMode(employeeId) || {}), mode: 'monthly' });
+  } catch (err) {
+    showToast('Mode non enregistré : ' + err.message, 'error');
+    return;
+  }
+  calculatePayroll();
+}
+
+export async function payDailyEmployee(employeeId, name) {
+  const mod = await _loadDaily();
+  if (!mod) { showToast('Mode journalier indisponible.', 'error'); return; }
+
+  const rate  = Number(document.getElementById(`dailyRate_${employeeId}`)?.value);
+  const until = document.getElementById(`dailyUntil_${employeeId}`)?.value || mod.todayLocal();
+  if (!Number.isFinite(rate) || rate <= 0) { showToast('Tarif par jour invalide.', 'error'); return; }
+  if (until > mod.todayLocal()) { showToast('La date limite ne peut pas être dans le futur.', 'error'); return; }
+
+  // Données fraîches avant de calculer (autre poste, présences modifiées entre-temps)
+  try {
+    await loadData();
+  } catch (err) {
+    showToast('Rechargement impossible : paiement annulé.', 'error');
+    return;
+  }
+  if (!(await mod.refreshModes())) { showToast('Modes de paie non relus : paiement annulé.', 'error'); return; }
+
+  const emp = state.employees.find(e => e.id === employeeId);
+  if (!emp || !mod.isDaily(employeeId)) {
+    showToast("Cet employé n'est plus en mode journalier.", 'error');
+    calculatePayroll();
+    return;
+  }
+  const plan = mod.computeDaily(emp, { rate, to: until });
+  if (plan.dueDays <= 0) { showToast("Aucun jour à payer jusqu'à cette date.", 'info'); calculatePayroll(); return; }
+
+  const first = plan.dueList[0].date;
+  const last  = plan.dueList[plan.dueList.length - 1].date;
+  const nbj   = _fmtDays(plan.dueDays);
+
+  const confirmed = await openConfirm(
+    'Confirmer le paiement journalier',
+    `<strong>${name}</strong> : <strong>${nbj} j</strong> (du ${first} au ${last})<br>
+     Tarif : ${formatCurrency(rate)} par jour<br>
+     Montant à payer : <strong>${formatCurrency(plan.amount)}</strong><br>
+     <span style="font-size:12px;opacity:.8;">Aucune avance n'est déduite en mode journalier.</span>`,
+    'Payer', 'Annuler'
+  );
+  if (!confirmed) return;
+
+  const [ly, lm] = last.split('-').map(Number);
+  const payment = {
+    id:           crypto.randomUUID?.() || `pay-${Date.now()}`,
+    employeeId,
+    employeeName: name,
+    amount:       plan.amount,
+    year:         ly,
+    month:        lm,
+    date:         mod.todayLocal(),
+    timestamp:    Date.now(),
+    note:         `Paie journalière : ${nbj} j (${first} → ${last})` + mod.buildTag(plan.dueList, rate),
+  };
+
+  if (!state.payrolls) state.payrolls = [];
+  state.payrolls.push(payment);
+  try { await saveData(); } catch (err) { console.warn('[PAIE] saveData :', err.message); }
+
+  // saveData() avale les erreurs d'écriture : vérifier que la ligne existe réellement sur le serveur
+  let saved = false;
+  try {
+    const res = await fetch('/api/payroll');
+    saved = res.ok && (await res.json()).some(p => p.id === payment.id);
+  } catch { saved = false; }
+  if (!saved) {
+    state.payrolls = state.payrolls.filter(p => p.id !== payment.id);
+    showToast("❌ Paiement NON enregistré. Rien n'a été envoyé à RiseVanilla.", 'error', 7000);
+    calculatePayroll();
+    return;
+  }
+
+  await _pushSalaireToRiseVanilla({ ...payment, note: _stripTag(payment.note) });
+
+  showToast(`✅ ${name} : ${nbj} j payés.`, 'success');
+  calculatePayroll();
+  displayPayments();
+}
+
+window._activateDaily   = activateDailyMode;
+window._deactivateDaily = deactivateDailyMode;
+window._payDaily        = payDailyEmployee;
+window._dailyPreview    = _dailyPreview;

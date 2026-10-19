@@ -73,19 +73,27 @@ function _isPaidFor(employeeId, year, month) {
  * Exclut les employés 'inactif', comme le fait déjà calculatePayroll()
  * dans payroll.js — convention respectée pour rester cohérent.
  */
-function _getUnpaidEmployees(year, month, groupId) {
+function _getUnpaidEmployees(year, month, groupId, dailyMod = null) {
   let employees = (state.employees || []).filter(e => e.status !== 'inactif');
   if (groupId && groupId !== 'all') {
     employees = employees.filter(e => e.groupId === groupId);
   }
-  return employees.filter(emp => !_isPaidFor(emp.id, year, month));
+  return employees.filter(emp => {
+    // Employé journalier : « non payé » = il reste des jours à payer ce mois-là.
+    // null = mois antérieur au début du suivi : la règle mensuelle continue de s'appliquer.
+    if (dailyMod && dailyMod.isDaily(emp.id)) {
+      const r = dailyMod.hasDueInMonth(emp, year, month);
+      if (r !== null) return r;
+    }
+    return !_isPaidFor(emp.id, year, month);
+  });
 }
 
 // ============================================================
 // CALCUL PRINCIPAL / RENDU
 // ============================================================
 
-export function calculateUnpaid() {
+export async function calculateUnpaid() {
   const monthVal = document.getElementById('unpaidMonth')?.value;
   if (!monthVal) {
     _renderUnpaidError('Veuillez sélectionner un mois.');
@@ -97,7 +105,13 @@ export function calculateUnpaid() {
   const month = parseInt(monthStr, 10);
   const groupId = document.getElementById('unpaidGroupFilter')?.value || 'all';
 
-  const unpaid = _getUnpaidEmployees(year, month, groupId);
+  let dailyMod = null;
+  try {
+    dailyMod = await import('../utils/daily-pay.js');
+    await dailyMod.refreshModes();
+  } catch (err) { dailyMod = null; } // module indisponible : règle mensuelle inchangée
+
+  const unpaid = _getUnpaidEmployees(year, month, groupId, dailyMod);
 
   _renderUnpaidSummary(unpaid, year, month, groupId);
   _renderUnpaidList(unpaid);

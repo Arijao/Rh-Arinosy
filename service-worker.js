@@ -4,7 +4,7 @@
 // Offline-first: Tout le contenu statique est mis en cache
 // ============================================================
 
-const CACHE_VERSION = 'rh-v17'; // Filtre Genre + Liste Épurée
+const CACHE_VERSION = 'rh-v18'; // Filtre Genre + Liste Épurée
 
 // Tous les fichiers essentiels à mettre en cache
 const CACHE_URLS = [
@@ -46,6 +46,7 @@ const CACHE_URLS = [
   '/js/utils/ui.js',
   '/js/utils/audio.js',
   '/js/utils/attendance-calc.js',
+  '/js/utils/daily-pay.js',
   '/js/utils/dialog-manager.js',
   '/js/utils/notifications.js',
   '/js/utils/tabs.js',

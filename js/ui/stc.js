@@ -38,6 +38,16 @@ export async function calculateSTC() {
     container.innerHTML = '<p class="alert alert-error">Date de départ non définie.</p>'; return;
   }
 
+  // Employé journalier : le solde de tout compte mensuel ne s'applique pas
+  try {
+    const dm = await import('../utils/daily-pay.js');
+    await dm.refreshModes();
+    if (dm.isDaily(empId)) {
+      container.innerHTML = '<p class="alert alert-warning">Cet employé est en mode journalier : payez ses jours restants dans la section Paie (« Payer les jours dus »). Le solde de tout compte mensuel ne s\'applique pas.</p>';
+      return;
+    }
+  } catch (err) { /* module indisponible : calcul mensuel inchangé */ }
+
   const depDate      = new Date(emp.departureDate + 'T00:00:00');
   const lastPaid     = getLastPaidMonth(empId);
   const startDate    = getStartDateForCalculation(lastPaid, empId);
