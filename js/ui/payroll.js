@@ -313,7 +313,11 @@ export async function calculatePayroll() {
     const advances = _getAdvancesForPeriod(emp.id, year, month);
     const netPay   = Math.max(0, calc.grossPay - advances.total);
     // Employé journalier : suivi par jours payés / restants (utils/daily-pay.js)
-    const daily    = (dailyMod && dailyMod.isDaily(emp.id)) ? dailyMod.computeDaily(emp) : null;
+    // Un mois antérieur au début du suivi journalier reste traité entièrement
+    // en mensuel (carte, historique, "Marquer Payé"), sans aucune incidence
+    // sur le mode journalier lui-même : seules les paies concernées par ce
+    // nouveau mode (le mois de suivi et les suivants) affichent la carte journalière.
+    const daily    = (dailyMod && dailyMod.isDaily(emp.id) && !_isBeforeDailySince(emp.id, year, month)) ? dailyMod.computeDaily(emp) : null;
     return { emp, calc, advances, netPay, daily };
   });
 
@@ -679,14 +683,16 @@ async function _pushSalaireToRiseVanilla(payment) {
 
 
 export async function markEmployeePaid(employeeId, amount, name) {
-  // Garde-fou : un employé en mode journalier ne se paie jamais par le circuit mensuel
-  if (_dailyMod && _dailyMod.isDaily(employeeId)) {
+  const monthVal = document.getElementById('payrollMonth')?.value;
+  const [py, pm] = monthVal ? monthVal.split('-').map(Number) : [0, 0];
+
+  // Garde-fou : bloque uniquement les mois concernés par le suivi journalier.
+  // Un mois mensuel antérieur au passage en journalier reste payable normalement.
+  if (_dailyMod && _dailyMod.isDaily(employeeId) && !_isBeforeDailySince(employeeId, py, pm)) {
     showToast('Cet employé est en mode journalier : utilisez « Payer les jours dus ».', 'warning', 5000);
     calculatePayroll();
     return;
   }
-  const monthVal = document.getElementById('payrollMonth')?.value;
-  const [py, pm] = monthVal ? monthVal.split('-').map(Number) : [0, 0];
 
   const confirmed = await openConfirm(
     'Confirmer le paiement',
@@ -752,7 +758,9 @@ export async function cancelPayment(paymentId, employeeName) {
 }
 
 export async function repayEmployee(employeeId, amount, name) {
-  // Garde-fou : ne jamais remplacer une ligne de paiement journalier
+  // Garde-fou : ne jamais remplacer une ligne de paiement journalier (reconnue
+  // par son marqueur) ; un mois mensuel antérieur au passage en journalier
+  // reste "refaisable" normalement, même si l'employé est aujourd'hui journalier.
   const _gm = document.getElementById('payrollMonth')?.value;
   const [_gy, _gmo] = _gm ? _gm.split('-').map(Number) : [0, 0];
   if ((state.payrolls || []).some(p => p.employeeId === employeeId && p.year === _gy && p.month === _gmo && /\[\[DP1\|/.test(p.note || ''))) {
@@ -1322,6 +1330,19 @@ function _populatePaymentMonthFilter() {
 // ============================================================
 
 let _dailyMod = null; // null = pas encore chargé, false = indisponible
+
+// Un mois (year, month) est-il antérieur au début du suivi journalier de cet
+// employé ? Si oui, ce mois reste entièrement géré par le circuit mensuel
+// classique (carte, "Marquer Payé", "Refaire"), même si l'employé est
+// aujourd'hui en mode journalier. Ne concerne jamais les mois du suivi
+// journalier lui-même ni les mois suivants.
+function _isBeforeDailySince(employeeId, year, month) {
+  const since = _dailyMod && _dailyMod.getMode(employeeId)?.since;
+  if (!since) return false;
+  const sy = Number(since.slice(0, 4));
+  const sm = Number(since.slice(5, 7));
+  return year < sy || (year === sy && month < sm);
+}
 
 async function _loadDaily() {
   if (_dailyMod !== null) return _dailyMod || null;
