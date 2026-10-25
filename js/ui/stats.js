@@ -15,7 +15,7 @@ export function initStats() {
 
 // ------ Stats ------
 
-export function updateStats() {
+export async function updateStats() {
   const today        = new Date().toISOString().split('T')[0];
   const currentMonth = new Date().toISOString().slice(0, 7);
   const dayAtt       = state.attendance[today] || {};
@@ -54,10 +54,21 @@ export function updateStats() {
   // Salaires du mois
   const [y, m] = currentMonth.split('-');
   const daysInMonth = getDaysInMonth(parseInt(y), parseInt(m));
+  // Mode journalier : utiliser le tarif reel (payMode_<id>.rate) au lieu du
+  // salaire mensuel divise. Cette carte reste une estimation theorique :
+  // elle ne deduit aucun paiement deja effectue, pour aucun des deux modes
+  // (comportement historique inchange).
+  let _dailyModStats = null;
+  try {
+    _dailyModStats = await import('../utils/daily-pay.js');
+    await _dailyModStats.refreshModes();
+  } catch (err) { _dailyModStats = null; }
   let totalNet = 0;
   state.employees.forEach(emp => {
     const days  = countPresenceDays(emp.id, currentMonth);
-    const gross = (emp.salary / daysInMonth) * days;
+    const isDailyEmp = _dailyModStats && _dailyModStats.isDaily(emp.id);
+    const rate  = isDailyEmp ? (_dailyModStats.getMode(emp.id)?.rate || 0) : (emp.salary / daysInMonth);
+    const gross = rate * days;
     const advs  = getEmployeeAdvancesForMonth(emp.id, currentMonth).reduce((s, a) => s + a.amount, 0);
     totalNet += Math.max(0, gross - advs);
   });

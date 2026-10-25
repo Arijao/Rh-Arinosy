@@ -19,7 +19,7 @@ export function initEstimation() {
   });
 }
 
-export function calculateSalaryEstimation() {
+export async function calculateSalaryEstimation() {
   const startStr = document.getElementById('estimationStartDate')?.value;
   const endStr   = document.getElementById('estimationEndDate')?.value;
   const groupFilter = document.getElementById('estimationGroupFilter')?.value || 'all';
@@ -36,6 +36,16 @@ export function calculateSalaryEstimation() {
   let emps = state.employees.filter(e => e.status !== 'inactif');
   if (groupFilter !== 'all') emps = emps.filter(e => e.groupId === groupFilter);
 
+  // Mode journalier : utiliser le tarif reel (payMode_<id>.rate) au lieu du
+  // salaire mensuel divise. Cette estimation reste theorique : elle ne
+  // deduit aucun paiement deja effectue, pour aucun des deux modes
+  // (comportement historique inchange).
+  let _dailyModEst = null;
+  try {
+    _dailyModEst = await import('../utils/daily-pay.js');
+    await _dailyModEst.refreshModes();
+  } catch (err) { _dailyModEst = null; }
+
   let totalGross = 0, totalAdv = 0, pastDays = 0, futureDays = 0;
   const presentEmployees = new Set(); // employés ayant au moins 1 présence réelle
   const today = new Date(); today.setUTCHours(0, 0, 0, 0);
@@ -46,7 +56,8 @@ export function calculateSalaryEstimation() {
     const isToday = ds === today.toISOString().slice(0, 10);
 
     emps.forEach(emp => {
-      const dailySal = emp.salary / daysM;
+      const isDailyEmp = _dailyModEst && _dailyModEst.isDaily(emp.id);
+      const dailySal = isDailyEmp ? (_dailyModEst.getMode(emp.id)?.rate || 0) : (emp.salary / daysM);
       let val = 0;
 
       const p = state.attendance[ds]?.[emp.id];
