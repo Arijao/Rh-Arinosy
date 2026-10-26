@@ -13,7 +13,7 @@
 // jours d'acompte sur le mois suivant ne sont pas deduits pour ce mois-la.
 // ============================================================
 
-import { state } from './state.js';
+import { state } from '../state.js';
 
 const TAG_RE = /\[\[DP1\|([^\]]*)\]\]/;
 
