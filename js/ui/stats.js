@@ -5,6 +5,7 @@
 import { state } from '../state.js';
 import { formatCurrency, getDaysInMonth, calculateWorkDuration } from '../utils/format.js';
 import { countPresenceDays, getEmployeeAdvancesForMonth } from '../utils/attendance-calc.js';
+import { getPaidForMonth } from '../utils/paid-amount.js';
 import { registerSectionCallback } from './navigation.js';
 
 let weeklyChart, groupChart, genderChart;
@@ -70,7 +71,8 @@ export async function updateStats() {
     const rate  = isDailyEmp ? (_dailyModStats.getMode(emp.id)?.rate || 0) : (emp.salary / daysInMonth);
     const gross = rate * days;
     const advs  = getEmployeeAdvancesForMonth(emp.id, currentMonth).reduce((s, a) => s + a.amount, 0);
-    totalNet += Math.max(0, gross - advs);
+    const paid  = getPaidForMonth(emp.id, parseInt(y), parseInt(m));
+    totalNet += Math.max(0, gross - advs - paid);
   });
   _set('totalSalaries', formatCurrency(totalNet));
 }

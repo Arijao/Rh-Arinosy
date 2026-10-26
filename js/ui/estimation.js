@@ -7,6 +7,7 @@ import { formatCurrency, getDaysInMonth, calculateWorkDuration, toLocalISODate }
 import { showToast } from '../utils/notifications.js';
 import { registerSectionCallback } from './navigation.js';
 import { populateGroupSelects } from './groups.js';
+import { getPaidForRange } from '../utils/paid-amount.js';
 
 export function initEstimation() {
   registerSectionCallback('estimation', () => {
@@ -84,14 +85,18 @@ export async function calculateSalaryEstimation() {
     });
   }
 
+  let totalPaid = 0;
   emps.forEach(emp => {
     totalAdv += state.advances.filter(a => {
       const ad = new Date(a.date + 'T00:00:00Z');
       return a.employeeId === emp.id && ad >= startDate && ad <= endDate;
     }).reduce((s, a) => s + a.amount, 0);
+    // Montant deja verse sur cette periode (mensuel : mois entier des qu'il
+    // chevauche ; journalier : jour par jour via le marqueur [[DP1|...]]).
+    totalPaid += getPaidForRange(emp.id, startStr, endStr);
   });
 
-  const totalNet = totalGross - totalAdv;
+  const totalNet = totalGross - totalAdv - totalPaid;
   const empCount = emps.length;
 
   container.innerHTML = `
