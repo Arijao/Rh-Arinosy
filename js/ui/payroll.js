@@ -1141,10 +1141,11 @@ export function displayPayments() {
  * Desktop (>520px) : montant inline à droite, bouton compact.
  */
 function _renderPaymentCard(p) {
-  const isDelayed = p.advDays > 0;
-  const emp       = state.employees?.find(e => e.id === p.employeeId);
-  const group     = emp ? state.groups?.find(g => g.id === emp.groupId) : null;
-  const safeName  = (p.employeeName || 'Employé').replace(/'/g, "\'");
+  const isDelayed   = p.advDays > 0;
+  const isDailyPaid = /\[\[DP1\|/.test(p.note || '');
+  const emp         = state.employees?.find(e => e.id === p.employeeId);
+  const group       = emp ? state.groups?.find(g => g.id === emp.groupId) : null;
+  const safeName    = (p.employeeName || 'Employé').replace(/'/g, "\'");
 
   // ── Libellés ────────────────────────────────────────────────
   const mainMonthLabel = MONTH_NAMES[p.month]
@@ -1230,6 +1231,14 @@ function _renderPaymentCard(p) {
           </span>
           <span class="payment-card-amount-label">${amountLabel}</span>
         </div>
+
+        ${isDailyPaid ? `
+        <button class="btn btn-secondary" style="padding:8px 14px;font-size:13px;min-width:0;"
+                title="Voir le detail des jours couverts par ce paiement"
+                onclick="window._showDailyPaymentDetail?.('${p.id}')">
+          <span class="material-icons" style="font-size:16px;">event_note</span>
+          Jours payés
+        </button>` : ''}
 
         <button class="payment-card-cancel-btn"
                 title="Annuler ce paiement"
@@ -1361,16 +1370,22 @@ const _stripTag = (note) => (note || '').replace(/\s*\[\[DP1\|[^\]]*\]\]/, '');
 const _fmtDays = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 
 function _dailyPreviewHTML(r) {
-  const list  = r.dueList.map(x => (x.w < 1 ? `${x.date} (½)` : x.date));
-  const shown = list.length > 12
-    ? `${list.slice(0, 12).join(', ')} … (+${list.length - 12})`
-    : (list.join(', ') || 'Aucun');
+  // Toutes les dates sont affichees (plus de troncature a 12) ; defilement
+  // interne des que la liste est longue, pour rester lisible sur petit ecran.
+  const list   = r.dueList.map(x => (x.w < 1 ? `${x.date} (½)` : x.date));
+  const joined = list.join(', ') || 'Aucun';
   return `
     <div style="display:flex;justify-content:space-between;gap:12px;font-size:13px;margin-bottom:5px;">
       <span>${_fmtDays(r.dueDays)} j à payer jusqu'au ${r.until} × ${formatCurrency(r.rate)}/j</span>
       <span style="font-weight:700;color:var(--md-sys-color-success);">${formatCurrency(r.amount)}</span>
     </div>
-    <div style="font-size:12px;color:var(--md-sys-color-on-surface-variant);">Jours : ${shown}</div>`;
+    <div style="font-size:12px;color:var(--md-sys-color-on-surface-variant);">
+      Jours (${list.length}) :
+      <div style="max-height:110px;overflow-y:auto;margin-top:6px;padding:8px 10px;border-radius:8px;
+                  background:var(--md-sys-color-surface);line-height:1.6;">
+        ${joined}
+      </div>
+    </div>`;
 }
 
 function _renderDailyCard(emp, daily) {
@@ -1634,7 +1649,49 @@ export async function payDailyEmployee(employeeId, name) {
   displayPayments();
 }
 
-window._activateDaily   = activateDailyMode;
-window._deactivateDaily = deactivateDailyMode;
-window._payDaily        = payDailyEmployee;
-window._dailyPreview    = _dailyPreview;
+/**
+ * Affiche le detail d'un paiement journalier : chaque date couverte, son
+ * poids (journee entiere ou demi-journee) et le montant correspondant,
+ * a partir du marqueur [[DP1|...]] deja stocke dans la note du paiement.
+ * Lecture seule : ne modifie jamais le paiement ni aucune donnee.
+ */
+async function _showDailyPaymentDetail(paymentId) {
+  const p = (state.payrolls || []).find(x => x.id === paymentId);
+  if (!p) { showToast('Paiement introuvable.', 'error'); return; }
+  const mod = await _loadDaily();
+  const tag = mod ? mod.parseTag(p.note) : null;
+  if (!tag) { showToast('Détail non disponible pour ce paiement.', 'info'); return; }
+
+  const dates = Object.entries(tag.dates).sort(([a], [b]) => a.localeCompare(b));
+  const rows  = dates.map(([d, w]) => `
+    <tr style="border-bottom:1px solid var(--md-sys-color-outline-variant);">
+      <td style="padding:7px 10px;">${d}${w < 1 ? ' <span style="opacity:.7;">(½ journée)</span>' : ''}</td>
+      <td style="padding:7px 10px;text-align:right;font-weight:600;">${formatCurrency(w * tag.rate)} Ar</td>
+    </tr>`).join('');
+
+  const html = `
+    <div style="max-height:60vh;overflow-y:auto;">
+      <p style="margin:0 0 12px;font-size:13px;color:var(--md-sys-color-on-surface-variant);">
+        <strong>${dates.length}</strong> jour${dates.length > 1 ? 's' : ''} payé${dates.length > 1 ? 's' : ''}
+        à <strong>${formatCurrency(tag.rate)} Ar/j</strong> — versé le ${p.date},
+        total <strong>${formatCurrency(p.amount)} Ar</strong>.
+      </p>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="border-bottom:2px solid var(--md-sys-color-outline-variant);">
+            <th style="text-align:left;padding:6px 10px;">Date</th>
+            <th style="text-align:right;padding:6px 10px;">Montant</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+
+  _showPresenceInlineModal(html);
+}
+
+window._activateDaily          = activateDailyMode;
+window._deactivateDaily        = deactivateDailyMode;
+window._payDaily               = payDailyEmployee;
+window._dailyPreview           = _dailyPreview;
+window._showDailyPaymentDetail = _showDailyPaymentDetail;
